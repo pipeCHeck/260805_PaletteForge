@@ -47,3 +47,10 @@ test("색 보정 패널은 픽셀화 온오프, 블록 크기, 알파 방식을 
   assert.match(component, /settings\.export\.keepOriginalSize/);
   assert.match(component, /getExportDimensions/);
 });
+
+test("설정 패널의 작은 숫자와 보조 정보는 읽을 수 있는 크기를 유지한다", async () => {
+  const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  assert.match(css, /\.pixelation-size output \{[^}]*min-height: 24px;[^}]*font: 11px/);
+  assert.match(css, /\.weight span \{[^}]*font-size: 9px/);
+  assert.match(css, /\.slot-color small \{[^}]*font-size: 9px/);
+});
