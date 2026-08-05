@@ -81,6 +81,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .checker { background-color: #e7e7e1; background-image: linear-gradient(45deg,#d7d7d0 25%,transparent 25%),linear-gradient(-45deg,#d7d7d0 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#d7d7d0 75%),linear-gradient(-45deg,transparent 75%,#d7d7d0 75%); background-size: 18px 18px; background-position: 0 0,0 9px,9px -9px,-9px 0; }
 .pan-zoom-viewport { position: absolute; inset: 14px; display: grid; place-items: center; overflow: hidden; overscroll-behavior: contain; touch-action: none; cursor: default; }
 .pan-zoom-viewport canvas { display: block; max-width: 100%; max-height: 360px; width: auto; height: auto; object-fit: contain; box-shadow: 0 9px 35px rgba(0,0,0,.18); background: transparent; cursor: crosshair; transform-origin: center; transition: transform .08s ease-out; user-select: none; }
+.pan-zoom-viewport.is-processing canvas { opacity: .55; }
 .pan-zoom-viewport:has(canvas:hover) { cursor: grab; }
 .pan-zoom-viewport.is-dragging, .pan-zoom-viewport.is-dragging canvas { cursor: grabbing; }
 .pan-zoom-viewport.is-dragging canvas { transition: none; }
@@ -88,6 +89,13 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .zoom-controls span { min-width: 38px; padding-left: 3px; text-align: center; color: var(--muted); font: 750 9px/1 ui-monospace, monospace; }
 .zoom-controls button { min-height: 24px; padding: 0 7px; border: 0; border-radius: 5px; color: var(--ink); background: white; font-size: 9px; font-weight: 750; cursor: pointer; }
 .zoom-controls button:disabled { opacity: .45; cursor: default; }
+.preview-processing { position: absolute; z-index: 3; left: 50%; top: 50%; display: flex; align-items: center; gap: 9px; min-width: 205px; padding: 10px 13px; border: 1px solid rgba(25,26,23,.14); border-radius: 10px; background: rgba(251,251,247,.94); box-shadow: 0 7px 25px rgba(0,0,0,.15); transform: translate(-50%,-50%); pointer-events: none; }
+.preview-processing i { width: 17px; height: 17px; flex: 0 0 auto; border: 2px solid #ddd8d0; border-top-color: var(--orange); border-radius: 50%; animation: preview-spin .75s linear infinite; }
+.preview-processing strong, .preview-processing small { display: block; }
+.preview-processing strong { font-size: 11px; }
+.preview-processing small { margin-top: 2px; color: var(--muted); font-size: 9px; }
+.preview-processing.is-error { color: #a63d26; border-color: #efb3a4; background: rgba(255,245,241,.96); }
+@keyframes preview-spin { to { transform: rotate(360deg); } }
 .compare.sampling .canvas-wrap { box-shadow: inset 0 0 0 3px var(--blue); }
 .result-placeholder, .empty-preview { text-align: center; color: var(--muted); }
 .result-placeholder span { font-size: 30px; }

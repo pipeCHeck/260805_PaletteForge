@@ -44,6 +44,9 @@ function CanvasPreview({ item, result, onPick }: { item: ImageItem; result: bool
   const moved = useRef(false);
   const [view, setView] = useState({ zoom: 1, x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
+  const [previewStatus, setPreviewStatus] = useState<{ settings: Settings; state: "ready" | "error" } | null>(null);
+  const isPreparing = !result && previewStatus?.settings !== item.settings;
+  const previewFailed = !result && previewStatus?.settings === item.settings && previewStatus.state === "error";
   useEffect(() => {
     const canvas = ref.current;
     if (!canvas) return;
@@ -61,17 +64,28 @@ function CanvasPreview({ item, result, onPick }: { item: ImageItem; result: bool
     }
 
     displayedPixels.current = null;
-    context.clearRect(0, 0, item.width, item.height);
     const worker = new QuantizeWorker();
     const copy = new Uint8ClampedArray(item.original);
     let disposed = false;
+    let finishTimer: number | null = null;
+    const startedAt = performance.now();
+    const finish = (state: "ready" | "error", pixels?: Uint8ClampedArray) => {
+      const delay = Math.max(0, 220 - (performance.now() - startedAt));
+      finishTimer = window.setTimeout(() => {
+        if (disposed) return;
+        if (state === "ready" && pixels) draw(pixels);
+        setPreviewStatus({ settings: item.settings, state });
+      }, delay);
+    };
     worker.onmessage = (event) => {
       worker.terminate();
-      if (!disposed && !event.data.error) draw(new Uint8ClampedArray(event.data.result));
+      if (disposed) return;
+      if (event.data.error) { finish("error"); return; }
+      finish("ready", new Uint8ClampedArray(event.data.result));
     };
-    worker.onerror = () => worker.terminate();
+    worker.onerror = () => { worker.terminate(); if (!disposed) finish("error"); };
     worker.postMessage({ operation: "prepare", pixels: copy.buffer, width: item.width, height: item.height, settings: item.settings }, [copy.buffer]);
-    return () => { disposed = true; worker.terminate(); };
+    return () => { disposed = true; worker.terminate(); if (finishTimer !== null) window.clearTimeout(finishTimer); };
   }, [item.height, item.original, item.result, item.settings, item.width, result]);
 
   const click = (event: MouseEvent<HTMLCanvasElement>) => {
@@ -122,8 +136,10 @@ function CanvasPreview({ item, result, onPick }: { item: ImageItem; result: bool
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
   };
   const resetView = () => setView({ zoom: 1, x: 0, y: 0 });
-  return <div ref={viewportRef} className={`pan-zoom-viewport ${isDragging ? "is-dragging" : ""}`} onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={stopDrag} onPointerCancel={stopDrag} onDoubleClick={resetView}>
+  return <div ref={viewportRef} className={`pan-zoom-viewport ${isDragging ? "is-dragging" : ""} ${isPreparing ? "is-processing" : ""}`} aria-busy={isPreparing} onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={stopDrag} onPointerCancel={stopDrag} onDoubleClick={resetView}>
     <canvas ref={ref} onClick={click} draggable={false} style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})` }} aria-label={result ? "변환 결과 이미지" : "색 보정이 적용된 원본 이미지"} />
+    {isPreparing && <div className="preview-processing" role="status" aria-live="polite"><i /><span><strong>미리보기 계산 중…</strong><small>색 보정과 픽셀화를 적용하고 있습니다.</small></span></div>}
+    {previewFailed && <div className="preview-processing is-error" role="alert"><span><strong>미리보기를 계산하지 못했습니다.</strong><small>설정을 다시 변경하거나 이미지를 다시 불러와주세요.</small></span></div>}
     <div className="zoom-controls"><span>{Math.round(view.zoom * 100)}%</span><button type="button" onClick={resetView} disabled={view.zoom === 1 && view.x === 0 && view.y === 0}>화면 맞춤</button></div>
   </div>;
 }

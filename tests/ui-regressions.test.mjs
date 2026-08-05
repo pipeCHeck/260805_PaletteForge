@@ -75,3 +75,16 @@ test("보정 미리보기와 이미지 스포이드는 실제 전처리 픽셀�
   assert.match(worker, /event\.data\.operation === "prepare"/);
   assert.match(worker, /prepareImage\(pixels/);
 });
+
+test("미리보기 Worker 처리 중 진행 상태를 화면에 표시한다", async () => {
+  const [component, css] = await Promise.all([
+    readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(component, /미리보기 계산 중…/);
+  assert.match(component, /aria-busy=\{isPreparing\}/);
+  assert.match(component, /previewStatus/);
+  assert.match(component, /220 - \(performance\.now\(\) - startedAt\)/);
+  assert.match(css, /\.preview-processing/);
+  assert.match(css, /@keyframes preview-spin/);
+});
