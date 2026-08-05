@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, MouseEvent, PointerEvent as ReactPointerEvent, WheelEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   MAX_COLORS,
   cloneSettings,
@@ -35,6 +35,10 @@ const SUPPORTED_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 
 function CanvasPreview({ item, result, onPick }: { item: ImageItem; result: boolean; onPick: (rgb: RGB | null) => void }) {
   const ref = useRef<HTMLCanvasElement>(null);
+  const drag = useRef<{ pointerId: number; startX: number; startY: number; originX: number; originY: number } | null>(null);
+  const moved = useRef(false);
+  const [view, setView] = useState({ zoom: 1, x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
   const pixels = result ? item.result : item.original;
   useEffect(() => {
     const canvas = ref.current;
@@ -45,6 +49,7 @@ function CanvasPreview({ item, result, onPick }: { item: ImageItem; result: bool
   }, [item.height, item.width, pixels]);
 
   const click = (event: MouseEvent<HTMLCanvasElement>) => {
+    if (moved.current) { moved.current = false; return; }
     const canvas = ref.current;
     if (!canvas || !pixels) return;
     const rect = canvas.getBoundingClientRect();
@@ -56,7 +61,39 @@ function CanvasPreview({ item, result, onPick }: { item: ImageItem; result: bool
 
   const adjustment = item.settings.adjustments;
   const filter = result ? undefined : `brightness(${100 + adjustment.brightness}%) contrast(${100 + adjustment.contrast}%) saturate(${100 + adjustment.saturation}%) hue-rotate(${adjustment.hue}deg)`;
-  return <canvas ref={ref} onClick={click} style={{ filter }} aria-label={result ? "변환 결과 이미지" : "색 보정이 적용된 원본 이미지"} />;
+  const zoomWithWheel = (event: WheelEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setView((current) => {
+      const zoom = Math.min(8, Math.max(0.5, current.zoom * (event.deltaY < 0 ? 1.12 : 1 / 1.12)));
+      return zoom <= 1 ? { zoom, x: 0, y: 0 } : { ...current, zoom };
+    });
+  };
+  const startDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0 || view.zoom <= 1 || (event.target as HTMLElement).closest("button")) return;
+    drag.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, originX: view.x, originY: view.y };
+    moved.current = false;
+    setIsDragging(true);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const moveDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const active = drag.current;
+    if (!active || active.pointerId !== event.pointerId) return;
+    const dx = event.clientX - active.startX;
+    const dy = event.clientY - active.startY;
+    if (Math.abs(dx) + Math.abs(dy) > 3) moved.current = true;
+    setView((current) => ({ ...current, x: active.originX + dx, y: active.originY + dy }));
+  };
+  const stopDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (drag.current?.pointerId !== event.pointerId) return;
+    drag.current = null;
+    setIsDragging(false);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+  };
+  const resetView = () => setView({ zoom: 1, x: 0, y: 0 });
+  return <div className={`pan-zoom-viewport ${isDragging ? "is-dragging" : ""}`} onWheel={zoomWithWheel} onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={stopDrag} onPointerCancel={stopDrag} onDoubleClick={resetView}>
+    <canvas ref={ref} onClick={click} draggable={false} style={{ filter, transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})` }} aria-label={result ? "변환 결과 이미지" : "색 보정이 적용된 원본 이미지"} />
+    <div className="zoom-controls"><span>{Math.round(view.zoom * 100)}%</span><button type="button" onClick={resetView} disabled={view.zoom === 1 && view.x === 0 && view.y === 0}>화면 맞춤</button></div>
+  </div>;
 }
 
 function baseName(name: string) {
@@ -347,8 +384,8 @@ export default function PaletteStudio() {
         <section className="preview-panel panel">
           <div className="panel-title"><div><span className="eyebrow">PREVIEW</span><h2>{current?.name ?? "미리보기"}</h2></div>{current && <span className="dimension">{current.width} × {current.height}px</span>}</div>
           {current ? <div className={`compare ${sampling ? "sampling" : ""}`}>
-            <figure><figcaption><span>원본 + 보정 미리보기</span><small>클릭하여 색상 추출</small></figcaption><div className="canvas-wrap checker"><CanvasPreview item={current} result={false} onPick={pick} /></div></figure>
-            <figure><figcaption><span>변환 결과</span><small>{current.result ? `${current.palette.length}색 팔레트` : "변환 전"}</small></figcaption><div className="canvas-wrap checker">{current.result ? <CanvasPreview item={current} result onPick={pick} /> : <div className="result-placeholder"><span>◇</span><p>변환 실행 후 결과가 표시됩니다.</p></div>}</div></figure>
+            <figure><figcaption><span>원본 + 보정 미리보기</span><small>휠 확대 · 드래그 이동 · 클릭 색상 추출</small></figcaption><div className="canvas-wrap checker"><CanvasPreview key={`${current.id}-original`} item={current} result={false} onPick={pick} /></div></figure>
+            <figure><figcaption><span>변환 결과</span><small>{current.result ? `${current.palette.length}색 · 휠 확대 · 드래그 이동` : "변환 전"}</small></figcaption><div className="canvas-wrap checker">{current.result ? <CanvasPreview key={`${current.id}-result`} item={current} result onPick={pick} /> : <div className="result-placeholder"><span>◇</span><p>변환 실행 후 결과가 표시됩니다.</p></div>}</div></figure>
           </div> : <div className="empty-preview"><span className="empty-glyph">◫</span><h2>색을 다듬을 이미지를 불러오세요</h2><p>파일은 업로드되지 않으며 원본 해상도로 브라우저 안에서 처리됩니다.</p><button className="button primary" onClick={() => fileInput.current?.click()}>이미지 선택</button></div>}
         </section>
 

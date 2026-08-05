@@ -77,9 +77,17 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .compare figure { margin: 0; min-height: 0; background: #eee; display: flex; flex-direction: column; }
 .compare figcaption { padding: 8px 12px; display: flex; justify-content: space-between; background: #f9f9f5; font-size: 10px; font-weight: 750; }
 .compare figcaption small { color: var(--muted); font-weight: 500; }
-.canvas-wrap { flex: 1; min-height: 250px; display: grid; place-items: center; overflow: hidden; padding: 14px; }
+.canvas-wrap { position: relative; flex: 1; min-height: 250px; display: grid; place-items: center; overflow: hidden; padding: 14px; }
 .checker { background-color: #e7e7e1; background-image: linear-gradient(45deg,#d7d7d0 25%,transparent 25%),linear-gradient(-45deg,#d7d7d0 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#d7d7d0 75%),linear-gradient(-45deg,transparent 75%,#d7d7d0 75%); background-size: 18px 18px; background-position: 0 0,0 9px,9px -9px,-9px 0; }
-.canvas-wrap canvas { display: block; max-width: 100%; max-height: 360px; width: auto; height: auto; object-fit: contain; box-shadow: 0 9px 35px rgba(0,0,0,.18); background: transparent; cursor: crosshair; }
+.pan-zoom-viewport { position: absolute; inset: 14px; display: grid; place-items: center; overflow: hidden; touch-action: none; cursor: default; }
+.pan-zoom-viewport canvas { display: block; max-width: 100%; max-height: 360px; width: auto; height: auto; object-fit: contain; box-shadow: 0 9px 35px rgba(0,0,0,.18); background: transparent; cursor: crosshair; transform-origin: center; transition: transform .08s ease-out; user-select: none; }
+.pan-zoom-viewport:has(canvas:hover) { cursor: grab; }
+.pan-zoom-viewport.is-dragging, .pan-zoom-viewport.is-dragging canvas { cursor: grabbing; }
+.pan-zoom-viewport.is-dragging canvas { transition: none; }
+.zoom-controls { position: absolute; right: 8px; bottom: 8px; display: flex; align-items: center; gap: 5px; padding: 4px; border: 1px solid rgba(25,26,23,.14); border-radius: 8px; background: rgba(251,251,247,.9); box-shadow: 0 3px 12px rgba(0,0,0,.1); backdrop-filter: blur(8px); }
+.zoom-controls span { min-width: 38px; padding-left: 3px; text-align: center; color: var(--muted); font: 750 9px/1 ui-monospace, monospace; }
+.zoom-controls button { min-height: 24px; padding: 0 7px; border: 0; border-radius: 5px; color: var(--ink); background: white; font-size: 9px; font-weight: 750; cursor: pointer; }
+.zoom-controls button:disabled { opacity: .45; cursor: default; }
 .compare.sampling .canvas-wrap { box-shadow: inset 0 0 0 3px var(--blue); }
 .result-placeholder, .empty-preview { text-align: center; color: var(--muted); }
 .result-placeholder span { font-size: 30px; }
