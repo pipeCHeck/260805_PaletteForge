@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, MouseEvent, PointerEvent as ReactPointerEvent, WheelEvent, useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import {
   MAX_COLORS,
   cloneSettings,
@@ -172,6 +173,7 @@ export default function PaletteStudio() {
   const [weightDrafts, setWeightDrafts] = useState<Record<string, string>>({});
   const fileInput = useRef<HTMLInputElement>(null);
   const settingsInput = useRef<HTMLInputElement>(null);
+  const nativeColorInput = useRef<HTMLInputElement>(null);
   const current = images.find((image) => image.id === selectedId) ?? null;
   const sampling = samplingSlot !== null;
 
@@ -237,7 +239,11 @@ export default function PaletteStudio() {
   const openColor = (index: number) => {
     if (!current) return;
     const color = current.settings.slots[index].color ?? current.palette[index] ?? [0, 0, 0];
-    setActiveSlot(index); setDraftHex(rgbToHex(color)); setDraftRgb(color.map(String) as [string, string, string]); setColorError("");
+    flushSync(() => {
+      setActiveSlot(index); setDraftHex(rgbToHex(color)); setDraftRgb(color.map(String) as [string, string, string]); setColorError("");
+    });
+    try { nativeColorInput.current?.showPicker(); }
+    catch { /* showPicker 미지원 환경에서는 열린 HEX/RGB 선택기를 그대로 사용합니다. */ }
   };
 
   const applyColor = (rgb: RGB, slotIndex: number | null = activeSlot) => {
@@ -433,7 +439,7 @@ export default function PaletteStudio() {
       {activeSlot !== null && current && !sampling && <div className="modal-backdrop">
         <section className="color-dialog" role="dialog" aria-modal="true" aria-label="색상 선택기">
           <div className="dialog-head"><div><span className="eyebrow">COLOR PICKER</span><h2>{activeSlot + 1}번 슬롯 색상</h2></div><button className="icon-button" onClick={() => { setActiveSlot(null); setSamplingSlot(null); }}>×</button></div>
-          <div className="color-visual" style={{ background: hexToRgb(draftHex) ? draftHex : "#000000" }}><input type="color" value={hexToRgb(draftHex) ? draftHex : "#000000"} onChange={(event) => syncHex(event.target.value)} aria-label="시각적 색상 선택" /></div>
+          <div className="color-visual" style={{ background: hexToRgb(draftHex) ? draftHex : "#000000" }}><input ref={nativeColorInput} type="color" value={hexToRgb(draftHex) ? draftHex : "#000000"} onChange={(event) => syncHex(event.target.value)} aria-label="시각적 색상 선택" /></div>
           <label className="hex-field"><span>HEX</span><input value={draftHex} onChange={(event) => syncHex(event.target.value)} spellCheck={false} /></label>
           <div className="rgb-fields">{["R", "G", "B"].map((label, index) => <label key={label}><span>{label}</span><input inputMode="numeric" value={draftRgb[index]} onChange={(event) => syncRgb(index, event.target.value)} /></label>)}</div>
           {colorError && <p className="field-error">{colorError}</p>}
