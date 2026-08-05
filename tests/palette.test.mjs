@@ -6,6 +6,7 @@ import {
   defaultSettings,
   deserializeSettings,
   fixPaletteSlot,
+  getExportDimensions,
   hsvToRgb,
   mapPixels,
   parsePaletteWeight,
@@ -117,10 +118,30 @@ test("픽셀화는 투명 블록을 알파 가중 평균으로 처리한다", ()
   for (let index = 0; index < 4; index += 1) assert.deepEqual(Array.from(result.slice(index * 4, index * 4 + 4)), [255, 0, 0, 64]);
 });
 
+test("0·1 알파 픽셀화는 블록 평균 알파를 50% 기준으로 이진화한다", () => {
+  const below = pixelatePixels(pixels([[255, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]), 2, 2, 2, "binary");
+  const above = pixelatePixels(pixels([[255, 0, 0], [255, 0, 0], [255, 0, 0], [0, 0, 0, 0]]), 2, 2, 2, "binary");
+  for (let index = 3; index < below.length; index += 4) assert.equal(below[index], 0);
+  for (let index = 3; index < above.length; index += 4) assert.equal(above[index], 255);
+});
+
+test("픽셀 최적화 내보내기는 블록 하나를 출력 픽셀 하나로 계산한다", () => {
+  const settings = defaultSettings();
+  settings.pixelation.enabled = true;
+  settings.pixelation.size = 8;
+  assert.deepEqual(getExportDimensions(101, 65, settings), { width: 101, height: 65 });
+  settings.export.keepOriginalSize = false;
+  assert.deepEqual(getExportDimensions(101, 65, settings), { width: 13, height: 9 });
+  settings.pixelation.enabled = false;
+  assert.deepEqual(getExportDimensions(101, 65, settings), { width: 101, height: 65 });
+});
+
 test("설정 저장 후 불러오면 동일하게 복원된다", () => {
   const settings = configured(2);
   settings.slots[0] = { fixed: true, color: [240, 20, 0], weight: 1.7 };
   settings.adjustments.hue = 25;
+  settings.pixelation = { enabled: true, size: 12, alphaMode: "binary" };
+  settings.export.keepOriginalSize = false;
   assert.deepEqual(deserializeSettings(serializeSettings(settings)), settings);
 });
 

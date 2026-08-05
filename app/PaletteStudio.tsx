@@ -7,6 +7,7 @@ import {
   defaultSettings,
   deserializeSettings,
   fixPaletteSlot,
+  getExportDimensions,
   hexToRgb,
   hsvToRgb,
   normalizeSlotCount,
@@ -60,11 +61,18 @@ function CanvasPreview({ item, result, onPick }: { item: ImageItem; result: bool
       const smallContext = small.getContext("2d")!;
       smallContext.imageSmoothingEnabled = true;
       smallContext.drawImage(source, 0, 0, small.width, small.height);
+      if (item.settings.pixelation.alphaMode === "binary") {
+        const previewPixels = smallContext.getImageData(0, 0, small.width, small.height);
+        for (let index = 3; index < previewPixels.data.length; index += 4) {
+          previewPixels.data[index] = previewPixels.data[index] >= 128 ? 255 : 0;
+        }
+        smallContext.putImageData(previewPixels, 0, 0);
+      }
       context.imageSmoothingEnabled = false;
       context.clearRect(0, 0, item.width, item.height);
       context.drawImage(small, 0, 0, item.width, item.height);
     } else context.putImageData(imageData, 0, 0);
-  }, [item.height, item.settings.pixelation.enabled, item.settings.pixelation.size, item.width, pixels, result]);
+  }, [item.height, item.settings.pixelation.alphaMode, item.settings.pixelation.enabled, item.settings.pixelation.size, item.width, pixels, result]);
 
   const click = (event: MouseEvent<HTMLCanvasElement>) => {
     if (moved.current) { moved.current = false; return; }
@@ -160,18 +168,32 @@ function processInWorker(item: ImageItem): Promise<{ result: Uint8ClampedArray; 
 
 async function exportBlob(item: ImageItem) {
   if (!item.result) throw new Error("먼저 이미지를 변환해주세요.");
+  const dimensions = getExportDimensions(item.width, item.height, item.settings);
   const staging = document.createElement("canvas");
-  staging.width = item.width; staging.height = item.height;
-  staging.getContext("2d")!.putImageData(new ImageData(new Uint8ClampedArray(item.result), item.width, item.height), 0, 0);
+  staging.width = dimensions.width; staging.height = dimensions.height;
+  if (dimensions.width === item.width && dimensions.height === item.height) {
+    staging.getContext("2d")!.putImageData(new ImageData(new Uint8ClampedArray(item.result), item.width, item.height), 0, 0);
+  } else {
+    const reduced = new Uint8ClampedArray(dimensions.width * dimensions.height * 4);
+    const blockSize = item.settings.pixelation.size;
+    for (let y = 0; y < dimensions.height; y += 1) {
+      for (let x = 0; x < dimensions.width; x += 1) {
+        const sourceIndex = (Math.min(item.height - 1, y * blockSize) * item.width + Math.min(item.width - 1, x * blockSize)) * 4;
+        reduced.set(item.result.subarray(sourceIndex, sourceIndex + 4), (y * dimensions.width + x) * 4);
+      }
+    }
+    staging.getContext("2d")!.putImageData(new ImageData(reduced, dimensions.width, dimensions.height), 0, 0);
+  }
   const canvas = document.createElement("canvas");
-  canvas.width = item.width; canvas.height = item.height;
+  canvas.width = dimensions.width; canvas.height = dimensions.height;
   const context = canvas.getContext("2d")!;
   const flatten = item.settings.export.format === "jpeg" || !item.settings.export.preserveAlpha;
   if (flatten) {
     context.fillStyle = item.settings.export.background;
     context.fillRect(0, 0, canvas.width, canvas.height);
   }
-  context.drawImage(staging, 0, 0);
+  context.imageSmoothingEnabled = false;
+  context.drawImage(staging, 0, 0, canvas.width, canvas.height);
   const mime = `image/${item.settings.export.format}`;
   return new Promise<Blob>((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("이 브라우저에서 선택한 형식으로 내보낼 수 없습니다.")), mime, item.settings.export.quality));
 }
@@ -430,6 +452,8 @@ export default function PaletteStudio() {
             <div className={`pixelation-setting ${current?.settings.pixelation.enabled ? "is-enabled" : ""}`}>
               <label className="pixelation-toggle"><span><strong>픽셀화</strong><small>색상 제한 전에 블록 효과 적용</small></span><input type="checkbox" aria-label="픽셀화 사용" disabled={!current} checked={current?.settings.pixelation.enabled ?? false} onChange={(event) => updateSettings((settings) => { settings.pixelation.enabled = event.target.checked; return settings; })} /></label>
               <label className="pixelation-size"><span>블록 크기<output>{current?.settings.pixelation.size ?? 8}px</output></span><input type="range" aria-label="픽셀화 블록 크기" min="2" max="64" step="1" disabled={!current || !current.settings.pixelation.enabled} value={current?.settings.pixelation.size ?? 8} onChange={(event) => updateSettings((settings) => { settings.pixelation.size = Number(event.target.value); return settings; })} /></label>
+              <label className="pixelation-option"><span>투명도 방식</span><select aria-label="픽셀화 투명도 방식" disabled={!current || !current.settings.pixelation.enabled} value={current?.settings.pixelation.alphaMode ?? "smooth"} onChange={(event) => updateSettings((settings) => { settings.pixelation.alphaMode = event.target.value; return settings; })}><option value="smooth">부드러운 알파</option><option value="binary">0 · 1 알파 (불투명 픽셀)</option></select></label>
+              <small className="pixelation-help">0 · 1 알파는 블록 평균 불투명도가 50% 이상일 때만 완전 불투명하게 만듭니다.</small>
             </div>
           </section>
 
@@ -459,7 +483,7 @@ export default function PaletteStudio() {
               <label className="wide"><span>파일명</span><input disabled={!current} value={current?.settings.export.fileName ?? "converted"} onChange={(event) => updateSettings((settings) => { settings.export.fileName = event.target.value; return settings; }, false)} /></label>
               <label><span>배경색</span><input type="color" disabled={!current} value={current?.settings.export.background ?? "#ffffff"} onChange={(event) => updateSettings((settings) => { settings.export.background = event.target.value.toUpperCase(); return settings; }, false)} /></label>
               <label className="check"><input type="checkbox" disabled={!current || current.settings.export.format === "jpeg"} checked={current?.settings.export.preserveAlpha ?? true} onChange={(event) => updateSettings((settings) => { settings.export.preserveAlpha = event.target.checked; return settings; }, false)} /><span>투명도 유지</span></label>
-              <label className="check"><input type="checkbox" checked readOnly disabled /><span>원본 크기 유지</span></label>
+              <label className="wide"><span>픽셀화 출력 해상도</span><select aria-label="픽셀화 출력 해상도" disabled={!current || !current.settings.pixelation.enabled} value={current?.settings.export.keepOriginalSize === false ? "optimized" : "original"} onChange={(event) => updateSettings((settings) => { settings.export.keepOriginalSize = event.target.value === "original"; return settings; }, false)}><option value="original">원본 해상도 유지{current ? ` (${current.width} × ${current.height})` : ""}</option><option value="optimized">픽셀 최적화{current ? ` (${Math.ceil(current.width / current.settings.pixelation.size)} × ${Math.ceil(current.height / current.settings.pixelation.size)})` : ""}</option></select></label>
             </div>
             {current?.hasAlpha && current.settings.export.format === "jpeg" && <p className="warning">JPEG는 투명도를 지원하지 않아 선택한 배경색으로 합성됩니다.</p>}
             <div className="export-actions"><button className="button primary" disabled={!current || busy} onClick={exportCurrent}>현재 이미지 내보내기</button><button className="button ghost" disabled={!images.length || busy} onClick={exportAll}>전체 내보내기</button></div>
