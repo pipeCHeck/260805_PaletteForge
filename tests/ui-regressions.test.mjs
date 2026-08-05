@@ -24,9 +24,9 @@ test("이미지 미리보기는 휠 확대와 포인터 드래그 및 초기화�
   assert.match(css, /\.pan-zoom-viewport/);
 });
 
-test("팔레트 슬롯 클릭은 시각적 색상 선택기를 즉시 연다", async () => {
+test("팔레트 슬롯 창은 위치 제어가 가능한 내장 색상 선택기를 제공한다", async () => {
   const component = await readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8");
-  assert.match(component, /flushSync\(\(\) =>/);
-  assert.match(component, /nativeColorInput\.current\?\.showPicker\(\)/);
-  assert.match(component, /ref=\{nativeColorInput\}/);
+  assert.match(component, /className="color-picker-area"/);
+  assert.match(component, /className="hue-slider"/);
+  assert.doesNotMatch(component, /showPicker\(\)/);
 });

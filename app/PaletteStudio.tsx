@@ -1,7 +1,6 @@
 "use client";
 
 import { ChangeEvent, MouseEvent, PointerEvent as ReactPointerEvent, WheelEvent, useEffect, useMemo, useRef, useState } from "react";
-import { flushSync } from "react-dom";
 import {
   MAX_COLORS,
   cloneSettings,
@@ -9,9 +8,11 @@ import {
   deserializeSettings,
   fixPaletteSlot,
   hexToRgb,
+  hsvToRgb,
   normalizeSlotCount,
   parsePaletteWeight,
   rgbToHex,
+  rgbToHsv,
   serializeSettings,
 } from "../lib/palette.mjs";
 import QuantizeWorker from "./quantize.worker?worker";
@@ -169,11 +170,11 @@ export default function PaletteStudio() {
   const [samplingSlot, setSamplingSlot] = useState<number | null>(null);
   const [draftHex, setDraftHex] = useState("#000000");
   const [draftRgb, setDraftRgb] = useState<[string, string, string]>(["0", "0", "0"]);
+  const [draftHue, setDraftHue] = useState(0);
   const [colorError, setColorError] = useState("");
   const [weightDrafts, setWeightDrafts] = useState<Record<string, string>>({});
   const fileInput = useRef<HTMLInputElement>(null);
   const settingsInput = useRef<HTMLInputElement>(null);
-  const nativeColorInput = useRef<HTMLInputElement>(null);
   const current = images.find((image) => image.id === selectedId) ?? null;
   const sampling = samplingSlot !== null;
 
@@ -239,17 +240,13 @@ export default function PaletteStudio() {
   const openColor = (index: number) => {
     if (!current) return;
     const color = current.settings.slots[index].color ?? current.palette[index] ?? [0, 0, 0];
-    flushSync(() => {
-      setActiveSlot(index); setDraftHex(rgbToHex(color)); setDraftRgb(color.map(String) as [string, string, string]); setColorError("");
-    });
-    try { nativeColorInput.current?.showPicker(); }
-    catch { /* showPicker 미지원 환경에서는 열린 HEX/RGB 선택기를 그대로 사용합니다. */ }
+    setActiveSlot(index); setDraftHex(rgbToHex(color)); setDraftRgb(color.map(String) as [string, string, string]); setDraftHue(rgbToHsv(color)[0]); setColorError("");
   };
 
   const applyColor = (rgb: RGB, slotIndex: number | null = activeSlot) => {
     if (slotIndex === null) return;
     updateSettings((settings) => fixPaletteSlot(settings, slotIndex, rgb));
-    setDraftHex(rgbToHex(rgb)); setDraftRgb(rgb.map(String) as [string, string, string]); setColorError(""); setSamplingSlot(null);
+    setDraftHex(rgbToHex(rgb)); setDraftRgb(rgb.map(String) as [string, string, string]); setDraftHue(rgbToHsv(rgb)[0]); setColorError(""); setSamplingSlot(null);
   };
 
   const applyDraft = () => {
@@ -262,13 +259,27 @@ export default function PaletteStudio() {
 
   const syncHex = (value: string) => {
     setDraftHex(value.toUpperCase()); const rgb = hexToRgb(value);
-    if (rgb) { setDraftRgb(rgb.map(String) as [string, string, string]); setColorError(""); }
+    if (rgb) { const hsv = rgbToHsv(rgb); setDraftRgb(rgb.map(String) as [string, string, string]); if (hsv[1] > 0) setDraftHue(hsv[0]); setColorError(""); }
   };
 
   const syncRgb = (index: number, value: string) => {
     const next = [...draftRgb] as [string, string, string]; next[index] = value; setDraftRgb(next);
     const values = next.map(Number);
-    if (values.every((v) => Number.isInteger(v) && v >= 0 && v <= 255)) { setDraftHex(rgbToHex(values)); setColorError(""); }
+    if (values.every((v) => Number.isInteger(v) && v >= 0 && v <= 255)) { const hsv = rgbToHsv(values); setDraftHex(rgbToHex(values)); if (hsv[1] > 0) setDraftHue(hsv[0]); setColorError(""); }
+  };
+
+  const draftColor = (hexToRgb(draftHex) ?? [0, 0, 0]) as RGB;
+  const convertedDraftHsv = rgbToHsv(draftColor);
+  const draftHsv = [draftHue, convertedDraftHsv[1], convertedDraftHsv[2]];
+  const setDraftColor = (rgb: number[], hue = rgbToHsv(rgb)[0]) => {
+    const color = rgb as RGB;
+    setDraftHex(rgbToHex(color)); setDraftRgb(color.map(String) as [string, string, string]); setDraftHue(hue); setColorError("");
+  };
+  const updateSaturationValue = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const saturation = Math.min(100, Math.max(0, ((event.clientX - bounds.left) / bounds.width) * 100));
+    const value = Math.min(100, Math.max(0, (1 - (event.clientY - bounds.top) / bounds.height) * 100));
+    setDraftColor(hsvToRgb([draftHsv[0], saturation, value]));
   };
 
   const pick = (rgb: RGB | null) => {
@@ -439,7 +450,10 @@ export default function PaletteStudio() {
       {activeSlot !== null && current && !sampling && <div className="modal-backdrop">
         <section className="color-dialog" role="dialog" aria-modal="true" aria-label="색상 선택기">
           <div className="dialog-head"><div><span className="eyebrow">COLOR PICKER</span><h2>{activeSlot + 1}번 슬롯 색상</h2></div><button className="icon-button" onClick={() => { setActiveSlot(null); setSamplingSlot(null); }}>×</button></div>
-          <div className="color-visual" style={{ background: hexToRgb(draftHex) ? draftHex : "#000000" }}><input ref={nativeColorInput} type="color" value={hexToRgb(draftHex) ? draftHex : "#000000"} onChange={(event) => syncHex(event.target.value)} aria-label="시각적 색상 선택" /></div>
+          <div className="color-picker-area" style={{ backgroundColor: `hsl(${draftHsv[0]} 100% 50%)` }} onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); updateSaturationValue(event); }} onPointerMove={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) updateSaturationValue(event); }} onPointerUp={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); }} aria-label="채도와 밝기 선택 영역">
+            <span className="color-picker-cursor" style={{ left: `${draftHsv[1]}%`, top: `${100 - draftHsv[2]}%` }} />
+          </div>
+          <div className="hue-control"><span className="current-color" style={{ background: draftHex }} /><input className="hue-slider" type="range" min="0" max="359" value={Math.round(draftHsv[0])} onChange={(event) => { const hue = Number(event.target.value); setDraftColor(hsvToRgb([hue, draftHsv[1], draftHsv[2]]), hue); }} aria-label="색조" /><output>{Math.round(draftHsv[0])}°</output></div>
           <label className="hex-field"><span>HEX</span><input value={draftHex} onChange={(event) => syncHex(event.target.value)} spellCheck={false} /></label>
           <div className="rgb-fields">{["R", "G", "B"].map((label, index) => <label key={label}><span>{label}</span><input inputMode="numeric" value={draftRgb[index]} onChange={(event) => syncRgb(index, event.target.value)} /></label>)}</div>
           {colorError && <p className="field-error">{colorError}</p>}

@@ -6,9 +6,11 @@ import {
   defaultSettings,
   deserializeSettings,
   fixPaletteSlot,
+  hsvToRgb,
   mapPixels,
   parsePaletteWeight,
   quantizeImage,
+  rgbToHsv,
   serializeSettings,
 } from "../lib/palette.mjs";
 
@@ -67,6 +69,12 @@ test("가중치 입력은 편집 중간 상태와 유효한 소수를 구분한�
   assert.equal(parsePaletteWeight("5"), 5);
   assert.equal(parsePaletteWeight("0.09"), null);
   assert.equal(parsePaletteWeight("5.1"), null);
+});
+
+test("RGB와 HSV 색상 선택 값은 왕복 변환된다", () => {
+  for (const rgb of [[255, 0, 0], [0, 255, 0], [0, 0, 255], [241, 208, 151], [0, 0, 0], [255, 255, 255]]) {
+    assert.deepEqual(hsvToRgb(rgbToHsv(rgb)), rgb);
+  }
 });
 
 test("가중치 1은 기본 OKLab 최근접 매핑과 동일하다", () => {

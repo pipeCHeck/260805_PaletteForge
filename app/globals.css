@@ -140,8 +140,13 @@ input[type="range"] { width: 100%; height: 3px; margin: 8px 0 0; accent-color: v
 .color-dialog { width: min(390px, 100%); padding: 18px; background: var(--panel); border: 1px solid #cfd1c8; border-radius: 16px; box-shadow: 0 25px 80px rgba(0,0,0,.28); }
 .dialog-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
 .dialog-head h2 { margin: 3px 0 0; font: 700 20px/1.1 Georgia, serif; }
-.color-visual { height: 115px; border-radius: 11px; border: 1px solid rgba(0,0,0,.12); position: relative; overflow: hidden; box-shadow: inset 0 0 25px rgba(0,0,0,.12); }
-.color-visual input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.color-picker-area { position: relative; height: 150px; overflow: hidden; border: 1px solid rgba(0,0,0,.15); border-radius: 11px; cursor: crosshair; touch-action: none; background-image: linear-gradient(to top,#000,transparent),linear-gradient(to right,#fff,transparent); }
+.color-picker-cursor { position: absolute; width: 15px; height: 15px; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 0 2px #171817,0 1px 5px rgba(0,0,0,.45); transform: translate(-50%,-50%); pointer-events: none; }
+.hue-control { display: grid; grid-template-columns: 31px minmax(0,1fr) 34px; align-items: center; gap: 9px; margin-top: 12px; }
+.current-color { width: 31px; height: 31px; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 0 1px #c4c7bd; }
+.hue-slider { width: 100%; height: 12px !important; margin: 0 !important; border-radius: 7px; appearance: none; background: linear-gradient(to right,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00); }
+.hue-slider::-webkit-slider-thumb { width: 18px; height: 18px; border: 3px solid #fff; border-radius: 50%; appearance: none; background: transparent; box-shadow: 0 0 0 2px #252722,0 1px 4px rgba(0,0,0,.25); cursor: pointer; }
+.hue-control output { color: var(--muted); font: 700 9px/1 ui-monospace,monospace; }
 .hex-field { display: block; margin-top: 13px; }
 .rgb-fields { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
 .hex-field input, .rgb-fields input { font-family: ui-monospace, monospace; }
