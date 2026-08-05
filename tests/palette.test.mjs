@@ -182,20 +182,39 @@ test("ADJUST 전용 설정은 현재 팔레트를 유지하면서 보정과 픽�
 test("PALETTE 전용 설정은 현재 보정을 유지하면서 팔레트를 적용한다", () => {
   const saved = configured(3);
   saved.slots[0] = { fixed: true, color: [240, 20, 0], weight: 1.8 };
+  saved.slots[1] = { fixed: false, color: [20, 190, 80], weight: 0.7 };
+  saved.slots[2] = { fixed: false, color: [30, 70, 230], weight: 2.4 };
   const current = configured(5);
   current.adjustments.hue = -55;
   current.pixelation = { enabled: true, size: 14, alphaMode: "smooth" };
+  const expectedSlots = saved.slots.map((slot) => ({ ...slot, fixed: true }));
 
   const serialized = serializeSettings(saved, ["palette"]);
   const document = JSON.parse(serialized);
   assert.equal("adjustments" in document, false);
   assert.equal("pixelation" in document, false);
+  assert.deepEqual(document.slots, expectedSlots);
   const loaded = deserializeSettingsDocument(serialized, current);
   assert.deepEqual(loaded.includedSections, ["palette"]);
   assert.equal(loaded.settings.colorCount, saved.colorCount);
-  assert.deepEqual(loaded.settings.slots, saved.slots);
+  assert.deepEqual(loaded.settings.slots, expectedSlots);
   assert.deepEqual(loaded.settings.adjustments, current.adjustments);
   assert.deepEqual(loaded.settings.pixelation, current.pixelation);
+  const converted = quantizeImage(pixels([[250, 10, 0], [0, 200, 70], [20, 50, 240]]), loaded.settings);
+  assert.deepEqual(converted.palette, expectedSlots.map((slot) => slot.color));
+});
+
+test("이전 선택 저장 파일의 자동 팔레트 색상도 불러오면 고정된다", () => {
+  const document = JSON.parse(serializeSettings(configured(2), ["palette"]));
+  document.slots = [
+    { fixed: false, color: [11, 22, 33], weight: 1 },
+    { fixed: false, color: [210, 220, 230], weight: 1.5 },
+  ];
+  const loaded = deserializeSettingsDocument(JSON.stringify(document), configured(4));
+  assert.deepEqual(loaded.settings.slots, [
+    { fixed: true, color: [11, 22, 33], weight: 1 },
+    { fixed: true, color: [210, 220, 230], weight: 1.5 },
+  ]);
 });
 
 test("범위 정보가 없는 기존 설정 파일은 전체 설정으로 불러온다", () => {
