@@ -10,6 +10,7 @@ import {
   rgbToHex,
   serializeSettings,
 } from "../lib/palette.mjs";
+import QuantizeWorker from "./quantize.worker?worker";
 
 type RGB = [number, number, number];
 type Slot = { fixed: boolean; color: RGB | null; weight: number };
@@ -77,7 +78,7 @@ function download(blob: Blob, fileName: string) {
 
 function processInWorker(item: ImageItem): Promise<{ result: Uint8ClampedArray; palette: RGB[] }> {
   return new Promise((resolve, reject) => {
-    const worker = new Worker(new URL("./quantize.worker.ts", import.meta.url), { type: "module" });
+    const worker = new QuantizeWorker();
     const copy = new Uint8ClampedArray(item.original);
     worker.onmessage = (event) => {
       worker.terminate();
