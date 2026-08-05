@@ -7,6 +7,7 @@ import {
   deserializeSettings,
   fixPaletteSlot,
   mapPixels,
+  parsePaletteWeight,
   quantizeImage,
   serializeSettings,
 } from "../lib/palette.mjs";
@@ -56,6 +57,16 @@ test("높은 가중치는 해당 색상의 픽셀 비중을 증가시킨다", ()
   const weighted = mapPixels(source, palette, [1, 5]);
   const whiteCount = (data) => Array.from({ length: data.length / 4 }, (_, index) => data[index * 4]).filter((value) => value === 255).length;
   assert.ok(whiteCount(weighted) > whiteCount(neutral));
+});
+
+test("가중치 입력은 편집 중간 상태와 유효한 소수를 구분한다", () => {
+  assert.equal(parsePaletteWeight(""), null);
+  assert.equal(parsePaletteWeight("0."), null);
+  assert.equal(parsePaletteWeight("0.5"), 0.5);
+  assert.equal(parsePaletteWeight("0.4"), 0.4);
+  assert.equal(parsePaletteWeight("5"), 5);
+  assert.equal(parsePaletteWeight("0.09"), null);
+  assert.equal(parsePaletteWeight("5.1"), null);
 });
 
 test("가중치 1은 기본 OKLab 최근접 매핑과 동일하다", () => {

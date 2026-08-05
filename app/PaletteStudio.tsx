@@ -9,6 +9,7 @@ import {
   fixPaletteSlot,
   hexToRgb,
   normalizeSlotCount,
+  parsePaletteWeight,
   rgbToHex,
   serializeSettings,
 } from "../lib/palette.mjs";
@@ -131,6 +132,7 @@ export default function PaletteStudio() {
   const [draftHex, setDraftHex] = useState("#000000");
   const [draftRgb, setDraftRgb] = useState<[string, string, string]>(["0", "0", "0"]);
   const [colorError, setColorError] = useState("");
+  const [weightDrafts, setWeightDrafts] = useState<Record<string, string>>({});
   const fileInput = useRef<HTMLInputElement>(null);
   const settingsInput = useRef<HTMLInputElement>(null);
   const current = images.find((image) => image.id === selectedId) ?? null;
@@ -299,6 +301,16 @@ export default function PaletteStudio() {
   };
 
   const fixedCount = current?.settings.slots.filter((slot: Slot) => slot.fixed).length ?? 0;
+  const weightKey = (imageId: string, index: number) => `${imageId}:${index}`;
+  const commitWeight = (index: number) => {
+    if (!current) return;
+    const key = weightKey(current.id, index);
+    const draft = weightDrafts[key] ?? String(current.settings.slots[index].weight);
+    const weight = parsePaletteWeight(draft);
+    setWeightDrafts((values) => { const next = { ...values }; delete next[key]; return next; });
+    if (weight === null) { notify("가중치는 0.1~5 사이의 숫자여야 합니다. 기존 값으로 되돌렸습니다.", "error"); return; }
+    updateSettings((settings) => { settings.slots[index].weight = weight; return settings; });
+  };
   const adjustmentFields = useMemo(() => [
     ["brightness", "밝기", -100, 100], ["contrast", "대비", -100, 100],
     ["saturation", "채도", -100, 100], ["hue", "색조", -180, 180],
@@ -356,10 +368,9 @@ export default function PaletteStudio() {
                 <button className="swatch" style={{ background: hex }} onClick={() => openColor(index)} aria-label={`${index + 1}번 색상 선택`} />
                 <button className="slot-color" onClick={() => openColor(index)}><strong>{hex}</strong><small>RGB {color.join(" · ")}</small></button>
                 <span className="slot-tag">{slot.fixed ? "고정" : "자동"}</span>
-                <label className="weight"><span>가중치</span><input type="number" min="0.1" max="5" step="0.1" value={slot.weight} onChange={(event) => {
-                  const weight = Number(event.target.value); if (weight < 0.1 || weight > 5 || !Number.isFinite(weight)) { notify("가중치는 0.1~5 사이여야 합니다.", "error"); return; }
-                  updateSettings((settings) => { settings.slots[index].weight = weight; return settings; });
-                }} /></label>
+                <label className="weight"><span>가중치</span><input type="number" inputMode="decimal" min="0.1" max="5" step="0.1" value={weightDrafts[weightKey(current.id, index)] ?? String(slot.weight)} onChange={(event) => {
+                  const key = weightKey(current.id, index); setWeightDrafts((values) => ({ ...values, [key]: event.target.value }));
+                }} onBlur={() => commitWeight(index)} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} /></label>
                 <button className="reset-slot" title="고정 해제 및 가중치 초기화" onClick={() => updateSettings((settings) => { settings.slots[index] = { fixed: false, color: null, weight: 1 }; return settings; })}>↺</button>
               </div>;
             })}</div>
