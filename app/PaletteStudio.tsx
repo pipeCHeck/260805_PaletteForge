@@ -39,55 +39,53 @@ const SUPPORTED_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 function CanvasPreview({ item, result, onPick }: { item: ImageItem; result: boolean; onPick: (rgb: RGB | null) => void }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
+  const displayedPixels = useRef<Uint8ClampedArray | null>(null);
   const drag = useRef<{ pointerId: number; startX: number; startY: number; originX: number; originY: number } | null>(null);
   const moved = useRef(false);
   const [view, setView] = useState({ zoom: 1, x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
-  const pixels = result ? item.result : item.original;
   useEffect(() => {
     const canvas = ref.current;
-    if (!canvas || !pixels) return;
+    if (!canvas) return;
     canvas.width = item.width;
     canvas.height = item.height;
     const context = canvas.getContext("2d", { willReadFrequently: true });
     if (!context) return;
-    const imageData = new ImageData(new Uint8ClampedArray(pixels), item.width, item.height);
-    if (!result && item.settings.pixelation.enabled) {
-      const source = document.createElement("canvas");
-      source.width = item.width; source.height = item.height;
-      source.getContext("2d")!.putImageData(imageData, 0, 0);
-      const small = document.createElement("canvas");
-      small.width = Math.max(1, Math.ceil(item.width / item.settings.pixelation.size));
-      small.height = Math.max(1, Math.ceil(item.height / item.settings.pixelation.size));
-      const smallContext = small.getContext("2d")!;
-      smallContext.imageSmoothingEnabled = true;
-      smallContext.drawImage(source, 0, 0, small.width, small.height);
-      if (item.settings.pixelation.alphaMode === "binary") {
-        const previewPixels = smallContext.getImageData(0, 0, small.width, small.height);
-        for (let index = 3; index < previewPixels.data.length; index += 4) {
-          previewPixels.data[index] = previewPixels.data[index] >= 128 ? 255 : 0;
-        }
-        smallContext.putImageData(previewPixels, 0, 0);
-      }
-      context.imageSmoothingEnabled = false;
-      context.clearRect(0, 0, item.width, item.height);
-      context.drawImage(small, 0, 0, item.width, item.height);
-    } else context.putImageData(imageData, 0, 0);
-  }, [item.height, item.settings.pixelation.alphaMode, item.settings.pixelation.enabled, item.settings.pixelation.size, item.width, pixels, result]);
+    const draw = (pixels: Uint8ClampedArray) => {
+      displayedPixels.current = pixels;
+      context.putImageData(new ImageData(new Uint8ClampedArray(pixels), item.width, item.height), 0, 0);
+    };
+    if (result) {
+      if (item.result) draw(item.result);
+      return;
+    }
+
+    displayedPixels.current = null;
+    context.clearRect(0, 0, item.width, item.height);
+    const worker = new QuantizeWorker();
+    const copy = new Uint8ClampedArray(item.original);
+    let disposed = false;
+    worker.onmessage = (event) => {
+      worker.terminate();
+      if (!disposed && !event.data.error) draw(new Uint8ClampedArray(event.data.result));
+    };
+    worker.onerror = () => worker.terminate();
+    worker.postMessage({ operation: "prepare", pixels: copy.buffer, width: item.width, height: item.height, settings: item.settings }, [copy.buffer]);
+    return () => { disposed = true; worker.terminate(); };
+  }, [item.height, item.original, item.result, item.settings, item.width, result]);
 
   const click = (event: MouseEvent<HTMLCanvasElement>) => {
     if (moved.current) { moved.current = false; return; }
     const canvas = ref.current;
-    if (!canvas || !pixels) return;
+    const sampled = displayedPixels.current;
+    if (!canvas || !sampled) return;
     const rect = canvas.getBoundingClientRect();
     const x = Math.min(item.width - 1, Math.max(0, Math.floor((event.clientX - rect.left) * item.width / rect.width)));
     const y = Math.min(item.height - 1, Math.max(0, Math.floor((event.clientY - rect.top) * item.height / rect.height)));
     const index = (y * item.width + x) * 4;
-    onPick(pixels[index + 3] === 0 ? null : [pixels[index], pixels[index + 1], pixels[index + 2]]);
+    onPick(sampled[index + 3] === 0 ? null : [sampled[index], sampled[index + 1], sampled[index + 2]]);
   };
 
-  const adjustment = item.settings.adjustments;
-  const filter = result ? undefined : `brightness(${100 + adjustment.brightness}%) contrast(${100 + adjustment.contrast}%) saturate(${100 + adjustment.saturation}%) hue-rotate(${adjustment.hue}deg)`;
   useEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport) return;
@@ -125,7 +123,7 @@ function CanvasPreview({ item, result, onPick }: { item: ImageItem; result: bool
   };
   const resetView = () => setView({ zoom: 1, x: 0, y: 0 });
   return <div ref={viewportRef} className={`pan-zoom-viewport ${isDragging ? "is-dragging" : ""}`} onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={stopDrag} onPointerCancel={stopDrag} onDoubleClick={resetView}>
-    <canvas ref={ref} onClick={click} draggable={false} style={{ filter, transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})` }} aria-label={result ? "변환 결과 이미지" : "색 보정이 적용된 원본 이미지"} />
+    <canvas ref={ref} onClick={click} draggable={false} style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})` }} aria-label={result ? "변환 결과 이미지" : "색 보정이 적용된 원본 이미지"} />
     <div className="zoom-controls"><span>{Math.round(view.zoom * 100)}%</span><button type="button" onClick={resetView} disabled={view.zoom === 1 && view.x === 0 && view.y === 0}>화면 맞춤</button></div>
   </div>;
 }

@@ -11,6 +11,7 @@ import {
   mapPixels,
   parsePaletteWeight,
   pixelatePixels,
+  prepareImage,
   quantizeImage,
   rgbToHsv,
   serializeSettings,
@@ -123,6 +124,17 @@ test("0·1 알파 픽셀화는 블록 평균 알파를 50% 기준으로 이진�
   const above = pixelatePixels(pixels([[255, 0, 0], [255, 0, 0], [255, 0, 0], [0, 0, 0, 0]]), 2, 2, 2, "binary");
   for (let index = 3; index < below.length; index += 4) assert.equal(below[index], 0);
   for (let index = 3; index < above.length; index += 4) assert.equal(above[index], 255);
+});
+
+test("미리보기 전처리와 실제 양자화는 동일한 보정·픽셀화 결과를 사용한다", () => {
+  const source = pixels([[10, 30, 50], [90, 110, 130], [170, 190, 210], [250, 230, 210]]);
+  const settings = configured(2);
+  settings.adjustments = { brightness: 17, contrast: -12, saturation: 24, hue: 35 };
+  settings.pixelation = { enabled: true, size: 2, alphaMode: "smooth" };
+  const preview = prepareImage(source, settings, 2, 2);
+  const converted = quantizeImage(source, settings, 2, 2);
+  assert.deepEqual(preview.adjusted, converted.adjusted);
+  assert.deepEqual(preview.prepared, converted.prepared);
 });
 
 test("픽셀 최적화 내보내기는 블록 하나를 출력 픽셀 하나로 계산한다", () => {

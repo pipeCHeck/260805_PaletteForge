@@ -54,3 +54,16 @@ test("설정 패널의 작은 숫자와 보조 정보는 읽을 수 있는 크�
   assert.match(css, /\.weight span \{[^}]*font-size: 9px/);
   assert.match(css, /\.slot-color small \{[^}]*font-size: 9px/);
 });
+
+test("보정 미리보기와 이미지 스포이드는 실제 전처리 픽셀을 함께 사용한다", async () => {
+  const [component, worker] = await Promise.all([
+    readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/quantize.worker.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(component, /operation: "prepare"/);
+  assert.match(component, /const sampled = displayedPixels\.current/);
+  assert.match(component, /onPick\(sampled\[index \+ 3\]/);
+  assert.doesNotMatch(component, /brightness\(\$\{/);
+  assert.match(worker, /event\.data\.operation === "prepare"/);
+  assert.match(worker, /prepareImage\(pixels/);
+});

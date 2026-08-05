@@ -1,8 +1,13 @@
-import { quantizeImage } from "../lib/palette.mjs";
+import { prepareImage, quantizeImage } from "../lib/palette.mjs";
 
-self.onmessage = (event: MessageEvent<{ pixels: ArrayBuffer; width: number; height: number; settings: unknown }>) => {
+self.onmessage = (event: MessageEvent<{ operation?: "prepare" | "quantize"; pixels: ArrayBuffer; width: number; height: number; settings: unknown }>) => {
   try {
     const pixels = new Uint8ClampedArray(event.data.pixels);
+    if (event.data.operation === "prepare") {
+      const { prepared } = prepareImage(pixels, event.data.settings, event.data.width, event.data.height);
+      self.postMessage({ result: prepared.buffer }, { transfer: [prepared.buffer] });
+      return;
+    }
     const output = quantizeImage(pixels, event.data.settings, event.data.width, event.data.height);
     self.postMessage(
       { result: output.result.buffer, palette: output.palette },
