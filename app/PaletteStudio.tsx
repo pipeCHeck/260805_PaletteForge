@@ -6,7 +6,9 @@ import {
   cloneSettings,
   defaultSettings,
   deserializeSettings,
+  fixPaletteSlot,
   hexToRgb,
+  normalizeSlotCount,
   rgbToHex,
   serializeSettings,
 } from "../lib/palette.mjs";
@@ -125,22 +127,22 @@ export default function PaletteStudio() {
   const [message, setMessage] = useState("이미지를 불러오면 모든 처리가 이 브라우저 안에서 진행됩니다.");
   const [messageType, setMessageType] = useState<"info" | "error" | "success">("info");
   const [activeSlot, setActiveSlot] = useState<number | null>(null);
-  const [sampling, setSampling] = useState(false);
+  const [samplingSlot, setSamplingSlot] = useState<number | null>(null);
   const [draftHex, setDraftHex] = useState("#000000");
   const [draftRgb, setDraftRgb] = useState<[string, string, string]>(["0", "0", "0"]);
   const [colorError, setColorError] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
   const settingsInput = useRef<HTMLInputElement>(null);
   const current = images.find((image) => image.id === selectedId) ?? null;
+  const sampling = samplingSlot !== null;
 
   const notify = (text: string, type: "info" | "error" | "success" = "info") => { setMessage(text); setMessageType(type); };
   const replace = (id: string, updater: (item: ImageItem) => ImageItem) => setImages((items) => items.map((item) => item.id === id ? updater(item) : item));
   const updateCurrent = (updater: (item: ImageItem) => ImageItem) => { if (current) replace(current.id, updater); };
-  const updateSettings = (updater: (settings: Settings) => Settings, invalidateResult = true) => updateCurrent((item) => ({
-    ...item,
-    settings: updater(cloneSettings(item.settings)),
-    result: invalidateResult ? null : item.result,
-  }));
+  const updateSettings = (updater: (settings: Settings) => Settings, invalidateResult = true) => updateCurrent((item) => {
+    const settings = normalizeSlotCount(updater(cloneSettings(item.settings)));
+    return { ...item, settings, result: invalidateResult ? null : item.result };
+  });
 
   const loadImages = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
@@ -199,10 +201,10 @@ export default function PaletteStudio() {
     setActiveSlot(index); setDraftHex(rgbToHex(color)); setDraftRgb(color.map(String) as [string, string, string]); setColorError("");
   };
 
-  const applyColor = (rgb: RGB) => {
-    if (activeSlot === null) return;
-    updateSettings((settings) => { settings.slots[activeSlot] = { ...settings.slots[activeSlot], fixed: true, color: rgb }; return settings; });
-    setDraftHex(rgbToHex(rgb)); setDraftRgb(rgb.map(String) as [string, string, string]); setColorError(""); setSampling(false);
+  const applyColor = (rgb: RGB, slotIndex: number | null = activeSlot) => {
+    if (slotIndex === null) return;
+    updateSettings((settings) => fixPaletteSlot(settings, slotIndex, rgb));
+    setDraftHex(rgbToHex(rgb)); setDraftRgb(rgb.map(String) as [string, string, string]); setColorError(""); setSamplingSlot(null);
   };
 
   const applyDraft = () => {
@@ -225,15 +227,16 @@ export default function PaletteStudio() {
   };
 
   const pick = (rgb: RGB | null) => {
-    if (!sampling) return;
+    if (samplingSlot === null) return;
     if (!rgb) { notify("완전 투명한 픽셀에서는 색상을 가져올 수 없습니다.", "error"); return; }
-    applyColor(rgb); setActiveSlot(null); notify(`${rgbToHex(rgb)} 색상을 고정하고 팔레트에 반영했습니다.`, "success");
+    applyColor(rgb, samplingSlot); setActiveSlot(null); notify(`${rgbToHex(rgb)} 색상을 고정하고 팔레트에 반영했습니다.`, "success");
   };
 
   const screenPick = async () => {
     const EyeDropperClass = (window as unknown as { EyeDropper?: new () => { open: () => Promise<{ sRGBHex: string }> } }).EyeDropper;
     if (!EyeDropperClass) { notify("이 브라우저는 화면 전체 스포이드를 지원하지 않습니다. 이미지 내부 스포이드를 사용해주세요.", "error"); return; }
-    try { const result = await new EyeDropperClass().open(); const rgb = hexToRgb(result.sRGBHex); if (rgb) { applyColor(rgb as RGB); setActiveSlot(null); notify(`${rgbToHex(rgb)} 색상을 고정하고 팔레트에 반영했습니다.`, "success"); } }
+    const slotIndex = activeSlot;
+    try { const result = await new EyeDropperClass().open(); const rgb = hexToRgb(result.sRGBHex); if (rgb) { applyColor(rgb as RGB, slotIndex); setActiveSlot(null); notify(`${rgbToHex(rgb)} 색상을 고정하고 팔레트에 반영했습니다.`, "success"); } }
     catch { notify("화면 스포이드 선택을 취소했습니다."); }
   };
 
@@ -319,7 +322,7 @@ export default function PaletteStudio() {
           <div className="panel-title"><div><span className="eyebrow">SOURCE</span><h2>이미지 목록 <b>{images.length}</b></h2></div><button className="icon-button" aria-label="이미지 추가" onClick={() => fileInput.current?.click()}>＋</button></div>
           <button className="dropzone" onClick={() => fileInput.current?.click()} disabled={busy}><span>＋</span><strong>이미지 불러오기</strong><small>PNG · JPEG · WebP / 여러 장 선택 가능</small></button>
           <div className="image-list">
-            {images.map((image, index) => <button key={image.id} className={`image-item ${selectedId === image.id ? "selected" : ""}`} onClick={() => { setSelectedId(image.id); setActiveSlot(null); }}>
+            {images.map((image, index) => <button key={image.id} className={`image-item ${selectedId === image.id ? "selected" : ""}`} onClick={() => { setSelectedId(image.id); setActiveSlot(null); setSamplingSlot(null); }}>
               {/* Object URL이 아닌 메모리 내 썸네일이므로 Next Image 최적화 대상이 아닙니다. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={image.thumbnail} alt="" /><span className="image-copy"><strong>{image.name}</strong><small>{image.width} × {image.height}px · #{index + 1}</small></span><i className={image.result ? "done" : "pending"}>{image.result ? "완료" : "대기"}</i>
@@ -381,14 +384,14 @@ export default function PaletteStudio() {
 
       {activeSlot !== null && current && !sampling && <div className="modal-backdrop">
         <section className="color-dialog" role="dialog" aria-modal="true" aria-label="색상 선택기">
-          <div className="dialog-head"><div><span className="eyebrow">COLOR PICKER</span><h2>{activeSlot + 1}번 슬롯 색상</h2></div><button className="icon-button" onClick={() => { setActiveSlot(null); setSampling(false); }}>×</button></div>
+          <div className="dialog-head"><div><span className="eyebrow">COLOR PICKER</span><h2>{activeSlot + 1}번 슬롯 색상</h2></div><button className="icon-button" onClick={() => { setActiveSlot(null); setSamplingSlot(null); }}>×</button></div>
           <div className="color-visual" style={{ background: hexToRgb(draftHex) ? draftHex : "#000000" }}><input type="color" value={hexToRgb(draftHex) ? draftHex : "#000000"} onChange={(event) => syncHex(event.target.value)} aria-label="시각적 색상 선택" /></div>
           <label className="hex-field"><span>HEX</span><input value={draftHex} onChange={(event) => syncHex(event.target.value)} spellCheck={false} /></label>
           <div className="rgb-fields">{["R", "G", "B"].map((label, index) => <label key={label}><span>{label}</span><input inputMode="numeric" value={draftRgb[index]} onChange={(event) => syncRgb(index, event.target.value)} /></label>)}</div>
           {colorError && <p className="field-error">{colorError}</p>}
-          <div className="picker-actions"><button className={`button ghost ${sampling ? "active" : ""}`} onClick={() => { setSampling(true); notify("원본 또는 결과 이미지에서 원하는 픽셀을 클릭하세요."); }}>⌾ 이미지 스포이드</button><button className="button ghost" onClick={screenPick}>⌖ 화면 스포이드</button></div>
+          <div className="picker-actions"><button className={`button ghost ${sampling ? "active" : ""}`} onClick={() => { setSamplingSlot(activeSlot); setActiveSlot(null); notify("원본 또는 결과 이미지에서 원하는 픽셀을 클릭하세요."); }}>⌾ 이미지 스포이드</button><button className="button ghost" onClick={screenPick}>⌖ 화면 스포이드</button></div>
           <p className="picker-note">화면 스포이드는 지원 브라우저에서만 사용할 수 있습니다. 완전 투명 픽셀은 선택되지 않습니다.</p>
-          <div className="dialog-footer"><button className="button ghost" onClick={() => { setActiveSlot(null); setSampling(false); }}>취소</button><button className="button primary" onClick={applyDraft}>색상 고정</button></div>
+          <div className="dialog-footer"><button className="button ghost" onClick={() => { setActiveSlot(null); setSamplingSlot(null); }}>취소</button><button className="button primary" onClick={applyDraft}>색상 고정</button></div>
         </section>
       </div>}
     </main>

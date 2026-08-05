@@ -5,6 +5,7 @@ import {
   countUniqueOpaqueColors,
   defaultSettings,
   deserializeSettings,
+  fixPaletteSlot,
   mapPixels,
   quantizeImage,
   serializeSettings,
@@ -100,6 +101,17 @@ test("이미지별 설정 복제본은 서로 섞이지 않는다", () => {
   second.slots[0].weight = 3;
   assert.equal(first.adjustments.brightness, 0);
   assert.equal(first.slots[0].weight, 1);
+});
+
+test("고정 색상을 연속 추가해도 팔레트 슬롯 수는 줄지 않는다", () => {
+  let settings = configured(5);
+  settings = fixPaletteSlot(settings, 0, [240, 20, 0]);
+  settings = fixPaletteSlot(settings, 1, [20, 190, 80]);
+  settings = fixPaletteSlot(settings, 2, [30, 70, 230]);
+  assert.equal(settings.colorCount, 5);
+  assert.equal(settings.slots.length, 5);
+  assert.equal(settings.slots.filter((slot) => slot.fixed).length, 3);
+  assert.deepEqual(settings.slots.slice(0, 3).map((slot) => slot.color), [[240, 20, 0], [20, 190, 80], [30, 70, 230]]);
 });
 
 test("잘못된 설정 파일은 예외로 보고하고 프로세스를 종료하지 않는다", () => {
