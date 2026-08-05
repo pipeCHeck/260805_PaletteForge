@@ -112,8 +112,8 @@ input[type="range"] { width: 100%; height: 3px; margin: 8px 0 0; accent-color: v
 .pixelation-toggle small { margin-top: 3px; color: var(--muted); font-size: 9px; }
 .pixelation-toggle input { width: 34px; height: 18px; accent-color: var(--orange); }
 .pixelation-size { display: block; margin-top: 10px; padding-top: 9px; border-top: 1px solid #e1e2db; }
-.pixelation-size > span { display: flex; align-items: center; justify-content: space-between; font-size: 11px; font-weight: 750; }
-.pixelation-size output { min-width: 48px; min-height: 24px; display: inline-grid; place-items: center end; padding: 3px 7px; border: 1px solid #e3e4de; border-radius: 6px; text-align: right; background: white; color: #464a43; font: 11px/1.4 ui-monospace,monospace; }
+.pixelation-size > div { display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 750; }
+.pixelation-size input[type="number"] { width: 60px; min-height: 28px; padding: 4px 7px; border: 1px solid #d8dad2; border-radius: 6px; text-align: right; background: white; color: #30342e; font: 12px/1.4 ui-monospace,monospace; }
 .pixelation-option { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; margin-top: 10px; }
 .pixelation-option > span { font-size: 10px; font-weight: 750; }
 .pixelation-option select { min-width: 0; width: 100%; padding: 7px 8px; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--ink); font-size: 10px; }

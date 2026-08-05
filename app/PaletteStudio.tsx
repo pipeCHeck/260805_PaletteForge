@@ -217,6 +217,7 @@ export default function PaletteStudio() {
   const [draftHue, setDraftHue] = useState(0);
   const [colorError, setColorError] = useState("");
   const [weightDrafts, setWeightDrafts] = useState<Record<string, string>>({});
+  const [pixelSizeDrafts, setPixelSizeDrafts] = useState<Record<string, string>>({});
   const fileInput = useRef<HTMLInputElement>(null);
   const settingsInput = useRef<HTMLInputElement>(null);
   const current = images.find((image) => image.id === selectedId) ?? null;
@@ -409,6 +410,17 @@ export default function PaletteStudio() {
     if (weight === null) { notify("가중치는 0.1~5 사이의 숫자여야 합니다. 기존 값으로 되돌렸습니다.", "error"); return; }
     updateSettings((settings) => { settings.slots[index].weight = weight; return settings; });
   };
+  const commitPixelSize = () => {
+    if (!current) return;
+    const draft = pixelSizeDrafts[current.id] ?? String(current.settings.pixelation.size);
+    const size = Number(draft);
+    setPixelSizeDrafts((values) => { const next = { ...values }; delete next[current.id]; return next; });
+    if (!Number.isInteger(size) || size < 2 || size > 64) {
+      notify("픽셀화 블록 크기는 2~64 사이의 정수여야 합니다. 기존 값으로 되돌렸습니다.", "error");
+      return;
+    }
+    if (size !== current.settings.pixelation.size) updateSettings((settings) => { settings.pixelation.size = size; return settings; });
+  };
   const adjustmentFields = useMemo(() => [
     ["brightness", "밝기", -100, 100], ["contrast", "대비", -100, 100],
     ["saturation", "채도", -100, 100], ["hue", "색조", -180, 180],
@@ -457,7 +469,7 @@ export default function PaletteStudio() {
             <div className="sliders">{adjustmentFields.map(([key, label, min, max]) => <label key={key}><span>{label}<output>{current?.settings.adjustments[key] ?? 0}{key === "hue" ? "°" : ""}</output></span><input type="range" min={min} max={max} value={current?.settings.adjustments[key] ?? 0} disabled={!current} onChange={(event) => updateSettings((settings) => { settings.adjustments[key] = Number(event.target.value); return settings; })} /></label>)}</div>
             <div className={`pixelation-setting ${current?.settings.pixelation.enabled ? "is-enabled" : ""}`}>
               <label className="pixelation-toggle"><span><strong>픽셀화</strong><small>색상 제한 전에 블록 효과 적용</small></span><input type="checkbox" aria-label="픽셀화 사용" disabled={!current} checked={current?.settings.pixelation.enabled ?? false} onChange={(event) => updateSettings((settings) => { settings.pixelation.enabled = event.target.checked; return settings; })} /></label>
-              <label className="pixelation-size"><span>블록 크기<output>{current?.settings.pixelation.size ?? 8}px</output></span><input type="range" aria-label="픽셀화 블록 크기" min="2" max="64" step="1" disabled={!current || !current.settings.pixelation.enabled} value={current?.settings.pixelation.size ?? 8} onChange={(event) => updateSettings((settings) => { settings.pixelation.size = Number(event.target.value); return settings; })} /></label>
+              <div className="pixelation-size"><div><span>블록 크기</span><input type="number" inputMode="numeric" aria-label="픽셀화 블록 크기 숫자" min="2" max="64" step="1" disabled={!current || !current.settings.pixelation.enabled} value={current ? (pixelSizeDrafts[current.id] ?? String(current.settings.pixelation.size)) : "8"} onChange={(event) => { if (!current) return; setPixelSizeDrafts((values) => ({ ...values, [current.id]: event.target.value })); }} onBlur={commitPixelSize} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} /></div><input type="range" aria-label="픽셀화 블록 크기 슬라이더" min="2" max="64" step="1" disabled={!current || !current.settings.pixelation.enabled} value={current?.settings.pixelation.size ?? 8} onChange={(event) => { if (current) setPixelSizeDrafts((values) => { const next = { ...values }; delete next[current.id]; return next; }); updateSettings((settings) => { settings.pixelation.size = Number(event.target.value); return settings; }); }} /></div>
               <label className="pixelation-option"><span>투명도 방식</span><select aria-label="픽셀화 투명도 방식" disabled={!current || !current.settings.pixelation.enabled} value={current?.settings.pixelation.alphaMode ?? "smooth"} onChange={(event) => updateSettings((settings) => { settings.pixelation.alphaMode = event.target.value; return settings; })}><option value="smooth">부드러운 알파</option><option value="binary">0 · 1 알파 (불투명 픽셀)</option></select></label>
               <small className="pixelation-help">0 · 1 알파는 블록 평균 불투명도가 50% 이상일 때만 완전 불투명하게 만듭니다.</small>
             </div>

@@ -50,9 +50,17 @@ test("색 보정 패널은 픽셀화 온오프, 블록 크기, 알파 방식을 
 
 test("설정 패널의 작은 숫자와 보조 정보는 읽을 수 있는 크기를 유지한다", async () => {
   const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
-  assert.match(css, /\.pixelation-size output \{[^}]*min-height: 24px;[^}]*font: 11px/);
+  assert.match(css, /\.pixelation-size input\[type="number"\] \{[^}]*min-height: 28px;[^}]*font: 12px/);
   assert.match(css, /\.weight span \{[^}]*font-size: 9px/);
   assert.match(css, /\.slot-color small \{[^}]*font-size: 9px/);
+});
+
+test("픽셀화 블록 크기는 편집 중 빈 값을 허용하는 숫자 입력을 제공한다", async () => {
+  const component = await readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8");
+  assert.match(component, /pixelSizeDrafts/);
+  assert.match(component, /aria-label="픽셀화 블록 크기 숫자"/);
+  assert.match(component, /onBlur=\{commitPixelSize\}/);
+  assert.match(component, /픽셀화 블록 크기는 2~64 사이의 정수여야 합니다/);
 });
 
 test("보정 미리보기와 이미지 스포이드는 실제 전처리 픽셀을 함께 사용한다", async () => {
