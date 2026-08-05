@@ -160,6 +160,16 @@ input[type="range"] { width: 100%; height: 3px; margin: 8px 0 0; accent-color: v
 
 .modal-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; background: rgba(20,21,18,.45); backdrop-filter: blur(4px); }
 .color-dialog { width: min(390px, 100%); padding: 18px; background: var(--panel); border: 1px solid #cfd1c8; border-radius: 16px; box-shadow: 0 25px 80px rgba(0,0,0,.28); }
+.settings-dialog { width: min(430px, 100%); }
+.settings-dialog-intro { margin: -3px 0 13px; color: var(--muted); font-size: 11px; line-height: 1.55; }
+.settings-scope-list { display: grid; gap: 9px; }
+.settings-scope-list label { display: grid; grid-template-columns: 20px minmax(0,1fr); align-items: center; gap: 10px; min-height: 66px; padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px; background: white; cursor: pointer; }
+.settings-scope-list label.is-selected { border-color: #f39b7f; background: #fff6f1; box-shadow: 0 0 0 1px rgba(255,92,42,.08); }
+.settings-scope-list input { width: 18px; height: 18px; margin: 0; accent-color: var(--orange); }
+.settings-scope-list strong, .settings-scope-list small { display: block; }
+.settings-scope-list strong { font-size: 12px; }
+.settings-scope-list small { margin-top: 4px; color: var(--muted); font-size: 10px; line-height: 1.45; }
+.settings-dialog-note { margin: 12px 0 0; padding: 9px 10px; border-radius: 8px; color: #5d6258; background: #f0f1eb; font-size: 10px; line-height: 1.55; }
 .dialog-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
 .dialog-head h2 { margin: 3px 0 0; font: 700 20px/1.1 Georgia, serif; }
 .color-picker-area { position: relative; height: 150px; overflow: hidden; border: 0; outline: 0; border-radius: 11px; box-shadow: none; cursor: crosshair; touch-action: none; background-clip: padding-box; background-image: linear-gradient(to top,#000,transparent),linear-gradient(to right,#fff,transparent); }

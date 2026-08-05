@@ -5,7 +5,7 @@ import {
   MAX_COLORS,
   cloneSettings,
   defaultSettings,
-  deserializeSettings,
+  deserializeSettingsDocument,
   fixPaletteSlot,
   getExportDimensions,
   hexToRgb,
@@ -236,6 +236,8 @@ export default function PaletteStudio() {
   const [draftRgb, setDraftRgb] = useState<[string, string, string]>(["0", "0", "0"]);
   const [draftHue, setDraftHue] = useState(0);
   const [colorError, setColorError] = useState("");
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [saveSections, setSaveSections] = useState({ adjust: true, palette: true });
   const [weightDrafts, setWeightDrafts] = useState<Record<string, string>>({});
   const [pixelSizeDrafts, setPixelSizeDrafts] = useState<Record<string, string>>({});
   const fileInput = useRef<HTMLInputElement>(null);
@@ -378,14 +380,24 @@ export default function PaletteStudio() {
 
   const saveSettings = () => {
     if (!current) return;
-    try { download(new Blob([serializeSettings(current.settings)], { type: "application/json" }), `${baseName(current.name)}-palette-settings.json`); notify("설정 파일을 저장했습니다.", "success"); }
+    const includedSections = (["adjust", "palette"] as const).filter((section) => saveSections[section]);
+    try {
+      download(new Blob([serializeSettings(current.settings, includedSections)], { type: "application/json" }), `${baseName(current.name)}-palette-settings.json`);
+      setSaveDialogOpen(false);
+      notify(`${includedSections.map((section) => section.toUpperCase()).join(", ")} 설정 파일을 저장했습니다.`, "success");
+    }
     catch (error) { notify(error instanceof Error ? error.message : "설정 저장에 실패했습니다.", "error"); }
   };
 
   const loadSettings = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]; event.target.value = "";
     if (!file || !current) return;
-    try { const settings = deserializeSettings(await file.text()); updateCurrent((item) => ({ ...item, settings, result: null, palette: [] })); notify("설정을 현재 이미지에 적용했습니다.", "success"); }
+    const target = current;
+    try {
+      const loaded = deserializeSettingsDocument(await file.text(), target.settings);
+      replace(target.id, (item) => ({ ...item, settings: loaded.settings, result: null, palette: [] }));
+      notify(`${loaded.includedSections.map((section) => section.toUpperCase()).join(", ")} 설정을 현재 이미지에 적용했습니다.`, "success");
+    }
     catch (error) { notify(error instanceof Error ? error.message : "설정 파일을 불러오지 못했습니다.", "error"); }
   };
 
@@ -514,7 +526,7 @@ export default function PaletteStudio() {
 
           <section className="panel control-section">
             <div className="panel-title compact"><div><span className="eyebrow">EXPORT</span><h2>저장 및 내보내기</h2></div></div>
-            <div className="settings-actions"><button className="button ghost" disabled={!current} onClick={saveSettings}>설정 저장</button><button className="button ghost" disabled={!current} onClick={() => settingsInput.current?.click()}>설정 불러오기</button><input ref={settingsInput} hidden type="file" accept="application/json,.json" onChange={loadSettings} /></div>
+            <div className="settings-actions"><button className="button ghost" disabled={!current} onClick={() => setSaveDialogOpen(true)}>설정 저장</button><button className="button ghost" disabled={!current} onClick={() => settingsInput.current?.click()}>설정 불러오기</button><input ref={settingsInput} hidden type="file" accept="application/json,.json" onChange={loadSettings} /></div>
             <div className="export-grid">
               <label><span>형식</span><select disabled={!current} value={current?.settings.export.format ?? "png"} onChange={(event) => updateSettings((settings) => { settings.export.format = event.target.value; if (event.target.value === "jpeg") settings.export.preserveAlpha = false; return settings; }, false)}><option value="png">PNG</option><option value="jpeg">JPEG</option><option value="webp">WebP</option></select></label>
               <label><span>품질</span><input type="number" min="0.1" max="1" step="0.01" disabled={!current || current.settings.export.format === "png"} value={current?.settings.export.quality ?? .92} onChange={(event) => updateSettings((settings) => { const q = Number(event.target.value); if (q >= .1 && q <= 1) settings.export.quality = q; return settings; }, false)} /></label>
@@ -528,6 +540,25 @@ export default function PaletteStudio() {
           </section>
         </aside>
       </div>
+
+      {saveDialogOpen && current && <div className="modal-backdrop">
+        <section className="color-dialog settings-dialog" role="dialog" aria-modal="true" aria-label="저장할 설정 선택">
+          <div className="dialog-head"><div><span className="eyebrow">SAVE SETTINGS</span><h2>저장할 설정 선택</h2></div><button className="icon-button" aria-label="설정 저장 창 닫기" onClick={() => setSaveDialogOpen(false)}>×</button></div>
+          <p className="settings-dialog-intro">파일에 포함할 항목을 선택하세요. 하나 이상 선택해야 합니다.</p>
+          <div className="settings-scope-list">
+            <label htmlFor="save-adjust" aria-label="ADJUST 색 보정 설정 저장" className={saveSections.adjust ? "is-selected" : ""}>
+              <input id="save-adjust" type="checkbox" checked={saveSections.adjust} onChange={(event) => setSaveSections((sections) => ({ ...sections, adjust: event.target.checked }))} />
+              <span><strong>ADJUST · 색 보정</strong><small>밝기, 대비, 채도, 색조와 픽셀화 설정</small></span>
+            </label>
+            <label htmlFor="save-palette" aria-label="PALETTE 최종 팔레트 설정 저장" className={saveSections.palette ? "is-selected" : ""}>
+              <input id="save-palette" type="checkbox" checked={saveSections.palette} onChange={(event) => setSaveSections((sections) => ({ ...sections, palette: event.target.checked }))} />
+              <span><strong>PALETTE · 최종 팔레트</strong><small>색상 수, 슬롯 상태, 고정 색상과 가중치</small></span>
+            </label>
+          </div>
+          <p className="settings-dialog-note">내보내기 형식, 파일명, 투명도 설정은 항상 함께 저장됩니다. 불러올 때 선택하지 않았던 항목은 현재 이미지의 설정을 유지합니다.</p>
+          <div className="dialog-footer"><button className="button ghost" onClick={() => setSaveDialogOpen(false)}>취소</button><button className="button primary" disabled={!saveSections.adjust && !saveSections.palette} onClick={saveSettings}>선택 항목 저장</button></div>
+        </section>
+      </div>}
 
       {activeSlot !== null && current && !sampling && <div className="modal-backdrop">
         <section className="color-dialog" role="dialog" aria-modal="true" aria-label="색상 선택기">

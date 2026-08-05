@@ -107,3 +107,16 @@ test("compact control typography uses consistent readable sizing and alignment",
   assert.match(css, /\.pixelation-help \{[^}]*font-size: 10px;/);
   assert.match(css, /\.export-grid label > span,[^}]*font-size: 10px;/);
 });
+
+test("settings save dialog offers independent ADJUST and PALETTE selection", async () => {
+  const [component, css] = await Promise.all([
+    readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(component, /saveSections/);
+  assert.match(component, /ADJUST · 색 보정/);
+  assert.match(component, /PALETTE · 최종 팔레트/);
+  assert.match(component, /disabled=\{!saveSections\.adjust && !saveSections\.palette\}/);
+  assert.match(component, /deserializeSettingsDocument\(await file\.text\(\), target\.settings\)/);
+  assert.match(css, /\.settings-scope-list label\.is-selected/);
+});

@@ -5,6 +5,7 @@ import {
   countUniqueOpaqueColors,
   defaultSettings,
   deserializeSettings,
+  deserializeSettingsDocument,
   fixPaletteSlot,
   getExportDimensions,
   hsvToRgb,
@@ -155,6 +156,65 @@ test("설정 저장 후 불러오면 동일하게 복원된다", () => {
   settings.pixelation = { enabled: true, size: 12, alphaMode: "binary" };
   settings.export.keepOriginalSize = false;
   assert.deepEqual(deserializeSettings(serializeSettings(settings)), settings);
+});
+
+test("ADJUST 전용 설정은 현재 팔레트를 유지하면서 보정과 픽셀화를 적용한다", () => {
+  const saved = configured(2);
+  saved.adjustments = { brightness: 21, contrast: -14, saturation: 37, hue: 48 };
+  saved.pixelation = { enabled: true, size: 9, alphaMode: "binary" };
+  saved.export.fileName = "adjust-preset";
+  const current = configured(4);
+  current.slots[1] = { fixed: true, color: [12, 34, 56], weight: 2.2 };
+
+  const serialized = serializeSettings(saved, ["adjust"]);
+  const document = JSON.parse(serialized);
+  assert.equal("colorCount" in document, false);
+  assert.equal("slots" in document, false);
+  const loaded = deserializeSettingsDocument(serialized, current);
+  assert.deepEqual(loaded.includedSections, ["adjust"]);
+  assert.deepEqual(loaded.settings.adjustments, saved.adjustments);
+  assert.deepEqual(loaded.settings.pixelation, saved.pixelation);
+  assert.equal(loaded.settings.colorCount, current.colorCount);
+  assert.deepEqual(loaded.settings.slots, current.slots);
+  assert.deepEqual(loaded.settings.export, saved.export);
+});
+
+test("PALETTE 전용 설정은 현재 보정을 유지하면서 팔레트를 적용한다", () => {
+  const saved = configured(3);
+  saved.slots[0] = { fixed: true, color: [240, 20, 0], weight: 1.8 };
+  const current = configured(5);
+  current.adjustments.hue = -55;
+  current.pixelation = { enabled: true, size: 14, alphaMode: "smooth" };
+
+  const serialized = serializeSettings(saved, ["palette"]);
+  const document = JSON.parse(serialized);
+  assert.equal("adjustments" in document, false);
+  assert.equal("pixelation" in document, false);
+  const loaded = deserializeSettingsDocument(serialized, current);
+  assert.deepEqual(loaded.includedSections, ["palette"]);
+  assert.equal(loaded.settings.colorCount, saved.colorCount);
+  assert.deepEqual(loaded.settings.slots, saved.slots);
+  assert.deepEqual(loaded.settings.adjustments, current.adjustments);
+  assert.deepEqual(loaded.settings.pixelation, current.pixelation);
+});
+
+test("범위 정보가 없는 기존 설정 파일은 전체 설정으로 불러온다", () => {
+  const legacy = configured(2);
+  legacy.adjustments.brightness = 33;
+  legacy.slots[0] = { fixed: true, color: [1, 2, 3], weight: 1.4 };
+  const current = configured(6);
+  const loaded = deserializeSettingsDocument(JSON.stringify(legacy), current);
+  assert.equal(loaded.legacy, true);
+  assert.deepEqual(loaded.includedSections, ["adjust", "palette"]);
+  assert.deepEqual(loaded.settings, legacy);
+});
+
+test("저장 범위가 비어 있거나 알 수 없는 항목이면 오류를 표시한다", () => {
+  const settings = defaultSettings();
+  assert.throws(() => serializeSettings(settings, []), /하나 이상/);
+  const invalid = JSON.parse(serializeSettings(settings));
+  invalid.includedSections = ["unknown"];
+  assert.throws(() => deserializeSettingsDocument(JSON.stringify(invalid), settings), /저장 항목/);
 });
 
 test("동일 입력과 설정은 항상 동일한 결과를 만든다", () => {
