@@ -352,7 +352,7 @@ export default function PaletteStudio() {
             <label className="count-field"><span>최종 색상 수<small>최대 {MAX_COLORS}</small></span><input type="number" min="1" max={MAX_COLORS} value={current?.settings.colorCount ?? 5} disabled={!current} onChange={(event) => changeCount(event.target.value)} /></label>
             <div className="palette-list">{current?.settings.slots.map((slot: Slot, index: number) => {
               const color = slot.color ?? current.palette[index] ?? [218, 218, 213]; const hex = rgbToHex(color);
-              return <div className={`palette-slot ${slot.fixed ? "fixed" : ""}`} key={index}>
+              return <div className={`palette-slot ${slot.fixed ? "is-fixed" : ""}`} key={index}>
                 <button className="swatch" style={{ background: hex }} onClick={() => openColor(index)} aria-label={`${index + 1}번 색상 선택`} />
                 <button className="slot-color" onClick={() => openColor(index)}><strong>{hex}</strong><small>RGB {color.join(" · ")}</small></button>
                 <span className="slot-tag">{slot.fixed ? "고정" : "자동"}</span>
