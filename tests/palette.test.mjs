@@ -11,7 +11,7 @@ import {
 } from "../lib/palette.mjs";
 
 function pixels(colors) {
-  return new Uint8ClampedArray(colors.flatMap((color) => [...color, color.length === 4 ? color[3] : 255]).slice(0, colors.length * 4));
+  return new Uint8ClampedArray(colors.flatMap((color) => [color[0], color[1], color[2], color.length === 4 ? color[3] : 255]));
 }
 
 function configured(count) {
@@ -67,6 +67,14 @@ test("완전 투명 픽셀은 추출과 색상 수 계산에서 제외된다", (
   const { result } = quantizeImage(source, configured(1));
   assert.equal(countUniqueOpaqueColors(result), 1);
   assert.equal(result[3], 0);
+});
+
+test("변환 전후에 완전·부분 투명 픽셀의 알파 값이 그대로 유지된다", () => {
+  const source = pixels([[255, 0, 0, 0], [0, 255, 0, 80], [0, 0, 255, 180], [255, 255, 0, 255]]);
+  const { adjusted, result } = quantizeImage(source, configured(2));
+  const alpha = (data) => Array.from({ length: data.length / 4 }, (_, index) => data[index * 4 + 3]);
+  assert.deepEqual(alpha(adjusted), [0, 80, 180, 255]);
+  assert.deepEqual(alpha(result), [0, 80, 180, 255]);
 });
 
 test("설정 저장 후 불러오면 동일하게 복원된다", () => {

@@ -67,6 +67,16 @@ function containsTransparency(pixels: Uint8ClampedArray) {
   return false;
 }
 
+function createThumbnail(source: HTMLCanvasElement, transparent: boolean) {
+  const maximum = 96;
+  const scale = Math.min(1, maximum / Math.max(source.width, source.height));
+  const thumbnail = document.createElement("canvas");
+  thumbnail.width = Math.max(1, Math.round(source.width * scale));
+  thumbnail.height = Math.max(1, Math.round(source.height * scale));
+  thumbnail.getContext("2d")!.drawImage(source, 0, 0, thumbnail.width, thumbnail.height);
+  return thumbnail.toDataURL(transparent ? "image/png" : "image/jpeg", 0.72);
+}
+
 function download(blob: Blob, fileName: string) {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
@@ -150,11 +160,12 @@ export default function PaletteStudio() {
         const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
         const settings = defaultSettings();
         settings.export.fileName = `${baseName(file.name)}-converted`;
+        const hasAlpha = containsTransparency(imageData.data);
         loaded.push({
           id: crypto.randomUUID(), name: file.name, width: canvas.width, height: canvas.height,
           original: imageData.data, result: null, palette: [], settings,
-          thumbnail: canvas.toDataURL("image/jpeg", 0.72),
-          hasAlpha: containsTransparency(imageData.data),
+          thumbnail: createThumbnail(canvas, hasAlpha),
+          hasAlpha,
         });
       } catch { errors.push(`${file.name}: 파일이 손상되었거나 디코딩할 수 없습니다.`); }
     }
@@ -216,13 +227,13 @@ export default function PaletteStudio() {
   const pick = (rgb: RGB | null) => {
     if (!sampling) return;
     if (!rgb) { notify("완전 투명한 픽셀에서는 색상을 가져올 수 없습니다.", "error"); return; }
-    applyColor(rgb); notify(`${rgbToHex(rgb)} 색상을 가져왔습니다.`, "success");
+    applyColor(rgb); setActiveSlot(null); notify(`${rgbToHex(rgb)} 색상을 고정하고 팔레트에 반영했습니다.`, "success");
   };
 
   const screenPick = async () => {
     const EyeDropperClass = (window as unknown as { EyeDropper?: new () => { open: () => Promise<{ sRGBHex: string }> } }).EyeDropper;
     if (!EyeDropperClass) { notify("이 브라우저는 화면 전체 스포이드를 지원하지 않습니다. 이미지 내부 스포이드를 사용해주세요.", "error"); return; }
-    try { const result = await new EyeDropperClass().open(); const rgb = hexToRgb(result.sRGBHex); if (rgb) applyColor(rgb as RGB); }
+    try { const result = await new EyeDropperClass().open(); const rgb = hexToRgb(result.sRGBHex); if (rgb) { applyColor(rgb as RGB); setActiveSlot(null); notify(`${rgbToHex(rgb)} 색상을 고정하고 팔레트에 반영했습니다.`, "success"); } }
     catch { notify("화면 스포이드 선택을 취소했습니다."); }
   };
 
