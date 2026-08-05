@@ -51,8 +51,8 @@ test("색 보정 패널은 픽셀화 온오프, 블록 크기, 알파 방식을 
 test("설정 패널의 작은 숫자와 보조 정보는 읽을 수 있는 크기를 유지한다", async () => {
   const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
   assert.match(css, /\.pixelation-size input\[type="number"\] \{[^}]*min-height: 28px;[^}]*font: 12px/);
-  assert.match(css, /\.weight span \{[^}]*font-size: 9px/);
-  assert.match(css, /\.slot-color small \{[^}]*font-size: 9px/);
+  assert.match(css, /\.weight span \{[^}]*font-size: 10px/);
+  assert.match(css, /\.slot-color small \{[^}]*font-size: 10px/);
 });
 
 test("픽셀화 블록 크기는 편집 중 빈 값을 허용하는 숫자 입력을 제공한다", async () => {
@@ -87,4 +87,23 @@ test("미리보기 Worker 처리 중 진행 상태를 화면에 표시한다", a
   assert.match(component, /220 - \(performance\.now\(\) - startedAt\)/);
   assert.match(css, /\.preview-processing/);
   assert.match(css, /@keyframes preview-spin/);
+});
+
+test("zoomed preview preserves canvas clicks until a drag actually begins", async () => {
+  const component = await readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8");
+  assert.match(component, /<canvas ref=\{ref\} onClick=\{click\}/);
+  assert.match(component, /if \(!moved\.current && Math\.abs\(dx\) \+ Math\.abs\(dy\) > 3\)/);
+  assert.match(component, /event\.currentTarget\.setPointerCapture\(event\.pointerId\)/);
+  assert.match(component, /event\.clientX < rect\.left/);
+  assert.match(component, /event\.clientY < rect\.top/);
+  assert.doesNotMatch(component, /startY: event\.clientY[^}]+setPointerCapture/s);
+});
+
+test("compact control typography uses consistent readable sizing and alignment", async () => {
+  const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  assert.match(css, /\.sliders output \{[^}]*text-align: center;/);
+  assert.match(css, /\.pixelation-size > div \{[^}]*font-size: 12px;/);
+  assert.match(css, /\.pixelation-option > span \{[^}]*font-size: 12px;/);
+  assert.match(css, /\.pixelation-help \{[^}]*font-size: 10px;/);
+  assert.match(css, /\.export-grid label > span,[^}]*font-size: 10px;/);
 });

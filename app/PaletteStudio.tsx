@@ -94,6 +94,7 @@ function CanvasPreview({ item, result, onPick }: { item: ImageItem; result: bool
     const sampled = displayedPixels.current;
     if (!canvas || !sampled) return;
     const rect = canvas.getBoundingClientRect();
+    if (event.clientX < rect.left || event.clientX >= rect.right || event.clientY < rect.top || event.clientY >= rect.bottom) return;
     const x = Math.min(item.width - 1, Math.max(0, Math.floor((event.clientX - rect.left) * item.width / rect.width)));
     const y = Math.min(item.height - 1, Math.max(0, Math.floor((event.clientY - rect.top) * item.height / rect.height)));
     const index = (y * item.width + x) * 4;
@@ -118,15 +119,18 @@ function CanvasPreview({ item, result, onPick }: { item: ImageItem; result: bool
     if (event.button !== 0 || view.zoom <= 1 || (event.target as HTMLElement).closest("button")) return;
     drag.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, originX: view.x, originY: view.y };
     moved.current = false;
-    setIsDragging(true);
-    event.currentTarget.setPointerCapture(event.pointerId);
   };
   const moveDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
     const active = drag.current;
     if (!active || active.pointerId !== event.pointerId) return;
     const dx = event.clientX - active.startX;
     const dy = event.clientY - active.startY;
-    if (Math.abs(dx) + Math.abs(dy) > 3) moved.current = true;
+    if (!moved.current && Math.abs(dx) + Math.abs(dy) > 3) {
+      moved.current = true;
+      setIsDragging(true);
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
+    if (!moved.current) return;
     setView((current) => ({ ...current, x: active.originX + dx, y: active.originY + dy }));
   };
   const stopDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
