@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, MouseEvent, PointerEvent as ReactPointerEvent, WheelEvent, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, MouseEvent, PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   MAX_COLORS,
   cloneSettings,
@@ -38,6 +38,7 @@ const SUPPORTED_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 
 function CanvasPreview({ item, result, onPick }: { item: ImageItem; result: boolean; onPick: (rgb: RGB | null) => void }) {
   const ref = useRef<HTMLCanvasElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ pointerId: number; startX: number; startY: number; originX: number; originY: number } | null>(null);
   const moved = useRef(false);
   const [view, setView] = useState({ zoom: 1, x: 0, y: 0 });
@@ -87,13 +88,20 @@ function CanvasPreview({ item, result, onPick }: { item: ImageItem; result: bool
 
   const adjustment = item.settings.adjustments;
   const filter = result ? undefined : `brightness(${100 + adjustment.brightness}%) contrast(${100 + adjustment.contrast}%) saturate(${100 + adjustment.saturation}%) hue-rotate(${adjustment.hue}deg)`;
-  const zoomWithWheel = (event: WheelEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    setView((current) => {
-      const zoom = Math.min(8, Math.max(0.5, current.zoom * (event.deltaY < 0 ? 1.12 : 1 / 1.12)));
-      return zoom <= 1 ? { zoom, x: 0, y: 0 } : { ...current, zoom };
-    });
-  };
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    const zoomWithWheel = (event: globalThis.WheelEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setView((current) => {
+        const zoom = Math.min(8, Math.max(0.5, current.zoom * (event.deltaY < 0 ? 1.12 : 1 / 1.12)));
+        return zoom <= 1 ? { zoom, x: 0, y: 0 } : { ...current, zoom };
+      });
+    };
+    viewport.addEventListener("wheel", zoomWithWheel, { passive: false });
+    return () => viewport.removeEventListener("wheel", zoomWithWheel);
+  }, []);
   const startDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.button !== 0 || view.zoom <= 1 || (event.target as HTMLElement).closest("button")) return;
     drag.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, originX: view.x, originY: view.y };
@@ -116,7 +124,7 @@ function CanvasPreview({ item, result, onPick }: { item: ImageItem; result: bool
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
   };
   const resetView = () => setView({ zoom: 1, x: 0, y: 0 });
-  return <div className={`pan-zoom-viewport ${isDragging ? "is-dragging" : ""}`} onWheel={zoomWithWheel} onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={stopDrag} onPointerCancel={stopDrag} onDoubleClick={resetView}>
+  return <div ref={viewportRef} className={`pan-zoom-viewport ${isDragging ? "is-dragging" : ""}`} onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={stopDrag} onPointerCancel={stopDrag} onDoubleClick={resetView}>
     <canvas ref={ref} onClick={click} draggable={false} style={{ filter, transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})` }} aria-label={result ? "변환 결과 이미지" : "색 보정이 적용된 원본 이미지"} />
     <div className="zoom-controls"><span>{Math.round(view.zoom * 100)}%</span><button type="button" onClick={resetView} disabled={view.zoom === 1 && view.x === 0 && view.y === 0}>화면 맞춤</button></div>
   </div>;
