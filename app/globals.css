@@ -104,6 +104,16 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .sliders label > span { display: flex; justify-content: space-between; align-items: center; font-size: 11px; font-weight: 700; }
 .sliders output { min-width: 39px; padding: 2px 5px; text-align: right; background: #edeee8; border-radius: 5px; color: #52564d; font: 10px/1.4 ui-monospace, monospace; }
 input[type="range"] { width: 100%; height: 3px; margin: 8px 0 0; accent-color: var(--orange); }
+.pixelation-setting { margin: 0 17px 16px; padding: 10px 11px; border: 1px solid var(--line); border-radius: 9px; background: #f6f6f1; }
+.pixelation-setting.is-enabled { border-color: #f4b19a; background: #fff7f2; }
+.pixelation-toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.pixelation-toggle strong, .pixelation-toggle small { display: block; }
+.pixelation-toggle strong { font-size: 11px; }
+.pixelation-toggle small { margin-top: 2px; color: var(--muted); font-size: 8px; }
+.pixelation-toggle input { width: 34px; height: 18px; accent-color: var(--orange); }
+.pixelation-size { display: block; margin-top: 10px; padding-top: 9px; border-top: 1px solid #e1e2db; }
+.pixelation-size > span { display: flex; align-items: center; justify-content: space-between; font-size: 9px; font-weight: 750; }
+.pixelation-size output { min-width: 40px; padding: 2px 5px; border-radius: 5px; text-align: right; background: white; color: var(--muted); font: 9px/1.4 ui-monospace,monospace; }
 .count-field { margin: 0 17px 12px; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; background: #f0f1eb; border-radius: 9px; }
 .count-field > span { font-size: 11px; font-weight: 800; }
 .count-field small { display: block; margin-top: 2px; color: var(--muted); font-size: 8px; font-weight: 500; }

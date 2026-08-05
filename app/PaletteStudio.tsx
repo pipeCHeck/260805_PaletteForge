@@ -47,8 +47,24 @@ function CanvasPreview({ item, result, onPick }: { item: ImageItem; result: bool
     if (!canvas || !pixels) return;
     canvas.width = item.width;
     canvas.height = item.height;
-    canvas.getContext("2d", { willReadFrequently: true })?.putImageData(new ImageData(new Uint8ClampedArray(pixels), item.width, item.height), 0, 0);
-  }, [item.height, item.width, pixels]);
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context) return;
+    const imageData = new ImageData(new Uint8ClampedArray(pixels), item.width, item.height);
+    if (!result && item.settings.pixelation.enabled) {
+      const source = document.createElement("canvas");
+      source.width = item.width; source.height = item.height;
+      source.getContext("2d")!.putImageData(imageData, 0, 0);
+      const small = document.createElement("canvas");
+      small.width = Math.max(1, Math.ceil(item.width / item.settings.pixelation.size));
+      small.height = Math.max(1, Math.ceil(item.height / item.settings.pixelation.size));
+      const smallContext = small.getContext("2d")!;
+      smallContext.imageSmoothingEnabled = true;
+      smallContext.drawImage(source, 0, 0, small.width, small.height);
+      context.imageSmoothingEnabled = false;
+      context.clearRect(0, 0, item.width, item.height);
+      context.drawImage(small, 0, 0, item.width, item.height);
+    } else context.putImageData(imageData, 0, 0);
+  }, [item.height, item.settings.pixelation.enabled, item.settings.pixelation.size, item.width, pixels, result]);
 
   const click = (event: MouseEvent<HTMLCanvasElement>) => {
     if (moved.current) { moved.current = false; return; }
@@ -138,7 +154,7 @@ function processInWorker(item: ImageItem): Promise<{ result: Uint8ClampedArray; 
       else resolve({ result: new Uint8ClampedArray(event.data.result), palette: event.data.palette });
     };
     worker.onerror = () => { worker.terminate(); reject(new Error("이미지 변환 작업을 시작하지 못했습니다.")); };
-    worker.postMessage({ pixels: copy.buffer, settings: item.settings }, [copy.buffer]);
+    worker.postMessage({ pixels: copy.buffer, width: item.width, height: item.height, settings: item.settings }, [copy.buffer]);
   });
 }
 
@@ -411,6 +427,10 @@ export default function PaletteStudio() {
             <div className="panel-title compact"><div><span className="eyebrow">ADJUST</span><h2>색 보정</h2></div>{current && <button className="text-button" onClick={() => updateSettings((settings) => { settings.adjustments = defaultSettings().adjustments; return settings; })}>초기화</button>}</div>
             <p className="section-note">원본에서 다시 계산되며 보정값이 누적되지 않습니다.</p>
             <div className="sliders">{adjustmentFields.map(([key, label, min, max]) => <label key={key}><span>{label}<output>{current?.settings.adjustments[key] ?? 0}{key === "hue" ? "°" : ""}</output></span><input type="range" min={min} max={max} value={current?.settings.adjustments[key] ?? 0} disabled={!current} onChange={(event) => updateSettings((settings) => { settings.adjustments[key] = Number(event.target.value); return settings; })} /></label>)}</div>
+            <div className={`pixelation-setting ${current?.settings.pixelation.enabled ? "is-enabled" : ""}`}>
+              <label className="pixelation-toggle"><span><strong>픽셀화</strong><small>색상 제한 전에 블록 효과 적용</small></span><input type="checkbox" aria-label="픽셀화 사용" disabled={!current} checked={current?.settings.pixelation.enabled ?? false} onChange={(event) => updateSettings((settings) => { settings.pixelation.enabled = event.target.checked; return settings; })} /></label>
+              <label className="pixelation-size"><span>블록 크기<output>{current?.settings.pixelation.size ?? 8}px</output></span><input type="range" aria-label="픽셀화 블록 크기" min="2" max="64" step="1" disabled={!current || !current.settings.pixelation.enabled} value={current?.settings.pixelation.size ?? 8} onChange={(event) => updateSettings((settings) => { settings.pixelation.size = Number(event.target.value); return settings; })} /></label>
+            </div>
           </section>
 
           <section className="panel control-section">

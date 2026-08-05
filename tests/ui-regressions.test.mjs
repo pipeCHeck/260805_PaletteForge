@@ -34,3 +34,10 @@ test("팔레트 슬롯 창은 위치 제어가 가능한 내장 색상 선택기
   assert.doesNotMatch(component, /showPicker\(\)/);
   assert.match(css, /\.color-picker-area \{[^}]*border:\s*0;[^}]*outline:\s*0;/);
 });
+
+test("색 보정 패널은 픽셀화 온오프와 블록 크기 조절을 제공한다", async () => {
+  const component = await readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8");
+  assert.match(component, /className="pixelation-toggle"/);
+  assert.match(component, /settings\.pixelation\.enabled/);
+  assert.match(component, /settings\.pixelation\.size/);
+});

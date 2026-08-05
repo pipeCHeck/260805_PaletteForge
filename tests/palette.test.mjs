@@ -9,6 +9,7 @@ import {
   hsvToRgb,
   mapPixels,
   parsePaletteWeight,
+  pixelatePixels,
   quantizeImage,
   rgbToHsv,
   serializeSettings,
@@ -95,6 +96,25 @@ test("변환 전후에 완전·부분 투명 픽셀의 알파 값이 그대로 �
   const alpha = (data) => Array.from({ length: data.length / 4 }, (_, index) => data[index * 4 + 3]);
   assert.deepEqual(alpha(adjusted), [0, 80, 180, 255]);
   assert.deepEqual(alpha(result), [0, 80, 180, 255]);
+});
+
+test("픽셀화는 설정한 블록을 같은 평균 색상으로 만든다", () => {
+  const source = pixels([
+    [0, 0, 0], [255, 255, 255], [255, 0, 0], [0, 0, 255],
+    [255, 255, 255], [0, 0, 0], [0, 0, 255], [255, 0, 0],
+  ]);
+  const result = pixelatePixels(source, 4, 2, 2);
+  const colors = Array.from({ length: 8 }, (_, index) => Array.from(result.slice(index * 4, index * 4 + 4)));
+  assert.deepEqual(colors.slice(0, 2), [[128, 128, 128, 255], [128, 128, 128, 255]]);
+  assert.deepEqual(colors.slice(2, 4), [[128, 0, 128, 255], [128, 0, 128, 255]]);
+  assert.deepEqual(colors.slice(4, 6), colors.slice(0, 2));
+  assert.deepEqual(colors.slice(6, 8), colors.slice(2, 4));
+});
+
+test("픽셀화는 투명 블록을 알파 가중 평균으로 처리한다", () => {
+  const source = pixels([[255, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]);
+  const result = pixelatePixels(source, 2, 2, 2);
+  for (let index = 0; index < 4; index += 1) assert.deepEqual(Array.from(result.slice(index * 4, index * 4 + 4)), [255, 0, 0, 64]);
 });
 
 test("설정 저장 후 불러오면 동일하게 복원된다", () => {
