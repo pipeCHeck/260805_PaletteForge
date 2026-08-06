@@ -120,3 +120,16 @@ test("settings save dialog offers independent ADJUST and PALETTE selection", asy
   assert.match(component, /deserializeSettingsDocument\(await file\.text\(\), target\.settings\)/);
   assert.match(css, /\.settings-scope-list label\.is-selected/);
 });
+
+test("theme toggle switches and persists light and dark modes", async () => {
+  const [component, css] = await Promise.all([
+    readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(component, /palette-forge-theme/);
+  assert.match(component, /className="button theme-toggle"/);
+  assert.match(component, /document\.documentElement\.dataset\.theme/);
+  assert.match(component, /aria-pressed=\{theme === "dark"\}/);
+  assert.match(css, /html\[data-theme="dark"\]/);
+  assert.match(css, /\.theme-toggle/);
+});

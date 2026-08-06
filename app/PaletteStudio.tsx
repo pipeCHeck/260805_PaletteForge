@@ -240,10 +240,28 @@ export default function PaletteStudio() {
   const [saveSections, setSaveSections] = useState({ adjust: true, palette: true });
   const [weightDrafts, setWeightDrafts] = useState<Record<string, string>>({});
   const [pixelSizeDrafts, setPixelSizeDrafts] = useState<Record<string, string>>({});
+  const [theme, setTheme] = useState<"light" | "dark">("light");
   const fileInput = useRef<HTMLInputElement>(null);
   const settingsInput = useRef<HTMLInputElement>(null);
   const current = images.find((image) => image.id === selectedId) ?? null;
   const sampling = samplingSlot !== null;
+
+  useEffect(() => {
+    let savedTheme: string | null = null;
+    try { savedTheme = window.localStorage.getItem("palette-forge-theme"); } catch { /* 저장소가 막힌 환경에서는 시스템 설정을 사용합니다. */ }
+    const nextTheme = savedTheme === "light" || savedTheme === "dark"
+      ? savedTheme
+      : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    document.documentElement.dataset.theme = nextTheme;
+    setTheme(nextTheme);
+  }, []);
+
+  const toggleTheme = () => {
+    const nextTheme = theme === "light" ? "dark" : "light";
+    document.documentElement.dataset.theme = nextTheme;
+    setTheme(nextTheme);
+    try { window.localStorage.setItem("palette-forge-theme", nextTheme); } catch { /* 테마 전환 자체는 계속 동작합니다. */ }
+  };
 
   const notify = (text: string, type: "info" | "error" | "success" = "info") => { setMessage(text); setMessageType(type); };
   const replace = (id: string, updater: (item: ImageItem) => ImageItem) => setImages((items) => items.map((item) => item.id === id ? updater(item) : item));
@@ -463,6 +481,7 @@ export default function PaletteStudio() {
       <header className="topbar">
         <div className="brand"><span className="brand-mark">PF</span><div><h1>Palette Forge</h1><p>정확한 고정 색상을 지키는 로컬 이미지 양자화</p></div></div>
         <div className="header-actions">
+          <button className="button theme-toggle" type="button" onClick={toggleTheme} aria-pressed={theme === "dark"} aria-label={`${theme === "dark" ? "라이트" : "다크"} 모드로 전환`} title={`${theme === "dark" ? "라이트" : "다크"} 모드로 전환`}><span className="theme-icon" aria-hidden="true">{theme === "dark" ? "☀" : "☾"}</span><span className="theme-label">{theme === "dark" ? "라이트" : "다크"}</span></button>
           <button className="button ghost" onClick={() => fileInput.current?.click()} disabled={busy}>이미지 추가</button>
           <button className="button primary" onClick={convertCurrent} disabled={!current || busy}>{busy ? "처리 중…" : "변환 실행"}</button>
         </div>
