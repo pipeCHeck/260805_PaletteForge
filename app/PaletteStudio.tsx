@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, MouseEvent, PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, MouseEvent, PointerEvent as ReactPointerEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   MAX_COLORS,
   cloneSettings,
@@ -288,7 +288,7 @@ export default function PaletteStudio() {
     try { window.localStorage.setItem("palette-forge-language", nextLanguage); } catch { /* 언어 전환 자체는 계속 동작합니다. */ }
   };
 
-  const notify = (text: string, type: "info" | "error" | "success" = "info") => { setMessage(text); setMessageType(type); };
+  const notify = useCallback((text: string, type: "info" | "error" | "success" = "info") => { setMessage(text); setMessageType(type); }, []);
   const replace = (id: string, updater: (item: ImageItem) => ImageItem) => setImages((items) => items.map((item) => item.id === id ? updater(item) : item));
   const updateCurrent = (updater: (item: ImageItem) => ImageItem) => { if (current) replace(current.id, updater); };
   const updateSettings = (updater: (settings: Settings) => Settings, invalidateResult = true) => updateCurrent((item) => {
@@ -296,15 +296,17 @@ export default function PaletteStudio() {
     return { ...item, settings, result: invalidateResult ? null : item.result };
   });
 
-  const loadImages = async (event: ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files ?? []);
-    event.target.value = "";
+  const loadImageFiles = useCallback(async (files: File[], fromClipboard = false) => {
     if (!files.length) return;
+    if (busy) { notify(translate(language, "이미지를 처리하는 동안에는 새 이미지를 추가할 수 없습니다."), "error"); return; }
     setBusy(true);
     const loaded: ImageItem[] = [];
     const errors: string[] = [];
-    for (const file of files) {
-      if (!SUPPORTED_TYPES.has(file.type)) { errors.push(tr("{name}: PNG, JPEG, WebP만 지원합니다.", { name: file.name })); continue; }
+    const clipboardStamp = Date.now();
+    for (const [index, file] of files.entries()) {
+      const extension = file.type === "image/jpeg" ? "jpg" : file.type === "image/webp" ? "webp" : "png";
+      const displayName = fromClipboard ? `clipboard-${clipboardStamp}${index ? `-${index + 1}` : ""}.${extension}` : file.name;
+      if (!SUPPORTED_TYPES.has(file.type)) { errors.push(translate(language, "{name}: PNG, JPEG, WebP만 지원합니다.", { name: displayName })); continue; }
       try {
         const bitmap = await createImageBitmap(file);
         const canvas = document.createElement("canvas");
@@ -313,15 +315,15 @@ export default function PaletteStudio() {
         context.drawImage(bitmap, 0, 0); bitmap.close();
         const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
         const settings = defaultSettings();
-        settings.export.fileName = `${baseName(file.name)}-converted`;
+        settings.export.fileName = `${baseName(displayName)}-converted`;
         const hasAlpha = containsTransparency(imageData.data);
         loaded.push({
-          id: crypto.randomUUID(), name: file.name, width: canvas.width, height: canvas.height,
+          id: crypto.randomUUID(), name: displayName, width: canvas.width, height: canvas.height,
           original: imageData.data, result: null, palette: [], settings,
           thumbnail: createThumbnail(canvas, hasAlpha),
           hasAlpha,
         });
-      } catch { errors.push(tr("{name}: 파일이 손상되었거나 디코딩할 수 없습니다.", { name: file.name })); }
+      } catch { errors.push(translate(language, "{name}: 파일이 손상되었거나 디코딩할 수 없습니다.", { name: displayName })); }
     }
     if (loaded.length) {
       setImages((items) => [...items, ...loaded]);
@@ -329,8 +331,30 @@ export default function PaletteStudio() {
     }
     setBusy(false);
     if (errors.length) notify(errors.join(" "), "error");
-    else notify(tr("{count}개 이미지를 원본 순서대로 불러왔습니다.", { count: loaded.length }), "success");
+    else notify(translate(language, fromClipboard ? "클립보드에서 {count}개 이미지를 불러왔습니다." : "{count}개 이미지를 원본 순서대로 불러왔습니다.", { count: loaded.length }), "success");
+  }, [busy, language, notify]);
+
+  const loadImages = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = "";
+    void loadImageFiles(files);
   };
+
+  useEffect(() => {
+    const pasteImages = (event: ClipboardEvent) => {
+      const target = event.target instanceof HTMLElement ? event.target : null;
+      if (target?.closest("input, textarea, select, [contenteditable='true']")) return;
+      const files = Array.from(event.clipboardData?.items ?? [])
+        .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
+        .map((item) => item.getAsFile())
+        .filter((file): file is File => file !== null);
+      if (!files.length) return;
+      event.preventDefault();
+      void loadImageFiles(files, true);
+    };
+    window.addEventListener("paste", pasteImages);
+    return () => window.removeEventListener("paste", pasteImages);
+  }, [loadImageFiles]);
 
   const changeCount = (value: string) => {
     if (!current) return;
@@ -519,7 +543,7 @@ export default function PaletteStudio() {
       <div className="workspace">
         <aside className="image-rail panel">
           <div className="panel-title"><div><span className="eyebrow">SOURCE</span><h2>{tr("이미지 목록")} <b>{images.length}</b></h2></div><button className="icon-button" aria-label={tr("이미지 추가")} onClick={() => fileInput.current?.click()}>＋</button></div>
-          <button className="dropzone" onClick={() => fileInput.current?.click()} disabled={busy}><span>＋</span><strong>{tr("이미지 불러오기")}</strong><small>{tr("PNG · JPEG · WebP / 여러 장 선택 가능")}</small></button>
+          <button className="dropzone" onClick={() => fileInput.current?.click()} disabled={busy}><span>＋</span><strong>{tr("이미지 불러오기")}</strong><small>{tr("PNG · JPEG · WebP / 여러 장 선택 가능")}</small><small className="paste-hint">{tr("또는 Ctrl+V로 클립보드 이미지 붙여넣기")}</small></button>
           <div className="image-list">
             {images.map((image, index) => <button key={image.id} className={`image-item ${selectedId === image.id ? "selected" : ""}`} onClick={() => { setSelectedId(image.id); setActiveSlot(null); setSamplingSlot(null); }}>
               {/* Object URL이 아닌 메모리 내 썸네일이므로 Next Image 최적화 대상이 아닙니다. */}

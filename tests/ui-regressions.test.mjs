@@ -149,3 +149,16 @@ test("language selector switches and persists Korean, Japanese, and English", as
   assert.match(translations, /value: "en", label: "English"/);
   assert.match(css, /\.language-control/);
 });
+
+test("clipboard image paste uses the existing image loading flow without hijacking text fields", async () => {
+  const [component, translations] = await Promise.all([
+    readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/i18n.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(component, /window\.addEventListener\("paste", pasteImages\)/);
+  assert.match(component, /item\.kind === "file" && item\.type\.startsWith\("image\/"\)/);
+  assert.match(component, /closest\("input, textarea, select, \[contenteditable='true'\]"\)/);
+  assert.match(component, /void loadImageFiles\(files, true\)/);
+  assert.match(component, /clipboard-\$\{clipboardStamp\}/);
+  assert.match(translations, /클립보드에서 \{count\}개 이미지를 불러왔습니다/);
+});
