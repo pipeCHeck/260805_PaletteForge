@@ -151,7 +151,7 @@ function CanvasPreview({ item, result, onPick, language }: { item: ImageItem; re
   };
   const resetView = () => setView({ zoom: 1, x: 0, y: 0 });
   return <div ref={viewportRef} className={`pan-zoom-viewport ${isDragging ? "is-dragging" : ""} ${isPreparing ? "is-processing" : ""}`} aria-busy={isPreparing} onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={stopDrag} onPointerCancel={stopDrag} onDoubleClick={resetView}>
-    <canvas ref={ref} onClick={click} draggable={false} style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})` }} aria-label={tr(result ? "변환 결과 이미지" : "색 보정이 적용된 원본 이미지")} />
+    <canvas ref={ref} onClick={click} draggable={false} style={{ transform: `translate(calc(-50% + ${view.x}px), calc(-50% + ${view.y}px)) scale(${view.zoom})` }} aria-label={tr(result ? "변환 결과 이미지" : "색 보정이 적용된 원본 이미지")} />
     {isPreparing && <div className="preview-processing" role="status" aria-live="polite"><i /><span><strong>{tr("미리보기 계산 중…")}</strong><small>{tr("색 보정과 픽셀화를 적용하고 있습니다.")}</small></span></div>}
     {previewFailed && <div className="preview-processing is-error" role="alert"><span><strong>{tr("미리보기를 계산하지 못했습니다.")}</strong><small>{tr("설정을 다시 변경하거나 이미지를 다시 불러와주세요.")}</small></span></div>}
     <div className="zoom-controls"><span>{Math.round(view.zoom * 100)}%</span><button type="button" onClick={resetView} disabled={view.zoom === 1 && view.x === 0 && view.y === 0}>{tr("화면 맞춤")}</button></div>

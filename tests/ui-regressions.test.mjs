@@ -259,3 +259,13 @@ test("wide desktop editor fits its primary regions into one viewport", async () 
   assert.match(css, /\.studio-shell \.control-section:nth-child\(2\) \{[^}]*display:flex;[^}]*overflow:hidden;/);
   assert.match(css, /\.studio-shell \.control-section:nth-child\(2\) \.palette-list \{[^}]*flex:1;[^}]*max-height:none;/);
 });
+
+test("preview canvas uses an explicit center anchor at medium widths", async () => {
+  const [component, css] = await Promise.all([
+    readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(component, /calc\(-50% \+ \$\{view\.x\}px\)/);
+  assert.match(component, /calc\(-50% \+ \$\{view\.y\}px\)/);
+  assert.match(css, /\.pan-zoom-viewport canvas \{[^}]*position:absolute;[^}]*left:50%;[^}]*top:50%;/);
+});
