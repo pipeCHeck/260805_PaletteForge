@@ -197,3 +197,12 @@ test("information pages use reliable full-document navigation for every internal
   assert.match(component, /href="\/terms"/);
   assert.match(component, /href="\/guide#contact"/);
 });
+
+test("Korean information typography keeps words intact and balances prominent headings", async () => {
+  const css = await readFile(new URL("../app/info.css", import.meta.url), "utf8");
+  assert.match(css, /html\[lang="ko"\] \.info-page[^{]+\{ word-break: keep-all;/);
+  assert.match(css, /\.info-page :is\(h1,h2,h3\) \{ text-wrap: balance;/);
+  assert.match(css, /\.info-page :is\(p,li\) \{ text-wrap: pretty;/);
+  assert.match(css, /\.local-promise \{[^}]*grid-template-columns: 150px minmax\(0,1fr\)/);
+  assert.match(css, /\.local-promise h2 \{ max-width: 820px;/);
+});
