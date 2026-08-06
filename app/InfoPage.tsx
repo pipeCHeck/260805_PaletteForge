@@ -1,7 +1,7 @@
 "use client";
+/* eslint-disable @next/next/no-html-link-for-pages -- vinext 배포에서는 안내 페이지 간 이동에 전체 문서 탐색이 필요합니다. */
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { LANGUAGE_OPTIONS, Language, detectLanguage } from "./i18n";
 
 type PageKind = "guide" | "privacy" | "terms";
@@ -153,13 +153,13 @@ export default function InfoPage({ kind }: { kind: PageKind }) {
   const legal = kind === "privacy" ? copy.privacy : copy.terms;
   return <main className="info-page">
     <header className="info-topbar">
-      <Link className="info-brand" href="/"><span>PF</span><strong>Palette Forge</strong></Link>
-      <nav aria-label="Information"><Link className={kind === "guide" ? "active" : ""} href="/guide">{copy.guideNav}</Link><Link className={kind === "privacy" ? "active" : ""} href="/privacy">{copy.privacyNav}</Link><Link className={kind === "terms" ? "active" : ""} href="/terms">{copy.termsNav}</Link></nav>
-      <div className="info-actions"><button type="button" onClick={toggleTheme} aria-label={theme === "dark" ? copy.light : copy.dark}>{theme === "dark" ? "☀" : "☾"}</button><label><span aria-hidden="true">文</span><select value={language} aria-label={copy.language} onChange={(event) => chooseLanguage(event.target.value as Language)}>{LANGUAGE_OPTIONS.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select></label><Link className="back-editor" href="/">{copy.back}</Link></div>
+      <a className="info-brand" href="/"><span>PF</span><strong>Palette Forge</strong></a>
+      <nav aria-label="Information"><a className={kind === "guide" ? "active" : ""} href="/guide">{copy.guideNav}</a><a className={kind === "privacy" ? "active" : ""} href="/privacy">{copy.privacyNav}</a><a className={kind === "terms" ? "active" : ""} href="/terms">{copy.termsNav}</a></nav>
+      <div className="info-actions"><button type="button" onClick={toggleTheme} aria-label={theme === "dark" ? copy.light : copy.dark}>{theme === "dark" ? "☀" : "☾"}</button><label><span aria-hidden="true">文</span><select value={language} aria-label={copy.language} onChange={(event) => chooseLanguage(event.target.value as Language)}>{LANGUAGE_OPTIONS.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select></label><a className="back-editor" href="/">{copy.back}</a></div>
     </header>
 
     {kind === "guide" ? <>
-      <section className="info-hero"><span className="eyebrow">{copy.guide.eyebrow}</span><h1>{copy.guide.title}</h1><p>{copy.guide.lead}</p><Link className="info-primary" href="/">{copy.guide.start}<span>→</span></Link></section>
+      <section className="info-hero"><span className="eyebrow">{copy.guide.eyebrow}</span><h1>{copy.guide.title}</h1><p>{copy.guide.lead}</p><a className="info-primary" href="/">{copy.guide.start}<span>→</span></a></section>
       <section className="local-promise"><div className="local-orbit" aria-hidden="true"><span>LOCAL</span><i /><i /><i /></div><div><span className="eyebrow">PRIVACY BY DESIGN</span><h2>{copy.guide.localTitle}</h2><p>{copy.guide.localBody}</p></div></section>
       <section className="process-section"><div className="info-section-head"><span className="eyebrow">WORKFLOW</span><h2>{copy.guide.flowTitle}</h2></div><ol className="process-flow">{copy.guide.flow.map((item, index) => <li key={item}><span>{String(index + 1).padStart(2, "0")}</span><strong>{item}</strong></li>)}</ol></section>
       <section className="guide-section"><div className="info-section-head"><span className="eyebrow">HOW TO USE</span><h2>{copy.guide.stepsTitle}</h2><p>{copy.guide.stepsLead}</p></div><div className="guide-grid">{copy.guide.steps.map((step, index) => <article className="guide-card" key={step.title}><div className="guide-card-top"><span>{String(index + 1).padStart(2, "0")}</span><StepVisual index={index} /></div><h3>{step.title}</h3><p>{step.body}</p><small>{step.tip}</small></article>)}</div></section>
@@ -169,6 +169,6 @@ export default function InfoPage({ kind }: { kind: PageKind }) {
       <div className="legal-layout"><aside><strong>{legal.title}</strong>{legal.sections.map((section) => <a key={section.title} href={`#section-${section.title.split(".")[0]}`}>{section.title}</a>)}</aside><div className="legal-content">{legal.sections.map((section) => <section id={`section-${section.title.split(".")[0]}`} key={section.title}><h2>{section.title}</h2>{section.paragraphs?.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}{section.bullets && <ul>{section.bullets.map((bullet) => <li key={bullet}>{bullet}</li>)}</ul>}</section>)}{kind === "privacy" && <div className="legal-links"><a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noreferrer">{copy.privacy.googleLink} ↗</a><a href="https://adssettings.google.com/" target="_blank" rel="noreferrer">{copy.privacy.adsLink} ↗</a><a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noreferrer">{copy.privacy.cloudflareLink} ↗</a></div>}</div></div>
     </article>}
 
-    <footer className="info-footer"><div><strong>Palette Forge</strong><p>{copy.localFooter}</p></div><nav><Link href="/guide">{copy.guideNav}</Link><Link href="/privacy">{copy.privacyNav}</Link><Link href="/terms">{copy.termsNav}</Link><Link href="/guide#contact">{copy.contactNav}</Link></nav><small>© 2026 Palette Forge</small></footer>
+    <footer className="info-footer"><div><strong>Palette Forge</strong><p>{copy.localFooter}</p></div><nav><a href="/guide">{copy.guideNav}</a><a href="/privacy">{copy.privacyNav}</a><a href="/terms">{copy.termsNav}</a><a href="/guide#contact">{copy.contactNav}</a></nav><small>© 2026 Palette Forge</small></footer>
   </main>;
 }

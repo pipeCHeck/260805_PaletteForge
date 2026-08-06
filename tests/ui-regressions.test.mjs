@@ -185,3 +185,15 @@ test("service guide and legal pages provide clear navigation, local-processing d
   assert.match(css, /\.guide-grid/);
   assert.match(css, /\.process-flow/);
 });
+
+test("information pages use reliable full-document navigation for every internal route", async () => {
+  const component = await readFile(new URL("../app/InfoPage.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(component, /from "next\/link"|<Link/);
+  assert.match(component, /className="info-brand" href="\/"/);
+  assert.match(component, /className="back-editor" href="\/"/);
+  assert.match(component, /className="info-primary" href="\/"/);
+  assert.match(component, /href="\/guide"/);
+  assert.match(component, /href="\/privacy"/);
+  assert.match(component, /href="\/terms"/);
+  assert.match(component, /href="\/guide#contact"/);
+});
