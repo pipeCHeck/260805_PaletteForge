@@ -218,21 +218,26 @@ test("ad placements reserve policy-aware responsive slots before approval", asyn
   assert.match(studio, /placement="banner"/);
   assert.match(placement, /data-ad-client=\{ADSENSE_CLIENT\}/);
   assert.match(placement, /data-ad-slot=\{slot\}/);
+  assert.match(placement, /data-ad-format=\{placement === "rail" \? "rectangle" : "horizontal"\}/);
   assert.match(placement, /data-full-width-responsive="true"/);
   assert.match(css, /\.ad-placement-rail/);
   assert.match(css, /\.ad-placement-banner/);
   assert.match(css, /\.ad-placement-banner \{[^}]*display:none;/);
-  assert.match(css, /@media \(max-width: 760px\)[\s\S]*\.ad-placement-banner \{[^}]*display:flex;/);
-  assert.match(css, /@media \(max-width: 760px\)[\s\S]*\.ad-placement-rail \{ display:none; \}/);
+  assert.match(css, /@media \(max-width: 1180px\)[\s\S]*\.ad-placement-banner \{[^}]*display:flex;/);
+  assert.match(css, /@media \(max-width: 1180px\)[\s\S]*\.ad-placement-rail \{ display:none; \}/);
+  assert.match(css, /\.ad-placement \{[^}]*overflow:visible;/);
+  assert.match(css, /\.ad-placement-rail \{[^}]*width:calc\(100% - 24px\);[^}]*min-height:282px;/);
+  assert.match(css, /adsbygoogle\[data-ad-status="unfilled"\]/);
   assert.equal((studio.match(/placement="rail"/g) ?? []).length, 2);
   assert.match(studio, /railSecondary/);
-  assert.match(css, /@media \(min-width:1181px\) and \(min-height:1000px\)[\s\S]*\.rail-ad-secondary \{ display:block; \}/);
+  assert.match(studio, /label="Advertisements"/);
+  assert.match(css, /@media \(min-width:1181px\) and \(min-height:1100px\)[\s\S]*\.rail-ad-secondary \{ display:block; \}/);
 });
 
 test("ultrawide layouts keep the central preview at a comfortable width", async () => {
   const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
   assert.match(css, /\.workspace \{[^}]*width:100%;[^}]*max-width:1880px;[^}]*margin:0 auto;/);
-  assert.match(css, /grid-template-columns:250px minmax\(430px,1fr\) 370px/);
+  assert.match(css, /grid-template-columns:274px minmax\(430px,1fr\) 370px/);
 });
 
 test("wide desktop editor fits its primary regions into one viewport", async () => {
