@@ -15,6 +15,7 @@ import {
   prepareImage,
   quantizeImage,
   rgbToHsv,
+  rgbToOklab,
   serializeSettings,
 } from "../lib/palette.mjs";
 
@@ -25,7 +26,7 @@ function pixels(colors) {
 function configured(count) {
   const settings = defaultSettings();
   settings.colorCount = count;
-  settings.slots = Array.from({ length: count }, () => ({ fixed: false, color: null, weight: 1 }));
+  settings.slots = Array.from({ length: count }, () => ({ fixed: false, color: null, weight: 1, weightMode: "auto" }));
   return settings;
 }
 
@@ -37,7 +38,7 @@ test("결과의 불투명 RGB 색상 수가 설정값을 넘지 않는다", () =
 
 test("고정 색상은 결과 팔레트에 정확히 포함되고 변경되지 않는다", () => {
   const settings = configured(3);
-  settings.slots[1] = { fixed: true, color: [240, 20, 0], weight: 1 };
+  settings.slots[1] = { fixed: true, color: [240, 20, 0], weight: 1, weightMode: "auto" };
   const source = pixels([[255, 0, 0], [0, 255, 0], [0, 0, 255]]);
   const first = quantizeImage(source, settings);
   const second = quantizeImage(source, settings);
@@ -48,8 +49,8 @@ test("고정 색상은 결과 팔레트에 정확히 포함되고 변경되지 �
 test("모든 슬롯이 고정이면 지정 팔레트만 사용한다", () => {
   const settings = configured(2);
   settings.slots = [
-    { fixed: true, color: [10, 20, 30], weight: 1 },
-    { fixed: true, color: [220, 230, 240], weight: 1 },
+    { fixed: true, color: [10, 20, 30], weight: 1, weightMode: "auto" },
+    { fixed: true, color: [220, 230, 240], weight: 1, weightMode: "auto" },
   ];
   const output = quantizeImage(pixels([[0, 0, 0], [255, 255, 255]]), settings);
   assert.deepEqual(output.palette, [[10, 20, 30], [220, 230, 240]]);
@@ -75,6 +76,49 @@ test("가중치 입력은 편집 중간 상태와 유효한 소수를 구분한�
   assert.equal(parsePaletteWeight("5.1"), null);
 });
 
+test("기본 자동 팔레트는 원본의 주요 톤과 충분한 면적의 강조색을 함께 보존한다", () => {
+  const colors = [];
+  const add = (count, color) => { for (let index = 0; index < count; index += 1) colors.push(color); };
+  add(5000, [22, 14, 16]);
+  add(2200, [92, 62, 48]);
+  add(700, [175, 150, 100]);
+  add(420, [225, 35, 60]);
+  add(260, [70, 130, 225]);
+  add(500, [230, 210, 45]);
+  const output = quantizeImage(pixels(colors), configured(6), colors.length, 1);
+  const hasRed = output.palette.some(([red, green, blue]) => red > green + 90 && red > blue + 70);
+  const hasBlue = output.palette.some(([red, green, blue]) => blue > red + 70 && blue > green + 35);
+  const hasYellow = output.palette.some(([red, green, blue]) => red > 170 && green > 160 && blue < 100);
+  assert.equal(hasRed, true);
+  assert.equal(hasBlue, true);
+  assert.equal(hasYellow, true);
+  assert.ok(output.weights.every((weight) => weight >= 0.7 && weight <= 1.35));
+});
+
+test("자동 가중치는 원본 색 분포에 맞춰 계산되고 수동 가중치는 그대로 유지된다", () => {
+  const settings = configured(2);
+  settings.slots = [
+    { fixed: true, color: [15, 12, 12], weight: 2.2, weightMode: "manual" },
+    { fixed: true, color: [235, 35, 55], weight: 1, weightMode: "auto" },
+  ];
+  const source = pixels([
+    ...Array.from({ length: 80 }, () => [25, 18, 18]),
+    ...Array.from({ length: 20 }, () => [135, 65, 70]),
+  ]);
+  const output = quantizeImage(source, settings, 100, 1);
+  assert.equal(output.weights[0], 2.2);
+  assert.ok(output.weights[1] < 1);
+});
+
+test("이전 설정의 가중치 방식은 값에 따라 자동 또는 수동으로 호환된다", () => {
+  const legacy = configured(2);
+  delete legacy.slots[0].weightMode;
+  delete legacy.slots[1].weightMode;
+  legacy.slots[1].weight = 1.7;
+  const loaded = deserializeSettings(JSON.stringify(legacy));
+  assert.equal(loaded.slots[0].weightMode, "auto");
+  assert.equal(loaded.slots[1].weightMode, "manual");
+});
 test("RGB와 HSV 색상 선택 값은 왕복 변환된다", () => {
   for (const rgb of [[255, 0, 0], [0, 255, 0], [0, 0, 255], [241, 208, 151], [0, 0, 0], [255, 255, 255]]) {
     assert.deepEqual(hsvToRgb(rgbToHsv(rgb)), rgb);
@@ -151,7 +195,7 @@ test("픽셀 최적화 내보내기는 블록 하나를 출력 픽셀 하나로 
 
 test("설정 저장 후 불러오면 동일하게 복원된다", () => {
   const settings = configured(2);
-  settings.slots[0] = { fixed: true, color: [240, 20, 0], weight: 1.7 };
+  settings.slots[0] = { fixed: true, color: [240, 20, 0], weight: 1.7, weightMode: "manual" };
   settings.adjustments.hue = 25;
   settings.pixelation = { enabled: true, size: 12, alphaMode: "binary" };
   settings.export.keepOriginalSize = false;
@@ -164,7 +208,7 @@ test("ADJUST 전용 설정은 현재 팔레트를 유지하면서 보정과 픽�
   saved.pixelation = { enabled: true, size: 9, alphaMode: "binary" };
   saved.export.fileName = "adjust-preset";
   const current = configured(4);
-  current.slots[1] = { fixed: true, color: [12, 34, 56], weight: 2.2 };
+  current.slots[1] = { fixed: true, color: [12, 34, 56], weight: 2.2, weightMode: "manual" };
 
   const serialized = serializeSettings(saved, ["adjust"]);
   const document = JSON.parse(serialized);
@@ -181,9 +225,9 @@ test("ADJUST 전용 설정은 현재 팔레트를 유지하면서 보정과 픽�
 
 test("PALETTE 전용 설정은 현재 보정을 유지하면서 팔레트를 적용한다", () => {
   const saved = configured(3);
-  saved.slots[0] = { fixed: true, color: [240, 20, 0], weight: 1.8 };
-  saved.slots[1] = { fixed: false, color: [20, 190, 80], weight: 0.7 };
-  saved.slots[2] = { fixed: false, color: [30, 70, 230], weight: 2.4 };
+  saved.slots[0] = { fixed: true, color: [240, 20, 0], weight: 1.8, weightMode: "manual" };
+  saved.slots[1] = { fixed: false, color: [20, 190, 80], weight: 0.7, weightMode: "manual" };
+  saved.slots[2] = { fixed: false, color: [30, 70, 230], weight: 2.4, weightMode: "manual" };
   const current = configured(5);
   current.adjustments.hue = -55;
   current.pixelation = { enabled: true, size: 14, alphaMode: "smooth" };
@@ -212,15 +256,15 @@ test("이전 선택 저장 파일의 자동 팔레트 색상도 불러오면 고
   ];
   const loaded = deserializeSettingsDocument(JSON.stringify(document), configured(4));
   assert.deepEqual(loaded.settings.slots, [
-    { fixed: true, color: [11, 22, 33], weight: 1 },
-    { fixed: true, color: [210, 220, 230], weight: 1.5 },
+    { fixed: true, color: [11, 22, 33], weight: 1, weightMode: "auto" },
+    { fixed: true, color: [210, 220, 230], weight: 1.5, weightMode: "manual" },
   ]);
 });
 
 test("범위 정보가 없는 기존 설정 파일은 전체 설정으로 불러온다", () => {
   const legacy = configured(2);
   legacy.adjustments.brightness = 33;
-  legacy.slots[0] = { fixed: true, color: [1, 2, 3], weight: 1.4 };
+  legacy.slots[0] = { fixed: true, color: [1, 2, 3], weight: 1.4, weightMode: "manual" };
   const current = configured(6);
   const loaded = deserializeSettingsDocument(JSON.stringify(legacy), current);
   assert.equal(loaded.legacy, true);
@@ -270,4 +314,81 @@ test("잘못된 설정 파일은 예외로 보고하고 프로세스를 종료�
   const invalid = defaultSettings();
   invalid.slots[0].weight = 99;
   assert.throws(() => deserializeSettings(JSON.stringify(invalid)), /가중치/);
+});
+test("자동 팔레트 성향은 주조색·원본 균형·색상 다양성을 구분한다", () => {
+  const colors = [];
+  for (let index = 0; index < 6000; index += 1) {
+    const ratio = (index % 200) / 199;
+    colors.push([120 + Math.round(100 * ratio), 105 + Math.round(80 * ratio), 65 + Math.round(55 * ratio)]);
+  }
+  for (let index = 0; index < 300; index += 1) colors.push([20 + index % 15, 125 + index % 20, 205 + index % 20]);
+  for (let index = 0; index < 130; index += 1) colors.push([235, 150 + index % 15, 65]);
+  for (let index = 0; index < 100; index += 1) colors.push([70, 55, 45]);
+  for (let index = 0; index < 80; index += 1) colors.push([65, 125, 75]);
+  const source = pixels(colors);
+  const dominant = configured(5);
+  dominant.paletteDiversity = 0;
+  const balanced = configured(5);
+  const diverse = configured(5);
+  diverse.paletteDiversity = 100;
+  assert.equal(balanced.paletteDiversity, 50);
+  const dominantPalette = quantizeImage(source, dominant, colors.length, 1).palette;
+  const balancedOutput = quantizeImage(source, balanced, colors.length, 1);
+  const balancedPalette = balancedOutput.palette;
+  const diversePalette = quantizeImage(source, diverse, colors.length, 1).palette;
+  const hasGreenAccent = (palette) => palette.some(([red, green, blue]) => green > red + 30 && green > blue + 25);
+  const distance = (first, second) => (first[0] - second[0]) ** 2 + (first[1] - second[1]) ** 2 + (first[2] - second[2]) ** 2;
+  const perceptualError = (palette) => {
+    const paletteLabs = palette.map(rgbToOklab);
+    return colors.reduce((sum, color) => {
+      const lab = rgbToOklab(color);
+      return sum + Math.min(...paletteLabs.map((paletteLab) => distance(lab, paletteLab)));
+    }, 0) / colors.length;
+  };
+  assert.equal(hasGreenAccent(dominantPalette), false);
+  assert.equal(hasGreenAccent(diversePalette), true);
+  assert.ok(balancedOutput.weights.some((weight) => weight !== 1));
+  assert.ok(perceptualError(balancedPalette) < perceptualError(diversePalette));
+  assert.deepEqual(quantizeImage(source, diverse, colors.length, 1).palette, diversePalette);
+});
+test("색상 다양성은 반투명 희귀색보다 충분한 면적의 서로 다른 강조색을 선택한다", () => {
+  const colors = [];
+  const add = (count, color, alpha = 255) => {
+    for (let index = 0; index < count; index += 1) colors.push([...color, alpha]);
+  };
+  add(5000, [20, 15, 15]);
+  add(2500, [100, 70, 50]);
+  add(500, [180, 180, 60]);
+  add(300, [160, 40, 50]);
+  add(200, [60, 120, 210]);
+  add(1000, [255, 0, 255], 2);
+  const settings = configured(5);
+  settings.paletteDiversity = 100;
+  const palette = quantizeImage(pixels(colors), settings, colors.length, 1).palette;
+  assert.ok(palette.some(([red, green, blue]) => red > 120 && green > 120 && blue < 100));
+  assert.ok(palette.some(([red, green, blue]) => red > green + 70 && red > blue + 60));
+  assert.ok(palette.some(([red, green, blue]) => blue > red + 50 && blue > green + 50));
+  assert.equal(palette.some(([red, green, blue]) => red > 220 && blue > 220 && green < 40), false);
+});
+test("자동 팔레트 성향은 PALETTE 설정에 저장되고 이전 파일은 기본값을 사용한다", () => {
+  const settings = configured(3);
+  settings.paletteDiversity = 72;
+  const serialized = serializeSettings(settings, ["palette"]);
+  const document = JSON.parse(serialized);
+  assert.equal(document.paletteDiversity, 72);
+  assert.equal("edgePreservation" in document, false);
+  const loaded = deserializeSettingsDocument(serialized, configured(5)).settings;
+  assert.equal(loaded.paletteDiversity, 72);
+  assert.equal("edgePreservation" in loaded, false);
+  delete document.paletteDiversity;
+  document.edgePreservation = 64;
+  const legacyPalette = deserializeSettingsDocument(JSON.stringify(document), configured(5)).settings;
+  assert.equal(legacyPalette.paletteDiversity, 50);
+  assert.equal("edgePreservation" in legacyPalette, false);
+});
+
+test("자동 팔레트 성향은 0부터 100 사이의 정수만 허용한다", () => {
+  const diversity = defaultSettings();
+  diversity.paletteDiversity = 101;
+  assert.throws(() => deserializeSettings(JSON.stringify(diversity)), /자동 팔레트 성향/);
 });

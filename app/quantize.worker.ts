@@ -10,7 +10,7 @@ self.onmessage = (event: MessageEvent<{ operation?: "prepare" | "quantize"; pixe
     }
     const output = quantizeImage(pixels, event.data.settings, event.data.width, event.data.height);
     self.postMessage(
-      { result: output.result.buffer, palette: output.palette },
+      { result: output.result.buffer, palette: output.palette, weights: output.weights },
       { transfer: [output.result.buffer] },
     );
   } catch (error) {

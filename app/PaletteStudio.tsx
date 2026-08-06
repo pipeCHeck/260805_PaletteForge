@@ -21,7 +21,7 @@ import { LANGUAGE_OPTIONS, Language, detectLanguage, localizeError, translate } 
 import AdPlacement from "./AdPlacement";
 
 type RGB = [number, number, number];
-type Slot = { fixed: boolean; color: RGB | null; weight: number };
+type Slot = { fixed: boolean; color: RGB | null; weight: number; weightMode: "auto" | "manual" };
 type Settings = ReturnType<typeof defaultSettings>;
 
 const AD_SLOTS = {
@@ -188,14 +188,14 @@ function download(blob: Blob, fileName: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function processInWorker(item: ImageItem, language: Language): Promise<{ result: Uint8ClampedArray; palette: RGB[] }> {
+function processInWorker(item: ImageItem, language: Language): Promise<{ result: Uint8ClampedArray; palette: RGB[]; weights: number[] }> {
   return new Promise((resolve, reject) => {
     const worker = new QuantizeWorker();
     const copy = new Uint8ClampedArray(item.original);
     worker.onmessage = (event) => {
       worker.terminate();
       if (event.data.error) reject(new Error(localizeError(language, event.data.error)));
-      else resolve({ result: new Uint8ClampedArray(event.data.result), palette: event.data.palette });
+      else resolve({ result: new Uint8ClampedArray(event.data.result), palette: event.data.palette, weights: event.data.weights });
     };
     worker.onerror = () => { worker.terminate(); reject(new Error(translate(language, "이미지 변환 작업을 시작하지 못했습니다."))); };
     worker.postMessage({ pixels: copy.buffer, width: item.width, height: item.height, settings: item.settings }, [copy.buffer]);
@@ -373,7 +373,7 @@ export default function PaletteStudio() {
     updateSettings((settings) => {
       settings.colorCount = count;
       settings.slots = settings.slots.slice(0, count);
-      while (settings.slots.length < count) settings.slots.push({ fixed: false, color: null, weight: 1 });
+      while (settings.slots.length < count) settings.slots.push({ fixed: false, color: null, weight: 1, weightMode: "auto" });
       return settings;
     });
     notify(tr("팔레트 슬롯을 {count}개로 변경했습니다.", { count }));
@@ -441,7 +441,7 @@ export default function PaletteStudio() {
   const convertOne = async (item: ImageItem) => {
     const converted = await processInWorker(item, language);
     const settings = cloneSettings(item.settings);
-    settings.slots = settings.slots.map((slot: Slot, index: number) => ({ ...slot, color: slot.fixed ? slot.color : converted.palette[index] }));
+    settings.slots = settings.slots.map((slot: Slot, index: number) => ({ ...slot, color: slot.fixed ? slot.color : converted.palette[index], weight: converted.weights[index] }));
     return { ...item, result: converted.result, palette: converted.palette, settings };
   };
 
@@ -507,6 +507,16 @@ export default function PaletteStudio() {
   };
 
   const fixedCount = current?.settings.slots.filter((slot: Slot) => slot.fixed).length ?? 0;
+  const resetPaletteSlots = () => {
+    if (!current) return;
+    const draftPrefix = `${current.id}:`;
+    setWeightDrafts((values) => Object.fromEntries(Object.entries(values).filter(([key]) => !key.startsWith(draftPrefix))));
+    updateSettings((settings) => {
+      settings.slots = Array.from({ length: settings.colorCount }, () => ({ fixed: false, color: null, weight: 1, weightMode: "auto" }));
+      return settings;
+    });
+    notify(tr("모든 고정 색상과 가중치를 초기화했습니다."), "success");
+  };
   const weightKey = (imageId: string, index: number) => `${imageId}:${index}`;
   const commitWeight = (index: number) => {
     if (!current) return;
@@ -515,7 +525,7 @@ export default function PaletteStudio() {
     const weight = parsePaletteWeight(draft);
     setWeightDrafts((values) => { const next = { ...values }; delete next[key]; return next; });
     if (weight === null) { notify(tr("가중치는 0.1~5 사이의 숫자여야 합니다. 기존 값으로 되돌렸습니다."), "error"); return; }
-    updateSettings((settings) => { settings.slots[index].weight = weight; return settings; });
+    updateSettings((settings) => { settings.slots[index].weight = weight; settings.slots[index].weightMode = "manual"; return settings; });
   };
   const commitPixelSize = () => {
     if (!current) return;
@@ -589,18 +599,21 @@ export default function PaletteStudio() {
           </section>
 
           <section className="panel control-section">
-            <div className="panel-title compact"><div><span className="eyebrow">PALETTE</span><h2>{tr("최종 팔레트")}</h2></div><span className="fixed-count">{tr("고정 {count}", { count: fixedCount })}</span></div>
+            <div className="panel-title compact"><div><span className="eyebrow">PALETTE</span><h2>{tr("최종 팔레트")}</h2></div><div className="palette-title-actions"><span className="fixed-count">{tr("고정 {count}", { count: fixedCount })}</span><button className="text-button" disabled={!current} title={tr("모든 고정 색상과 가중치 초기화")} onClick={resetPaletteSlots}>{tr("초기화")}</button></div></div>
             <label className="count-field"><span>{tr("최종 색상 수")}<small>{tr("최대 {max}", { max: MAX_COLORS })}</small></span><input type="number" min="1" max={MAX_COLORS} value={current?.settings.colorCount ?? 5} disabled={!current} onChange={(event) => changeCount(event.target.value)} /></label>
+            <div className="palette-tuning">
+              <label><span><strong>{tr("자동 팔레트 성향")}</strong><output>{current?.settings.paletteDiversity ?? 50}</output></span><input type="range" aria-label={tr("자동 팔레트 성향")} min="0" max="100" step="1" disabled={!current} value={current?.settings.paletteDiversity ?? 50} onChange={(event) => updateSettings((settings) => { settings.paletteDiversity = Number(event.target.value); return settings; })} /><small><b>{tr("주조색 우선")}</b><b>{tr("원본 균형")}</b><b>{tr("색상 다양성")}</b></small></label>
+            </div>
             <div className="palette-list">{current?.settings.slots.map((slot: Slot, index: number) => {
               const color = slot.color ?? current.palette[index] ?? [218, 218, 213]; const hex = rgbToHex(color);
               return <div className={`palette-slot ${slot.fixed ? "is-fixed" : ""}`} key={index}>
                 <button className="swatch" style={{ background: hex }} onClick={() => openColor(index)} aria-label={tr("{index}번 색상 선택", { index: index + 1 })} />
                 <button className="slot-color" onClick={() => openColor(index)}><strong>{hex}</strong><small>RGB {color.join(" · ")}</small></button>
                 <span className="slot-tag">{tr(slot.fixed ? "고정" : "자동")}</span>
-                <label className="weight"><span>{tr("가중치")}</span><input type="number" inputMode="decimal" min="0.1" max="5" step="0.1" value={weightDrafts[weightKey(current.id, index)] ?? String(slot.weight)} onChange={(event) => {
+                <label className="weight"><span>{tr("가중치")} · {tr(slot.weightMode === "auto" ? "자동" : "수동")}</span><input type="number" inputMode="decimal" min="0.1" max="5" step="0.1" value={weightDrafts[weightKey(current.id, index)] ?? String(slot.weight)} onChange={(event) => {
                   const key = weightKey(current.id, index); setWeightDrafts((values) => ({ ...values, [key]: event.target.value }));
                 }} onBlur={() => commitWeight(index)} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} /></label>
-                <button className="reset-slot" title={tr("고정 해제 및 가중치 초기화")} onClick={() => updateSettings((settings) => { settings.slots[index] = { fixed: false, color: null, weight: 1 }; return settings; })}>↺</button>
+                <button className="reset-slot" title={tr("고정 해제 및 자동 가중치로 초기화")} onClick={() => updateSettings((settings) => { settings.slots[index] = { fixed: false, color: null, weight: 1, weightMode: "auto" }; return settings; })}>↺</button>
               </div>;
             })}</div>
           </section>
@@ -636,7 +649,7 @@ export default function PaletteStudio() {
             </label>
             <label htmlFor="save-palette" aria-label={tr("PALETTE 최종 팔레트 설정 저장")} className={saveSections.palette ? "is-selected" : ""}>
               <input id="save-palette" type="checkbox" checked={saveSections.palette} onChange={(event) => setSaveSections((sections) => ({ ...sections, palette: event.target.checked }))} />
-              <span><strong>{tr("PALETTE · 최종 팔레트")}</strong><small>{tr("색상 수, 슬롯 상태, 고정 색상과 가중치")}</small></span>
+              <span><strong>{tr("PALETTE · 최종 팔레트")}</strong><small>{tr("색상 수, 자동 팔레트 성향, 고정 색상과 가중치")}</small></span>
             </label>
           </div>
           <p className="settings-dialog-note">{tr("내보내기 형식, 파일명, 투명도 설정은 항상 함께 저장됩니다. 불러올 때 선택하지 않았던 항목은 현재 이미지의 설정을 유지합니다.")}</p>

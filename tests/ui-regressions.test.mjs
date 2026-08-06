@@ -269,3 +269,35 @@ test("preview canvas uses an explicit center anchor at medium widths", async () 
   assert.match(component, /calc\(-50% \+ \$\{view\.y\}px\)/);
   assert.match(css, /\.pan-zoom-viewport canvas \{[^}]*position:absolute;[^}]*left:50%;[^}]*top:50%;/);
 });
+test("palette panel exposes only the three-point automatic palette tendency control", async () => {
+  const [component, css, translations] = await Promise.all([
+    readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    readFile(new URL("../app/i18n.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(component, /className="palette-tuning"/);
+  assert.match(component, /settings\.paletteDiversity = Number\(event\.target\.value\)/);
+  assert.match(component, /aria-label=\{tr\("자동 팔레트 성향"\)\}/);
+  assert.match(component, /tr\("주조색 우선"\).*tr\("원본 균형"\).*tr\("색상 다양성"\)/);
+  assert.doesNotMatch(component, /edgePreservation|경계 보존/);
+  assert.match(css, /.palette-tuning {/);
+  assert.match(css, /.palette-list \{[^}]*scrollbar-gutter: stable;/);
+  assert.match(css, /.weight span \{[^}]*white-space: nowrap;/);
+  assert.match(css, /grid-template-columns: 38px minmax\(0,1fr\) auto 78px 24px;/);
+  assert.match(translations, /"자동 팔레트 성향": "Automatic palette tendency"/);
+  assert.doesNotMatch(translations, /"경계 보존": "Preserve edges"/);
+});
+test("palette header resets every slot without changing the selected color count", async () => {
+  const [component, css, translations] = await Promise.all([
+    readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    readFile(new URL("../app/i18n.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(component, /const resetPaletteSlots = \(\) =>/);
+  assert.match(component, /Array\.from\(\{ length: settings\.colorCount \}/);
+  assert.match(component, /fixed: false, color: null, weight: 1, weightMode: "auto"/);
+  assert.match(component, /className="palette-title-actions"/);
+  assert.match(component, /onClick=\{resetPaletteSlots\}/);
+  assert.match(css, /\.palette-title-actions \{[^}]*display: flex;[^}]*align-items: center;/);
+  assert.match(translations, /"모든 고정 색상과 가중치 초기화": "Reset all fixed colors and weights"/);
+});
