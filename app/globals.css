@@ -59,7 +59,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .notice.success { background: #e7f4e8; color: #295d34; }
 .notice.error { background: #fff0e9; color: #9f351c; }
 
-.workspace { display: grid; grid-template-columns: 250px minmax(430px, 1fr) 370px; gap: 12px; padding: 12px; min-height: calc(100vh - 116px); }
+.workspace { width:100%; max-width:1880px; margin:0 auto; display:grid; grid-template-columns:250px minmax(430px,1fr) 370px; gap:12px; padding:12px; min-height:calc(100vh - 116px); }
 .panel { background: rgba(251, 251, 247, .95); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 1px 0 #fff inset, 0 5px 18px rgba(26, 28, 23, .035); }
 .panel-title { display: flex; align-items: center; justify-content: space-between; padding: 18px; border-bottom: 1px solid var(--line); }
 .panel-title.compact { padding: 16px 17px 11px; border-bottom: 0; }
@@ -102,6 +102,8 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .ad-placement .adsbygoogle { width:100%; flex:1; }
 .ad-placement-rail .adsbygoogle { min-height:200px; }
 .ad-placement-banner .adsbygoogle { min-height:84px; }
+.rail-ad-secondary { display:none; }
+.rail-ad-secondary .ad-placement-rail { height:230px; }
 
 .preview-panel { min-width: 0; display: flex; flex-direction: column; overflow: hidden; min-height: 650px; }
 .preview-panel .panel-title { min-height: 68px; }
@@ -302,4 +304,8 @@ html[data-theme="dark"] .ad-pending strong { color:#b2b7ad; background:#282c26; 
   .palette-list { max-height: none; }
   .ad-placement-rail { display:none; }
   .ad-placement-banner { display:flex; width:calc(100% - 16px); min-height:96px; margin-bottom:8px; }
+}
+
+@media (min-width:1181px) and (min-height:1000px) {
+  .rail-ad-secondary { display:block; }
 }

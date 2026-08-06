@@ -26,6 +26,7 @@ type Settings = ReturnType<typeof defaultSettings>;
 
 const AD_SLOTS = {
   rail: "",
+  railSecondary: "",
   banner: "",
 } as const;
 
@@ -560,6 +561,9 @@ export default function PaletteStudio() {
             {!images.length && <p className="empty-list">{tr("불러온 이미지가 없습니다.")}</p>}
           </div>
           <AdPlacement placement="rail" slot={AD_SLOTS.rail} label={tr("\uAD11\uACE0")} pendingText={tr("\uC2B9\uC778 \uD6C4 \uAD11\uACE0\uAC00 \uD45C\uC2DC\uB429\uB2C8\uB2E4.")} />
+          <div className="rail-ad-secondary">
+            <AdPlacement placement="rail" slot={AD_SLOTS.railSecondary} label={tr("\uAD11\uACE0")} pendingText={tr("\uC2B9\uC778 \uD6C4 \uAD11\uACE0\uAC00 \uD45C\uC2DC\uB429\uB2C8\uB2E4.")} />
+          </div>
           {!!images.length && <div className="rail-actions"><button className="text-button danger" onClick={() => { if (!current) return; setImages((items) => items.filter((item) => item.id !== current.id)); const next = images.find((item) => item.id !== current.id); setSelectedId(next?.id ?? null); }}>{tr("선택 삭제")}</button><button className="text-button" onClick={() => { if (window.confirm(tr("모든 이미지를 목록에서 삭제할까요?"))) { setImages([]); setSelectedId(null); } }}>{tr("전체 삭제")}</button></div>}
         </aside>
 

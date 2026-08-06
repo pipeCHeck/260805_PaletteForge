@@ -224,4 +224,13 @@ test("ad placements reserve policy-aware responsive slots before approval", asyn
   assert.match(css, /\.ad-placement-banner \{[^}]*display:none;/);
   assert.match(css, /@media \(max-width: 760px\)[\s\S]*\.ad-placement-banner \{[^}]*display:flex;/);
   assert.match(css, /@media \(max-width: 760px\)[\s\S]*\.ad-placement-rail \{ display:none; \}/);
+  assert.equal((studio.match(/placement="rail"/g) ?? []).length, 2);
+  assert.match(studio, /railSecondary/);
+  assert.match(css, /@media \(min-width:1181px\) and \(min-height:1000px\)[\s\S]*\.rail-ad-secondary \{ display:block; \}/);
+});
+
+test("ultrawide layouts keep the central preview at a comfortable width", async () => {
+  const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  assert.match(css, /\.workspace \{[^}]*width:100%;[^}]*max-width:1880px;[^}]*margin:0 auto;/);
+  assert.match(css, /grid-template-columns:250px minmax\(430px,1fr\) 370px/);
 });
