@@ -7,6 +7,8 @@ export const LANGUAGE_OPTIONS: { value: Language; label: string; shortLabel: str
 ];
 
 const ja: Record<string, string> = {
+  "\uAD11\uACE0": "\u5E83\u544A",
+  "\uC2B9\uC778 \uD6C4 \uAD11\uACE0\uAC00 \uD45C\uC2DC\uB429\uB2C8\uB2E4.": "\u627F\u8A8D\u5F8C\u306B\u5E83\u544A\u304C\u8868\u793A\u3055\u308C\u307E\u3059\u3002",
   "이미지를 불러오면 모든 처리가 이 브라우저 안에서 진행됩니다.": "画像を読み込むと、すべての処理はこのブラウザー内で行われます。",
   "정확한 고정 색상을 지키는 로컬 이미지 양자화": "指定色を正確に保つローカル画像量子化",
   "라이트": "ライト",
@@ -159,6 +161,8 @@ const ja: Record<string, string> = {
 };
 
 const en: Record<string, string> = {
+  "\uAD11\uACE0": "Advertisement",
+  "\uC2B9\uC778 \uD6C4 \uAD11\uACE0\uAC00 \uD45C\uC2DC\uB429\uB2C8\uB2E4.": "Ads will appear here after approval.",
   "이미지를 불러오면 모든 처리가 이 브라우저 안에서 진행됩니다.": "Once images are loaded, all processing stays in this browser.",
   "정확한 고정 색상을 지키는 로컬 이미지 양자화": "Local image quantization that preserves exact fixed colors",
   "라이트": "Light", "다크": "Dark", "{mode} 모드로 전환": "Switch to {mode} mode", "언어 선택": "Select language",

@@ -206,3 +206,20 @@ test("Korean information typography keeps words intact and balances prominent he
   assert.match(css, /\.local-promise \{[^}]*grid-template-columns: 150px minmax\(0,1fr\)/);
   assert.match(css, /\.local-promise h2 \{ max-width: 820px;/);
 });
+
+test("ad placements reserve policy-aware responsive slots before approval", async () => {
+  const [studio, placement, css] = await Promise.all([
+    readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/AdPlacement.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(studio, /const AD_SLOTS =/);
+  assert.match(studio, /placement="rail"/);
+  assert.match(studio, /placement="banner"/);
+  assert.match(placement, /data-ad-client=\{ADSENSE_CLIENT\}/);
+  assert.match(placement, /data-ad-slot=\{slot\}/);
+  assert.match(placement, /data-full-width-responsive="true"/);
+  assert.match(css, /\.ad-placement-rail/);
+  assert.match(css, /\.ad-placement-banner/);
+  assert.match(css, /@media \(max-width: 760px\)[\s\S]*\.ad-placement-rail \{ display:none; \}/);
+});
