@@ -234,3 +234,14 @@ test("ultrawide layouts keep the central preview at a comfortable width", async 
   assert.match(css, /\.workspace \{[^}]*width:100%;[^}]*max-width:1880px;[^}]*margin:0 auto;/);
   assert.match(css, /grid-template-columns:250px minmax\(430px,1fr\) 370px/);
 });
+
+test("wide desktop editor fits its primary regions into one viewport", async () => {
+  const [studio, css] = await Promise.all([
+    readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(studio, /<main className="studio-shell">/);
+  assert.match(css, /@media \(min-width:1600px\) and \(min-height:900px\)/);
+  assert.match(css, /\.studio-shell \{[^}]*height:100dvh;[^}]*grid-template-rows:78px 38px minmax\(0,1fr\) 48px;[^}]*overflow:hidden;/);
+  assert.match(css, /\.studio-shell \.control-panel \{[^}]*grid-template-columns:repeat\(2,minmax\(0,1fr\)\);/);
+});

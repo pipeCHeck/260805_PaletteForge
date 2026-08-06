@@ -534,7 +534,7 @@ export default function PaletteStudio() {
   ] as const, []);
 
   return (
-    <main>
+    <main className="studio-shell">
       <header className="topbar">
         <div className="brand"><span className="brand-mark">PF</span><div><h1>Palette Forge</h1><p>{tr("정확한 고정 색상을 지키는 로컬 이미지 양자화")}</p></div></div>
         <div className="header-actions">
