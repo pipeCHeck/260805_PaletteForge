@@ -221,5 +221,7 @@ test("ad placements reserve policy-aware responsive slots before approval", asyn
   assert.match(placement, /data-full-width-responsive="true"/);
   assert.match(css, /\.ad-placement-rail/);
   assert.match(css, /\.ad-placement-banner/);
+  assert.match(css, /\.ad-placement-banner \{[^}]*display:none;/);
+  assert.match(css, /@media \(max-width: 760px\)[\s\S]*\.ad-placement-banner \{[^}]*display:flex;/);
   assert.match(css, /@media \(max-width: 760px\)[\s\S]*\.ad-placement-rail \{ display:none; \}/);
 });
