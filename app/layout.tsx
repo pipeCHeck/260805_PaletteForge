@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./info.css";
 
 export const metadata: Metadata = {
   title: "Palette Forge — 이미지 색상 변환",

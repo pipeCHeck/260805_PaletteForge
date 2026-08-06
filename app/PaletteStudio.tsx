@@ -610,6 +610,8 @@ export default function PaletteStudio() {
         </aside>
       </div>
 
+      <footer className="studio-footer"><div><strong>Palette Forge</strong><span>{tr("이미지는 서버로 전송되지 않고 브라우저 안에서 처리됩니다.")}</span></div><nav aria-label={tr("사이트 정보")}><a href="/guide">{tr("서비스 안내")}</a><a href="/privacy">{tr("개인정보처리방침")}</a><a href="/terms">{tr("이용약관")}</a><a href="/guide#contact">{tr("문의")}</a></nav><small>© 2026 Palette Forge</small></footer>
+
       {saveDialogOpen && current && <div className="modal-backdrop">
         <section className="color-dialog settings-dialog" role="dialog" aria-modal="true" aria-label={tr("저장할 설정 선택")}>
           <div className="dialog-head"><div><span className="eyebrow">SAVE SETTINGS</span><h2>{tr("저장할 설정 선택")}</h2></div><button className="icon-button" aria-label={tr("설정 저장 창 닫기")} onClick={() => setSaveDialogOpen(false)}>×</button></div>

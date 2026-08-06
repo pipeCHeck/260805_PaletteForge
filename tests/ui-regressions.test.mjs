@@ -162,3 +162,26 @@ test("clipboard image paste uses the existing image loading flow without hijacki
   assert.match(component, /clipboard-\$\{clipboardStamp\}/);
   assert.match(translations, /클립보드에서 \{count\}개 이미지를 불러왔습니다/);
 });
+
+test("service guide and legal pages provide clear navigation, local-processing disclosure, and contact", async () => {
+  const [component, studio, guideRoute, privacyRoute, termsRoute, css] = await Promise.all([
+    readFile(new URL("../app/InfoPage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/guide/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/privacy/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/terms/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/info.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(component, /const COPY: Record<Language, PageCopy>/);
+  assert.match(component, /원본 이미지는 이 브라우저 밖으로 나가지 않습니다/);
+  assert.match(component, /guide\.steps\.map/);
+  assert.match(component, /github\.com\/pipeCHeck\/260805_PaletteForge\/issues/);
+  assert.match(component, /Google AdSense와 광고 쿠키/);
+  assert.match(component, /이미지와 저작권/);
+  assert.match(studio, /className="studio-footer"/);
+  assert.match(guideRoute, /kind="guide"/);
+  assert.match(privacyRoute, /kind="privacy"/);
+  assert.match(termsRoute, /kind="terms"/);
+  assert.match(css, /\.guide-grid/);
+  assert.match(css, /\.process-flow/);
+});
