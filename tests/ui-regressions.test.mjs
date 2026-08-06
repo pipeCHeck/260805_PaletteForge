@@ -58,7 +58,7 @@ test("설정 패널의 작은 숫자와 보조 정보는 읽을 수 있는 크�
 test("픽셀화 블록 크기는 편집 중 빈 값을 허용하는 숫자 입력을 제공한다", async () => {
   const component = await readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8");
   assert.match(component, /pixelSizeDrafts/);
-  assert.match(component, /aria-label="픽셀화 블록 크기 숫자"/);
+  assert.match(component, /aria-label=\{tr\("픽셀화 블록 크기 숫자"\)\}/);
   assert.match(component, /onBlur=\{commitPixelSize\}/);
   assert.match(component, /픽셀화 블록 크기는 2~64 사이의 정수여야 합니다/);
 });
@@ -132,4 +132,20 @@ test("theme toggle switches and persists light and dark modes", async () => {
   assert.match(component, /aria-pressed=\{theme === "dark"\}/);
   assert.match(css, /html\[data-theme="dark"\]/);
   assert.match(css, /\.theme-toggle/);
+});
+
+test("language selector switches and persists Korean, Japanese, and English", async () => {
+  const [component, translations, css] = await Promise.all([
+    readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/i18n.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(component, /palette-forge-language/);
+  assert.match(component, /className="language-control"/);
+  assert.match(component, /document\.documentElement\.lang =/);
+  assert.match(component, /LANGUAGE_OPTIONS\.map/);
+  assert.match(translations, /value: "ko", label: "한국어"/);
+  assert.match(translations, /value: "ja", label: "日本語"/);
+  assert.match(translations, /value: "en", label: "English"/);
+  assert.match(css, /\.language-control/);
 });

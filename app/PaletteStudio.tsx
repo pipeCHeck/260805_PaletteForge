@@ -17,6 +17,7 @@ import {
   serializeSettings,
 } from "../lib/palette.mjs";
 import QuantizeWorker from "./quantize.worker?worker";
+import { LANGUAGE_OPTIONS, Language, detectLanguage, localizeError, translate } from "./i18n";
 
 type RGB = [number, number, number];
 type Slot = { fixed: boolean; color: RGB | null; weight: number };
@@ -36,7 +37,7 @@ type ImageItem = {
 
 const SUPPORTED_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 
-function CanvasPreview({ item, result, onPick }: { item: ImageItem; result: boolean; onPick: (rgb: RGB | null) => void }) {
+function CanvasPreview({ item, result, onPick, language }: { item: ImageItem; result: boolean; onPick: (rgb: RGB | null) => void; language: Language }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const displayedPixels = useRef<Uint8ClampedArray | null>(null);
@@ -45,6 +46,7 @@ function CanvasPreview({ item, result, onPick }: { item: ImageItem; result: bool
   const [view, setView] = useState({ zoom: 1, x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [previewStatus, setPreviewStatus] = useState<{ settings: Settings; state: "ready" | "error" } | null>(null);
+  const tr = (source: string, values: Record<string, string | number> = {}) => translate(language, source, values);
   const isPreparing = !result && previewStatus?.settings !== item.settings;
   const previewFailed = !result && previewStatus?.settings === item.settings && previewStatus.state === "error";
   useEffect(() => {
@@ -141,10 +143,10 @@ function CanvasPreview({ item, result, onPick }: { item: ImageItem; result: bool
   };
   const resetView = () => setView({ zoom: 1, x: 0, y: 0 });
   return <div ref={viewportRef} className={`pan-zoom-viewport ${isDragging ? "is-dragging" : ""} ${isPreparing ? "is-processing" : ""}`} aria-busy={isPreparing} onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={stopDrag} onPointerCancel={stopDrag} onDoubleClick={resetView}>
-    <canvas ref={ref} onClick={click} draggable={false} style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})` }} aria-label={result ? "변환 결과 이미지" : "색 보정이 적용된 원본 이미지"} />
-    {isPreparing && <div className="preview-processing" role="status" aria-live="polite"><i /><span><strong>미리보기 계산 중…</strong><small>색 보정과 픽셀화를 적용하고 있습니다.</small></span></div>}
-    {previewFailed && <div className="preview-processing is-error" role="alert"><span><strong>미리보기를 계산하지 못했습니다.</strong><small>설정을 다시 변경하거나 이미지를 다시 불러와주세요.</small></span></div>}
-    <div className="zoom-controls"><span>{Math.round(view.zoom * 100)}%</span><button type="button" onClick={resetView} disabled={view.zoom === 1 && view.x === 0 && view.y === 0}>화면 맞춤</button></div>
+    <canvas ref={ref} onClick={click} draggable={false} style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})` }} aria-label={tr(result ? "변환 결과 이미지" : "색 보정이 적용된 원본 이미지")} />
+    {isPreparing && <div className="preview-processing" role="status" aria-live="polite"><i /><span><strong>{tr("미리보기 계산 중…")}</strong><small>{tr("색 보정과 픽셀화를 적용하고 있습니다.")}</small></span></div>}
+    {previewFailed && <div className="preview-processing is-error" role="alert"><span><strong>{tr("미리보기를 계산하지 못했습니다.")}</strong><small>{tr("설정을 다시 변경하거나 이미지를 다시 불러와주세요.")}</small></span></div>}
+    <div className="zoom-controls"><span>{Math.round(view.zoom * 100)}%</span><button type="button" onClick={resetView} disabled={view.zoom === 1 && view.x === 0 && view.y === 0}>{tr("화면 맞춤")}</button></div>
   </div>;
 }
 
@@ -178,22 +180,22 @@ function download(blob: Blob, fileName: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function processInWorker(item: ImageItem): Promise<{ result: Uint8ClampedArray; palette: RGB[] }> {
+function processInWorker(item: ImageItem, language: Language): Promise<{ result: Uint8ClampedArray; palette: RGB[] }> {
   return new Promise((resolve, reject) => {
     const worker = new QuantizeWorker();
     const copy = new Uint8ClampedArray(item.original);
     worker.onmessage = (event) => {
       worker.terminate();
-      if (event.data.error) reject(new Error(event.data.error));
+      if (event.data.error) reject(new Error(localizeError(language, event.data.error)));
       else resolve({ result: new Uint8ClampedArray(event.data.result), palette: event.data.palette });
     };
-    worker.onerror = () => { worker.terminate(); reject(new Error("이미지 변환 작업을 시작하지 못했습니다.")); };
+    worker.onerror = () => { worker.terminate(); reject(new Error(translate(language, "이미지 변환 작업을 시작하지 못했습니다."))); };
     worker.postMessage({ pixels: copy.buffer, width: item.width, height: item.height, settings: item.settings }, [copy.buffer]);
   });
 }
 
-async function exportBlob(item: ImageItem) {
-  if (!item.result) throw new Error("먼저 이미지를 변환해주세요.");
+async function exportBlob(item: ImageItem, language: Language) {
+  if (!item.result) throw new Error(translate(language, "먼저 이미지를 변환해주세요."));
   const dimensions = getExportDimensions(item.width, item.height, item.settings);
   const staging = document.createElement("canvas");
   staging.width = dimensions.width; staging.height = dimensions.height;
@@ -221,7 +223,7 @@ async function exportBlob(item: ImageItem) {
   context.imageSmoothingEnabled = false;
   context.drawImage(staging, 0, 0, canvas.width, canvas.height);
   const mime = `image/${item.settings.export.format}`;
-  return new Promise<Blob>((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("이 브라우저에서 선택한 형식으로 내보낼 수 없습니다.")), mime, item.settings.export.quality));
+  return new Promise<Blob>((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error(translate(language, "이 브라우저에서 선택한 형식으로 내보낼 수 없습니다."))), mime, item.settings.export.quality));
 }
 
 export default function PaletteStudio() {
@@ -241,10 +243,12 @@ export default function PaletteStudio() {
   const [weightDrafts, setWeightDrafts] = useState<Record<string, string>>({});
   const [pixelSizeDrafts, setPixelSizeDrafts] = useState<Record<string, string>>({});
   const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [language, setLanguage] = useState<Language>("ko");
   const fileInput = useRef<HTMLInputElement>(null);
   const settingsInput = useRef<HTMLInputElement>(null);
   const current = images.find((image) => image.id === selectedId) ?? null;
   const sampling = samplingSlot !== null;
+  const tr = (source: string, values: Record<string, string | number> = {}) => translate(language, source, values);
 
   useEffect(() => {
     let savedTheme: string | null = null;
@@ -253,7 +257,8 @@ export default function PaletteStudio() {
       ? savedTheme
       : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
     document.documentElement.dataset.theme = nextTheme;
-    setTheme(nextTheme);
+    const timer = window.setTimeout(() => setTheme(nextTheme), 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   const toggleTheme = () => {
@@ -261,6 +266,26 @@ export default function PaletteStudio() {
     document.documentElement.dataset.theme = nextTheme;
     setTheme(nextTheme);
     try { window.localStorage.setItem("palette-forge-theme", nextTheme); } catch { /* 테마 전환 자체는 계속 동작합니다. */ }
+  };
+
+  useEffect(() => {
+    let savedLanguage: string | null = null;
+    try { savedLanguage = window.localStorage.getItem("palette-forge-language"); } catch { /* 저장소가 막힌 환경에서는 브라우저 언어를 사용합니다. */ }
+    const nextLanguage = savedLanguage === "ko" || savedLanguage === "ja" || savedLanguage === "en" ? savedLanguage : detectLanguage(window.navigator.language);
+    document.documentElement.lang = nextLanguage;
+    const timer = window.setTimeout(() => {
+      setLanguage(nextLanguage);
+      setMessage(translate(nextLanguage, "이미지를 불러오면 모든 처리가 이 브라우저 안에서 진행됩니다."));
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  const changeLanguage = (nextLanguage: Language) => {
+    document.documentElement.lang = nextLanguage;
+    setLanguage(nextLanguage);
+    setMessage(translate(nextLanguage, "이미지를 불러오면 모든 처리가 이 브라우저 안에서 진행됩니다."));
+    setMessageType("info");
+    try { window.localStorage.setItem("palette-forge-language", nextLanguage); } catch { /* 언어 전환 자체는 계속 동작합니다. */ }
   };
 
   const notify = (text: string, type: "info" | "error" | "success" = "info") => { setMessage(text); setMessageType(type); };
@@ -279,7 +304,7 @@ export default function PaletteStudio() {
     const loaded: ImageItem[] = [];
     const errors: string[] = [];
     for (const file of files) {
-      if (!SUPPORTED_TYPES.has(file.type)) { errors.push(`${file.name}: PNG, JPEG, WebP만 지원합니다.`); continue; }
+      if (!SUPPORTED_TYPES.has(file.type)) { errors.push(tr("{name}: PNG, JPEG, WebP만 지원합니다.", { name: file.name })); continue; }
       try {
         const bitmap = await createImageBitmap(file);
         const canvas = document.createElement("canvas");
@@ -296,7 +321,7 @@ export default function PaletteStudio() {
           thumbnail: createThumbnail(canvas, hasAlpha),
           hasAlpha,
         });
-      } catch { errors.push(`${file.name}: 파일이 손상되었거나 디코딩할 수 없습니다.`); }
+      } catch { errors.push(tr("{name}: 파일이 손상되었거나 디코딩할 수 없습니다.", { name: file.name })); }
     }
     if (loaded.length) {
       setImages((items) => [...items, ...loaded]);
@@ -304,22 +329,22 @@ export default function PaletteStudio() {
     }
     setBusy(false);
     if (errors.length) notify(errors.join(" "), "error");
-    else notify(`${loaded.length}개 이미지를 원본 순서대로 불러왔습니다.`, "success");
+    else notify(tr("{count}개 이미지를 원본 순서대로 불러왔습니다.", { count: loaded.length }), "success");
   };
 
   const changeCount = (value: string) => {
     if (!current) return;
     const count = Number(value);
-    if (!Number.isInteger(count) || count < 1 || count > MAX_COLORS) { notify(`최종 색상 수는 1~${MAX_COLORS}의 정수여야 합니다.`, "error"); return; }
+    if (!Number.isInteger(count) || count < 1 || count > MAX_COLORS) { notify(tr("최종 색상 수는 1~{max}의 정수여야 합니다.", { max: MAX_COLORS }), "error"); return; }
     const removedFixed = current.settings.slots.slice(count).some((slot: Slot) => slot.fixed);
-    if (removedFixed && !window.confirm("범위를 벗어나는 고정 색상이 있습니다. 해당 슬롯을 삭제할까요?")) return;
+    if (removedFixed && !window.confirm(tr("범위를 벗어나는 고정 색상이 있습니다. 해당 슬롯을 삭제할까요?"))) return;
     updateSettings((settings) => {
       settings.colorCount = count;
       settings.slots = settings.slots.slice(0, count);
       while (settings.slots.length < count) settings.slots.push({ fixed: false, color: null, weight: 1 });
       return settings;
     });
-    notify(`팔레트 슬롯을 ${count}개로 변경했습니다.`);
+    notify(tr("팔레트 슬롯을 {count}개로 변경했습니다.", { count }));
   };
 
   const openColor = (index: number) => {
@@ -338,7 +363,7 @@ export default function PaletteStudio() {
     const fromHex = hexToRgb(draftHex);
     const values = draftRgb.map(Number);
     const rgbValid = values.every((value) => Number.isInteger(value) && value >= 0 && value <= 255);
-    if (!fromHex || !rgbValid || rgbToHex(values) !== draftHex.toUpperCase()) { setColorError("HEX는 #RRGGBB, RGB는 각각 0~255로 입력하고 서로 일치시켜주세요."); return; }
+    if (!fromHex || !rgbValid || rgbToHex(values) !== draftHex.toUpperCase()) { setColorError(tr("HEX는 #RRGGBB, RGB는 각각 0~255로 입력하고 서로 일치시켜주세요.")); return; }
     applyColor(values as RGB); setActiveSlot(null);
   };
 
@@ -369,20 +394,20 @@ export default function PaletteStudio() {
 
   const pick = (rgb: RGB | null) => {
     if (samplingSlot === null) return;
-    if (!rgb) { notify("완전 투명한 픽셀에서는 색상을 가져올 수 없습니다.", "error"); return; }
-    applyColor(rgb, samplingSlot); setActiveSlot(null); notify(`${rgbToHex(rgb)} 색상을 고정하고 팔레트에 반영했습니다.`, "success");
+    if (!rgb) { notify(tr("완전 투명한 픽셀에서는 색상을 가져올 수 없습니다."), "error"); return; }
+    applyColor(rgb, samplingSlot); setActiveSlot(null); notify(tr("{hex} 색상을 고정하고 팔레트에 반영했습니다.", { hex: rgbToHex(rgb) }), "success");
   };
 
   const screenPick = async () => {
     const EyeDropperClass = (window as unknown as { EyeDropper?: new () => { open: () => Promise<{ sRGBHex: string }> } }).EyeDropper;
-    if (!EyeDropperClass) { notify("이 브라우저는 화면 전체 스포이드를 지원하지 않습니다. 이미지 내부 스포이드를 사용해주세요.", "error"); return; }
+    if (!EyeDropperClass) { notify(tr("이 브라우저는 화면 전체 스포이드를 지원하지 않습니다. 이미지 내부 스포이드를 사용해주세요."), "error"); return; }
     const slotIndex = activeSlot;
-    try { const result = await new EyeDropperClass().open(); const rgb = hexToRgb(result.sRGBHex); if (rgb) { applyColor(rgb as RGB, slotIndex); setActiveSlot(null); notify(`${rgbToHex(rgb)} 색상을 고정하고 팔레트에 반영했습니다.`, "success"); } }
-    catch { notify("화면 스포이드 선택을 취소했습니다."); }
+    try { const result = await new EyeDropperClass().open(); const rgb = hexToRgb(result.sRGBHex); if (rgb) { applyColor(rgb as RGB, slotIndex); setActiveSlot(null); notify(tr("{hex} 색상을 고정하고 팔레트에 반영했습니다.", { hex: rgbToHex(rgb) }), "success"); } }
+    catch { notify(tr("화면 스포이드 선택을 취소했습니다.")); }
   };
 
   const convertOne = async (item: ImageItem) => {
-    const converted = await processInWorker(item);
+    const converted = await processInWorker(item, language);
     const settings = cloneSettings(item.settings);
     settings.slots = settings.slots.map((slot: Slot, index: number) => ({ ...slot, color: slot.fixed ? slot.color : converted.palette[index] }));
     return { ...item, result: converted.result, palette: converted.palette, settings };
@@ -390,9 +415,9 @@ export default function PaletteStudio() {
 
   const convertCurrent = async () => {
     if (!current || busy) return;
-    setBusy(true); notify("원본 해상도로 변환하고 있습니다…");
-    try { const updated = await convertOne(current); replace(current.id, () => updated); notify("변환이 완료되었습니다.", "success"); }
-    catch (error) { notify(error instanceof Error ? error.message : "이미지 변환에 실패했습니다.", "error"); }
+    setBusy(true); notify(tr("원본 해상도로 변환하고 있습니다…"));
+    try { const updated = await convertOne(current); replace(current.id, () => updated); notify(tr("변환이 완료되었습니다."), "success"); }
+    catch (error) { notify(error instanceof Error ? localizeError(language, error.message) : tr("이미지 변환에 실패했습니다."), "error"); }
     finally { setBusy(false); }
   };
 
@@ -402,9 +427,9 @@ export default function PaletteStudio() {
     try {
       download(new Blob([serializeSettings(current.settings, includedSections)], { type: "application/json" }), `${baseName(current.name)}-palette-settings.json`);
       setSaveDialogOpen(false);
-      notify(`${includedSections.map((section) => section.toUpperCase()).join(", ")} 설정 파일을 저장했습니다.`, "success");
+      notify(tr("{sections} 설정 파일을 저장했습니다.", { sections: includedSections.map((section) => section.toUpperCase()).join(", ") }), "success");
     }
-    catch (error) { notify(error instanceof Error ? error.message : "설정 저장에 실패했습니다.", "error"); }
+    catch (error) { notify(error instanceof Error ? localizeError(language, error.message) : tr("설정 저장에 실패했습니다."), "error"); }
   };
 
   const loadSettings = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -414,9 +439,9 @@ export default function PaletteStudio() {
     try {
       const loaded = deserializeSettingsDocument(await file.text(), target.settings);
       replace(target.id, (item) => ({ ...item, settings: loaded.settings, result: null, palette: [] }));
-      notify(`${loaded.includedSections.map((section) => section.toUpperCase()).join(", ")} 설정을 현재 이미지에 적용했습니다.`, "success");
+      notify(tr("{sections} 설정을 현재 이미지에 적용했습니다.", { sections: loaded.includedSections.map((section) => section.toUpperCase()).join(", ") }), "success");
     }
-    catch (error) { notify(error instanceof Error ? error.message : "설정 파일을 불러오지 못했습니다.", "error"); }
+    catch (error) { notify(error instanceof Error ? localizeError(language, error.message) : tr("설정 파일을 불러오지 못했습니다."), "error"); }
   };
 
   const exportCurrent = async () => {
@@ -425,10 +450,10 @@ export default function PaletteStudio() {
     try {
       const item = current.result ? current : await convertOne(current);
       if (!current.result) replace(current.id, () => item);
-      const blob = await exportBlob(item);
+      const blob = await exportBlob(item, language);
       download(blob, `${item.settings.export.fileName}.${item.settings.export.format === "jpeg" ? "jpg" : item.settings.export.format}`);
-      notify("현재 이미지를 내보냈습니다.", "success");
-    } catch (error) { notify(error instanceof Error ? error.message : "이미지 내보내기에 실패했습니다.", "error"); }
+      notify(tr("현재 이미지를 내보냈습니다."), "success");
+    } catch (error) { notify(error instanceof Error ? localizeError(language, error.message) : tr("이미지 내보내기에 실패했습니다."), "error"); }
     finally { setBusy(false); }
   };
 
@@ -441,12 +466,12 @@ export default function PaletteStudio() {
         const extension = item.settings.export.format === "jpeg" ? "jpg" : item.settings.export.format;
         const key = `${item.settings.export.fileName}.${extension}`; const count = used.get(key) ?? 0; used.set(key, count + 1);
         const name = count ? `${item.settings.export.fileName}-${count + 1}.${extension}` : key;
-        download(await exportBlob(item), name);
+        download(await exportBlob(item, language), name);
       } catch { failures.push(source.name); updated.push(source); }
     }
     setImages(updated); setBusy(false);
-    if (failures.length) notify(`일부 이미지 내보내기에 실패했습니다: ${failures.join(", ")}`, "error");
-    else notify(`${images.length}개 이미지를 각각 내보냈습니다.`, "success");
+    if (failures.length) notify(tr("일부 이미지 내보내기에 실패했습니다: {names}", { names: failures.join(", ") }), "error");
+    else notify(tr("{count}개 이미지를 각각 내보냈습니다.", { count: images.length }), "success");
   };
 
   const fixedCount = current?.settings.slots.filter((slot: Slot) => slot.fixed).length ?? 0;
@@ -457,7 +482,7 @@ export default function PaletteStudio() {
     const draft = weightDrafts[key] ?? String(current.settings.slots[index].weight);
     const weight = parsePaletteWeight(draft);
     setWeightDrafts((values) => { const next = { ...values }; delete next[key]; return next; });
-    if (weight === null) { notify("가중치는 0.1~5 사이의 숫자여야 합니다. 기존 값으로 되돌렸습니다.", "error"); return; }
+    if (weight === null) { notify(tr("가중치는 0.1~5 사이의 숫자여야 합니다. 기존 값으로 되돌렸습니다."), "error"); return; }
     updateSettings((settings) => { settings.slots[index].weight = weight; return settings; });
   };
   const commitPixelSize = () => {
@@ -466,7 +491,7 @@ export default function PaletteStudio() {
     const size = Number(draft);
     setPixelSizeDrafts((values) => { const next = { ...values }; delete next[current.id]; return next; });
     if (!Number.isInteger(size) || size < 2 || size > 64) {
-      notify("픽셀화 블록 크기는 2~64 사이의 정수여야 합니다. 기존 값으로 되돌렸습니다.", "error");
+      notify(tr("픽셀화 블록 크기는 2~64 사이의 정수여야 합니다. 기존 값으로 되돌렸습니다."), "error");
       return;
     }
     if (size !== current.settings.pixelation.size) updateSettings((settings) => { settings.pixelation.size = size; return settings; });
@@ -479,11 +504,12 @@ export default function PaletteStudio() {
   return (
     <main>
       <header className="topbar">
-        <div className="brand"><span className="brand-mark">PF</span><div><h1>Palette Forge</h1><p>정확한 고정 색상을 지키는 로컬 이미지 양자화</p></div></div>
+        <div className="brand"><span className="brand-mark">PF</span><div><h1>Palette Forge</h1><p>{tr("정확한 고정 색상을 지키는 로컬 이미지 양자화")}</p></div></div>
         <div className="header-actions">
-          <button className="button theme-toggle" type="button" onClick={toggleTheme} aria-pressed={theme === "dark"} aria-label={`${theme === "dark" ? "라이트" : "다크"} 모드로 전환`} title={`${theme === "dark" ? "라이트" : "다크"} 모드로 전환`}><span className="theme-icon" aria-hidden="true">{theme === "dark" ? "☀" : "☾"}</span><span className="theme-label">{theme === "dark" ? "라이트" : "다크"}</span></button>
-          <button className="button ghost" onClick={() => fileInput.current?.click()} disabled={busy}>이미지 추가</button>
-          <button className="button primary" onClick={convertCurrent} disabled={!current || busy}>{busy ? "처리 중…" : "변환 실행"}</button>
+          <button className="button theme-toggle" type="button" onClick={toggleTheme} aria-pressed={theme === "dark"} aria-label={tr("{mode} 모드로 전환", { mode: tr(theme === "dark" ? "라이트" : "다크") })} title={tr("{mode} 모드로 전환", { mode: tr(theme === "dark" ? "라이트" : "다크") })}><span className="theme-icon" aria-hidden="true">{theme === "dark" ? "☀" : "☾"}</span><span className="theme-label">{tr(theme === "dark" ? "라이트" : "다크")}</span></button>
+          <label className="language-control"><span aria-hidden="true">文</span><select value={language} aria-label={tr("언어 선택")} onChange={(event) => changeLanguage(event.target.value as Language)}>{LANGUAGE_OPTIONS.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select></label>
+          <button className="button ghost" onClick={() => fileInput.current?.click()} disabled={busy}>{tr("이미지 추가")}</button>
+          <button className="button primary" onClick={convertCurrent} disabled={!current || busy}>{tr(busy ? "처리 중…" : "변환 실행")}</button>
         </div>
         <input ref={fileInput} hidden type="file" accept="image/png,image/jpeg,image/webp" multiple onChange={loadImages} />
       </header>
@@ -492,106 +518,106 @@ export default function PaletteStudio() {
 
       <div className="workspace">
         <aside className="image-rail panel">
-          <div className="panel-title"><div><span className="eyebrow">SOURCE</span><h2>이미지 목록 <b>{images.length}</b></h2></div><button className="icon-button" aria-label="이미지 추가" onClick={() => fileInput.current?.click()}>＋</button></div>
-          <button className="dropzone" onClick={() => fileInput.current?.click()} disabled={busy}><span>＋</span><strong>이미지 불러오기</strong><small>PNG · JPEG · WebP / 여러 장 선택 가능</small></button>
+          <div className="panel-title"><div><span className="eyebrow">SOURCE</span><h2>{tr("이미지 목록")} <b>{images.length}</b></h2></div><button className="icon-button" aria-label={tr("이미지 추가")} onClick={() => fileInput.current?.click()}>＋</button></div>
+          <button className="dropzone" onClick={() => fileInput.current?.click()} disabled={busy}><span>＋</span><strong>{tr("이미지 불러오기")}</strong><small>{tr("PNG · JPEG · WebP / 여러 장 선택 가능")}</small></button>
           <div className="image-list">
             {images.map((image, index) => <button key={image.id} className={`image-item ${selectedId === image.id ? "selected" : ""}`} onClick={() => { setSelectedId(image.id); setActiveSlot(null); setSamplingSlot(null); }}>
               {/* Object URL이 아닌 메모리 내 썸네일이므로 Next Image 최적화 대상이 아닙니다. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={image.thumbnail} alt="" /><span className="image-copy"><strong>{image.name}</strong><small>{image.width} × {image.height}px · #{index + 1}</small></span><i className={image.result ? "done" : "pending"}>{image.result ? "완료" : "대기"}</i>
+              <img src={image.thumbnail} alt="" /><span className="image-copy"><strong>{image.name}</strong><small>{image.width} × {image.height}px · #{index + 1}</small></span><i className={image.result ? "done" : "pending"}>{tr(image.result ? "완료" : "대기")}</i>
             </button>)}
-            {!images.length && <p className="empty-list">불러온 이미지가 없습니다.</p>}
+            {!images.length && <p className="empty-list">{tr("불러온 이미지가 없습니다.")}</p>}
           </div>
-          {!!images.length && <div className="rail-actions"><button className="text-button danger" onClick={() => { if (!current) return; setImages((items) => items.filter((item) => item.id !== current.id)); const next = images.find((item) => item.id !== current.id); setSelectedId(next?.id ?? null); }}>선택 삭제</button><button className="text-button" onClick={() => { if (window.confirm("모든 이미지를 목록에서 삭제할까요?")) { setImages([]); setSelectedId(null); } }}>전체 삭제</button></div>}
+          {!!images.length && <div className="rail-actions"><button className="text-button danger" onClick={() => { if (!current) return; setImages((items) => items.filter((item) => item.id !== current.id)); const next = images.find((item) => item.id !== current.id); setSelectedId(next?.id ?? null); }}>{tr("선택 삭제")}</button><button className="text-button" onClick={() => { if (window.confirm(tr("모든 이미지를 목록에서 삭제할까요?"))) { setImages([]); setSelectedId(null); } }}>{tr("전체 삭제")}</button></div>}
         </aside>
 
         <section className="preview-panel panel">
-          <div className="panel-title"><div><span className="eyebrow">PREVIEW</span><h2>{current?.name ?? "미리보기"}</h2></div>{current && <span className="dimension">{current.width} × {current.height}px</span>}</div>
+          <div className="panel-title"><div><span className="eyebrow">PREVIEW</span><h2>{current?.name ?? tr("미리보기")}</h2></div>{current && <span className="dimension">{current.width} × {current.height}px</span>}</div>
           {current ? <div className={`compare ${sampling ? "sampling" : ""}`}>
-            <figure><figcaption><span>원본 + 보정 미리보기</span><small>휠 확대 · 드래그 이동 · 클릭 색상 추출</small></figcaption><div className="canvas-wrap checker"><CanvasPreview key={`${current.id}-original`} item={current} result={false} onPick={pick} /></div></figure>
-            <figure><figcaption><span>변환 결과</span><small>{current.result ? `${current.palette.length}색 · 휠 확대 · 드래그 이동` : "변환 전"}</small></figcaption><div className="canvas-wrap checker">{current.result ? <CanvasPreview key={`${current.id}-result`} item={current} result onPick={pick} /> : <div className="result-placeholder"><span>◇</span><p>변환 실행 후 결과가 표시됩니다.</p></div>}</div></figure>
-          </div> : <div className="empty-preview"><span className="empty-glyph">◫</span><h2>색을 다듬을 이미지를 불러오세요</h2><p>파일은 업로드되지 않으며 원본 해상도로 브라우저 안에서 처리됩니다.</p><button className="button primary" onClick={() => fileInput.current?.click()}>이미지 선택</button></div>}
+            <figure><figcaption><span>{tr("원본 + 보정 미리보기")}</span><small>{tr("휠 확대 · 드래그 이동 · 클릭 색상 추출")}</small></figcaption><div className="canvas-wrap checker"><CanvasPreview key={`${current.id}-original`} item={current} result={false} onPick={pick} language={language} /></div></figure>
+            <figure><figcaption><span>{tr("변환 결과")}</span><small>{current.result ? tr("{count}색 · 휠 확대 · 드래그 이동", { count: current.palette.length }) : tr("변환 전")}</small></figcaption><div className="canvas-wrap checker">{current.result ? <CanvasPreview key={`${current.id}-result`} item={current} result onPick={pick} language={language} /> : <div className="result-placeholder"><span>◇</span><p>{tr("변환 실행 후 결과가 표시됩니다.")}</p></div>}</div></figure>
+          </div> : <div className="empty-preview"><span className="empty-glyph">◫</span><h2>{tr("색을 다듬을 이미지를 불러오세요")}</h2><p>{tr("파일은 업로드되지 않으며 원본 해상도로 브라우저 안에서 처리됩니다.")}</p><button className="button primary" onClick={() => fileInput.current?.click()}>{tr("이미지 선택")}</button></div>}
         </section>
 
         <aside className="control-panel">
           <section className="panel control-section">
-            <div className="panel-title compact"><div><span className="eyebrow">ADJUST</span><h2>색 보정</h2></div>{current && <button className="text-button" onClick={() => updateSettings((settings) => { settings.adjustments = defaultSettings().adjustments; return settings; })}>초기화</button>}</div>
-            <p className="section-note">원본에서 다시 계산되며 보정값이 누적되지 않습니다.</p>
-            <div className="sliders">{adjustmentFields.map(([key, label, min, max]) => <label key={key}><span>{label}<output>{current?.settings.adjustments[key] ?? 0}{key === "hue" ? "°" : ""}</output></span><input type="range" min={min} max={max} value={current?.settings.adjustments[key] ?? 0} disabled={!current} onChange={(event) => updateSettings((settings) => { settings.adjustments[key] = Number(event.target.value); return settings; })} /></label>)}</div>
+            <div className="panel-title compact"><div><span className="eyebrow">ADJUST</span><h2>{tr("색 보정")}</h2></div>{current && <button className="text-button" onClick={() => updateSettings((settings) => { settings.adjustments = defaultSettings().adjustments; return settings; })}>{tr("초기화")}</button>}</div>
+            <p className="section-note">{tr("원본에서 다시 계산되며 보정값이 누적되지 않습니다.")}</p>
+            <div className="sliders">{adjustmentFields.map(([key, label, min, max]) => <label key={key}><span>{tr(label)}<output>{current?.settings.adjustments[key] ?? 0}{key === "hue" ? "°" : ""}</output></span><input type="range" min={min} max={max} value={current?.settings.adjustments[key] ?? 0} disabled={!current} onChange={(event) => updateSettings((settings) => { settings.adjustments[key] = Number(event.target.value); return settings; })} /></label>)}</div>
             <div className={`pixelation-setting ${current?.settings.pixelation.enabled ? "is-enabled" : ""}`}>
-              <label className="pixelation-toggle"><span><strong>픽셀화</strong><small>색상 제한 전에 블록 효과 적용</small></span><input type="checkbox" aria-label="픽셀화 사용" disabled={!current} checked={current?.settings.pixelation.enabled ?? false} onChange={(event) => updateSettings((settings) => { settings.pixelation.enabled = event.target.checked; return settings; })} /></label>
-              <div className="pixelation-size"><div><span>블록 크기</span><input type="number" inputMode="numeric" aria-label="픽셀화 블록 크기 숫자" min="2" max="64" step="1" disabled={!current || !current.settings.pixelation.enabled} value={current ? (pixelSizeDrafts[current.id] ?? String(current.settings.pixelation.size)) : "8"} onChange={(event) => { if (!current) return; setPixelSizeDrafts((values) => ({ ...values, [current.id]: event.target.value })); }} onBlur={commitPixelSize} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} /></div><input type="range" aria-label="픽셀화 블록 크기 슬라이더" min="2" max="64" step="1" disabled={!current || !current.settings.pixelation.enabled} value={current?.settings.pixelation.size ?? 8} onChange={(event) => { if (current) setPixelSizeDrafts((values) => { const next = { ...values }; delete next[current.id]; return next; }); updateSettings((settings) => { settings.pixelation.size = Number(event.target.value); return settings; }); }} /></div>
-              <label className="pixelation-option"><span>투명도 방식</span><select aria-label="픽셀화 투명도 방식" disabled={!current || !current.settings.pixelation.enabled} value={current?.settings.pixelation.alphaMode ?? "smooth"} onChange={(event) => updateSettings((settings) => { settings.pixelation.alphaMode = event.target.value; return settings; })}><option value="smooth">부드러운 알파</option><option value="binary">0 · 1 알파 (불투명 픽셀)</option></select></label>
-              <small className="pixelation-help">0 · 1 알파는 블록 평균 불투명도가 50% 이상일 때만 완전 불투명하게 만듭니다.</small>
+              <label className="pixelation-toggle"><span><strong>{tr("픽셀화")}</strong><small>{tr("색상 제한 전에 블록 효과 적용")}</small></span><input type="checkbox" aria-label={tr("픽셀화 사용")} disabled={!current} checked={current?.settings.pixelation.enabled ?? false} onChange={(event) => updateSettings((settings) => { settings.pixelation.enabled = event.target.checked; return settings; })} /></label>
+              <div className="pixelation-size"><div><span>{tr("블록 크기")}</span><input type="number" inputMode="numeric" aria-label={tr("픽셀화 블록 크기 숫자")} min="2" max="64" step="1" disabled={!current || !current.settings.pixelation.enabled} value={current ? (pixelSizeDrafts[current.id] ?? String(current.settings.pixelation.size)) : "8"} onChange={(event) => { if (!current) return; setPixelSizeDrafts((values) => ({ ...values, [current.id]: event.target.value })); }} onBlur={commitPixelSize} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} /></div><input type="range" aria-label={tr("픽셀화 블록 크기 슬라이더")} min="2" max="64" step="1" disabled={!current || !current.settings.pixelation.enabled} value={current?.settings.pixelation.size ?? 8} onChange={(event) => { if (current) setPixelSizeDrafts((values) => { const next = { ...values }; delete next[current.id]; return next; }); updateSettings((settings) => { settings.pixelation.size = Number(event.target.value); return settings; }); }} /></div>
+              <label className="pixelation-option"><span>{tr("투명도 방식")}</span><select aria-label={tr("픽셀화 투명도 방식")} disabled={!current || !current.settings.pixelation.enabled} value={current?.settings.pixelation.alphaMode ?? "smooth"} onChange={(event) => updateSettings((settings) => { settings.pixelation.alphaMode = event.target.value; return settings; })}><option value="smooth">{tr("부드러운 알파")}</option><option value="binary">{tr("0 · 1 알파 (불투명 픽셀)")}</option></select></label>
+              <small className="pixelation-help">{tr("0 · 1 알파는 블록 평균 불투명도가 50% 이상일 때만 완전 불투명하게 만듭니다.")}</small>
             </div>
           </section>
 
           <section className="panel control-section">
-            <div className="panel-title compact"><div><span className="eyebrow">PALETTE</span><h2>최종 팔레트</h2></div><span className="fixed-count">고정 {fixedCount}</span></div>
-            <label className="count-field"><span>최종 색상 수<small>최대 {MAX_COLORS}</small></span><input type="number" min="1" max={MAX_COLORS} value={current?.settings.colorCount ?? 5} disabled={!current} onChange={(event) => changeCount(event.target.value)} /></label>
+            <div className="panel-title compact"><div><span className="eyebrow">PALETTE</span><h2>{tr("최종 팔레트")}</h2></div><span className="fixed-count">{tr("고정 {count}", { count: fixedCount })}</span></div>
+            <label className="count-field"><span>{tr("최종 색상 수")}<small>{tr("최대 {max}", { max: MAX_COLORS })}</small></span><input type="number" min="1" max={MAX_COLORS} value={current?.settings.colorCount ?? 5} disabled={!current} onChange={(event) => changeCount(event.target.value)} /></label>
             <div className="palette-list">{current?.settings.slots.map((slot: Slot, index: number) => {
               const color = slot.color ?? current.palette[index] ?? [218, 218, 213]; const hex = rgbToHex(color);
               return <div className={`palette-slot ${slot.fixed ? "is-fixed" : ""}`} key={index}>
-                <button className="swatch" style={{ background: hex }} onClick={() => openColor(index)} aria-label={`${index + 1}번 색상 선택`} />
+                <button className="swatch" style={{ background: hex }} onClick={() => openColor(index)} aria-label={tr("{index}번 색상 선택", { index: index + 1 })} />
                 <button className="slot-color" onClick={() => openColor(index)}><strong>{hex}</strong><small>RGB {color.join(" · ")}</small></button>
-                <span className="slot-tag">{slot.fixed ? "고정" : "자동"}</span>
-                <label className="weight"><span>가중치</span><input type="number" inputMode="decimal" min="0.1" max="5" step="0.1" value={weightDrafts[weightKey(current.id, index)] ?? String(slot.weight)} onChange={(event) => {
+                <span className="slot-tag">{tr(slot.fixed ? "고정" : "자동")}</span>
+                <label className="weight"><span>{tr("가중치")}</span><input type="number" inputMode="decimal" min="0.1" max="5" step="0.1" value={weightDrafts[weightKey(current.id, index)] ?? String(slot.weight)} onChange={(event) => {
                   const key = weightKey(current.id, index); setWeightDrafts((values) => ({ ...values, [key]: event.target.value }));
                 }} onBlur={() => commitWeight(index)} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} /></label>
-                <button className="reset-slot" title="고정 해제 및 가중치 초기화" onClick={() => updateSettings((settings) => { settings.slots[index] = { fixed: false, color: null, weight: 1 }; return settings; })}>↺</button>
+                <button className="reset-slot" title={tr("고정 해제 및 가중치 초기화")} onClick={() => updateSettings((settings) => { settings.slots[index] = { fixed: false, color: null, weight: 1 }; return settings; })}>↺</button>
               </div>;
             })}</div>
           </section>
 
           <section className="panel control-section">
-            <div className="panel-title compact"><div><span className="eyebrow">EXPORT</span><h2>저장 및 내보내기</h2></div></div>
-            <div className="settings-actions"><button className="button ghost" disabled={!current} onClick={() => setSaveDialogOpen(true)}>설정 저장</button><button className="button ghost" disabled={!current} onClick={() => settingsInput.current?.click()}>설정 불러오기</button><input ref={settingsInput} hidden type="file" accept="application/json,.json" onChange={loadSettings} /></div>
+            <div className="panel-title compact"><div><span className="eyebrow">EXPORT</span><h2>{tr("저장 및 내보내기")}</h2></div></div>
+            <div className="settings-actions"><button className="button ghost" disabled={!current} onClick={() => setSaveDialogOpen(true)}>{tr("설정 저장")}</button><button className="button ghost" disabled={!current} onClick={() => settingsInput.current?.click()}>{tr("설정 불러오기")}</button><input ref={settingsInput} hidden type="file" accept="application/json,.json" onChange={loadSettings} /></div>
             <div className="export-grid">
-              <label><span>형식</span><select disabled={!current} value={current?.settings.export.format ?? "png"} onChange={(event) => updateSettings((settings) => { settings.export.format = event.target.value; if (event.target.value === "jpeg") settings.export.preserveAlpha = false; return settings; }, false)}><option value="png">PNG</option><option value="jpeg">JPEG</option><option value="webp">WebP</option></select></label>
-              <label><span>품질</span><input type="number" min="0.1" max="1" step="0.01" disabled={!current || current.settings.export.format === "png"} value={current?.settings.export.quality ?? .92} onChange={(event) => updateSettings((settings) => { const q = Number(event.target.value); if (q >= .1 && q <= 1) settings.export.quality = q; return settings; }, false)} /></label>
-              <label className="wide"><span>파일명</span><input disabled={!current} value={current?.settings.export.fileName ?? "converted"} onChange={(event) => updateSettings((settings) => { settings.export.fileName = event.target.value; return settings; }, false)} /></label>
-              <label><span>배경색</span><input type="color" disabled={!current} value={current?.settings.export.background ?? "#ffffff"} onChange={(event) => updateSettings((settings) => { settings.export.background = event.target.value.toUpperCase(); return settings; }, false)} /></label>
-              <label className="check"><input type="checkbox" disabled={!current || current.settings.export.format === "jpeg"} checked={current?.settings.export.preserveAlpha ?? true} onChange={(event) => updateSettings((settings) => { settings.export.preserveAlpha = event.target.checked; return settings; }, false)} /><span>투명도 유지</span></label>
-              <label className="wide"><span>픽셀화 출력 해상도</span><select aria-label="픽셀화 출력 해상도" disabled={!current || !current.settings.pixelation.enabled} value={current?.settings.export.keepOriginalSize === false ? "optimized" : "original"} onChange={(event) => updateSettings((settings) => { settings.export.keepOriginalSize = event.target.value === "original"; return settings; }, false)}><option value="original">원본 해상도 유지{current ? ` (${current.width} × ${current.height})` : ""}</option><option value="optimized">픽셀 최적화{current ? ` (${Math.ceil(current.width / current.settings.pixelation.size)} × ${Math.ceil(current.height / current.settings.pixelation.size)})` : ""}</option></select></label>
+              <label><span>{tr("형식")}</span><select disabled={!current} value={current?.settings.export.format ?? "png"} onChange={(event) => updateSettings((settings) => { settings.export.format = event.target.value; if (event.target.value === "jpeg") settings.export.preserveAlpha = false; return settings; }, false)}><option value="png">PNG</option><option value="jpeg">JPEG</option><option value="webp">WebP</option></select></label>
+              <label><span>{tr("품질")}</span><input type="number" min="0.1" max="1" step="0.01" disabled={!current || current.settings.export.format === "png"} value={current?.settings.export.quality ?? .92} onChange={(event) => updateSettings((settings) => { const q = Number(event.target.value); if (q >= .1 && q <= 1) settings.export.quality = q; return settings; }, false)} /></label>
+              <label className="wide"><span>{tr("파일명")}</span><input disabled={!current} value={current?.settings.export.fileName ?? "converted"} onChange={(event) => updateSettings((settings) => { settings.export.fileName = event.target.value; return settings; }, false)} /></label>
+              <label><span>{tr("배경색")}</span><input type="color" disabled={!current} value={current?.settings.export.background ?? "#ffffff"} onChange={(event) => updateSettings((settings) => { settings.export.background = event.target.value.toUpperCase(); return settings; }, false)} /></label>
+              <label className="check"><input type="checkbox" disabled={!current || current.settings.export.format === "jpeg"} checked={current?.settings.export.preserveAlpha ?? true} onChange={(event) => updateSettings((settings) => { settings.export.preserveAlpha = event.target.checked; return settings; }, false)} /><span>{tr("투명도 유지")}</span></label>
+              <label className="wide"><span>{tr("픽셀화 출력 해상도")}</span><select aria-label={tr("픽셀화 출력 해상도")} disabled={!current || !current.settings.pixelation.enabled} value={current?.settings.export.keepOriginalSize === false ? "optimized" : "original"} onChange={(event) => updateSettings((settings) => { settings.export.keepOriginalSize = event.target.value === "original"; return settings; }, false)}><option value="original">{tr("원본 해상도 유지")}{current ? ` (${current.width} × ${current.height})` : ""}</option><option value="optimized">{tr("픽셀 최적화")}{current ? ` (${Math.ceil(current.width / current.settings.pixelation.size)} × ${Math.ceil(current.height / current.settings.pixelation.size)})` : ""}</option></select></label>
             </div>
-            {current?.hasAlpha && current.settings.export.format === "jpeg" && <p className="warning">JPEG는 투명도를 지원하지 않아 선택한 배경색으로 합성됩니다.</p>}
-            <div className="export-actions"><button className="button primary" disabled={!current || busy} onClick={exportCurrent}>현재 이미지 내보내기</button><button className="button ghost" disabled={!images.length || busy} onClick={exportAll}>전체 내보내기</button></div>
+            {current?.hasAlpha && current.settings.export.format === "jpeg" && <p className="warning">{tr("JPEG는 투명도를 지원하지 않아 선택한 배경색으로 합성됩니다.")}</p>}
+            <div className="export-actions"><button className="button primary" disabled={!current || busy} onClick={exportCurrent}>{tr("현재 이미지 내보내기")}</button><button className="button ghost" disabled={!images.length || busy} onClick={exportAll}>{tr("전체 내보내기")}</button></div>
           </section>
         </aside>
       </div>
 
       {saveDialogOpen && current && <div className="modal-backdrop">
-        <section className="color-dialog settings-dialog" role="dialog" aria-modal="true" aria-label="저장할 설정 선택">
-          <div className="dialog-head"><div><span className="eyebrow">SAVE SETTINGS</span><h2>저장할 설정 선택</h2></div><button className="icon-button" aria-label="설정 저장 창 닫기" onClick={() => setSaveDialogOpen(false)}>×</button></div>
-          <p className="settings-dialog-intro">파일에 포함할 항목을 선택하세요. 하나 이상 선택해야 합니다.</p>
+        <section className="color-dialog settings-dialog" role="dialog" aria-modal="true" aria-label={tr("저장할 설정 선택")}>
+          <div className="dialog-head"><div><span className="eyebrow">SAVE SETTINGS</span><h2>{tr("저장할 설정 선택")}</h2></div><button className="icon-button" aria-label={tr("설정 저장 창 닫기")} onClick={() => setSaveDialogOpen(false)}>×</button></div>
+          <p className="settings-dialog-intro">{tr("파일에 포함할 항목을 선택하세요. 하나 이상 선택해야 합니다.")}</p>
           <div className="settings-scope-list">
-            <label htmlFor="save-adjust" aria-label="ADJUST 색 보정 설정 저장" className={saveSections.adjust ? "is-selected" : ""}>
+            <label htmlFor="save-adjust" aria-label={tr("ADJUST 색 보정 설정 저장")} className={saveSections.adjust ? "is-selected" : ""}>
               <input id="save-adjust" type="checkbox" checked={saveSections.adjust} onChange={(event) => setSaveSections((sections) => ({ ...sections, adjust: event.target.checked }))} />
-              <span><strong>ADJUST · 색 보정</strong><small>밝기, 대비, 채도, 색조와 픽셀화 설정</small></span>
+              <span><strong>{tr("ADJUST · 색 보정")}</strong><small>{tr("밝기, 대비, 채도, 색조와 픽셀화 설정")}</small></span>
             </label>
-            <label htmlFor="save-palette" aria-label="PALETTE 최종 팔레트 설정 저장" className={saveSections.palette ? "is-selected" : ""}>
+            <label htmlFor="save-palette" aria-label={tr("PALETTE 최종 팔레트 설정 저장")} className={saveSections.palette ? "is-selected" : ""}>
               <input id="save-palette" type="checkbox" checked={saveSections.palette} onChange={(event) => setSaveSections((sections) => ({ ...sections, palette: event.target.checked }))} />
-              <span><strong>PALETTE · 최종 팔레트</strong><small>색상 수, 슬롯 상태, 고정 색상과 가중치</small></span>
+              <span><strong>{tr("PALETTE · 최종 팔레트")}</strong><small>{tr("색상 수, 슬롯 상태, 고정 색상과 가중치")}</small></span>
             </label>
           </div>
-          <p className="settings-dialog-note">내보내기 형식, 파일명, 투명도 설정은 항상 함께 저장됩니다. 불러올 때 선택하지 않았던 항목은 현재 이미지의 설정을 유지합니다.</p>
-          <div className="dialog-footer"><button className="button ghost" onClick={() => setSaveDialogOpen(false)}>취소</button><button className="button primary" disabled={!saveSections.adjust && !saveSections.palette} onClick={saveSettings}>선택 항목 저장</button></div>
+          <p className="settings-dialog-note">{tr("내보내기 형식, 파일명, 투명도 설정은 항상 함께 저장됩니다. 불러올 때 선택하지 않았던 항목은 현재 이미지의 설정을 유지합니다.")}</p>
+          <div className="dialog-footer"><button className="button ghost" onClick={() => setSaveDialogOpen(false)}>{tr("취소")}</button><button className="button primary" disabled={!saveSections.adjust && !saveSections.palette} onClick={saveSettings}>{tr("선택 항목 저장")}</button></div>
         </section>
       </div>}
 
       {activeSlot !== null && current && !sampling && <div className="modal-backdrop">
-        <section className="color-dialog" role="dialog" aria-modal="true" aria-label="색상 선택기">
-          <div className="dialog-head"><div><span className="eyebrow">COLOR PICKER</span><h2>{activeSlot + 1}번 슬롯 색상</h2></div><button className="icon-button" onClick={() => { setActiveSlot(null); setSamplingSlot(null); }}>×</button></div>
-          <div className="color-picker-area" style={{ backgroundColor: `hsl(${draftHsv[0]} 100% 50%)` }} onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); updateSaturationValue(event); }} onPointerMove={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) updateSaturationValue(event); }} onPointerUp={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); }} aria-label="채도와 밝기 선택 영역">
+        <section className="color-dialog" role="dialog" aria-modal="true" aria-label={tr("색상 선택기")}>
+          <div className="dialog-head"><div><span className="eyebrow">COLOR PICKER</span><h2>{tr("{index}번 슬롯 색상", { index: activeSlot + 1 })}</h2></div><button className="icon-button" aria-label={tr("취소")} onClick={() => { setActiveSlot(null); setSamplingSlot(null); }}>×</button></div>
+          <div className="color-picker-area" style={{ backgroundColor: `hsl(${draftHsv[0]} 100% 50%)` }} onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); updateSaturationValue(event); }} onPointerMove={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) updateSaturationValue(event); }} onPointerUp={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); }} aria-label={tr("채도와 밝기 선택 영역")}>
             <span className="color-picker-cursor" style={{ left: `${draftHsv[1]}%`, top: `${100 - draftHsv[2]}%` }} />
           </div>
-          <div className="hue-control"><span className="current-color" style={{ background: draftHex }} /><input className="hue-slider" type="range" min="0" max="359" value={Math.round(draftHsv[0])} onChange={(event) => { const hue = Number(event.target.value); setDraftColor(hsvToRgb([hue, draftHsv[1], draftHsv[2]]), hue); }} aria-label="색조" /><output>{Math.round(draftHsv[0])}°</output></div>
+          <div className="hue-control"><span className="current-color" style={{ background: draftHex }} /><input className="hue-slider" type="range" min="0" max="359" value={Math.round(draftHsv[0])} onChange={(event) => { const hue = Number(event.target.value); setDraftColor(hsvToRgb([hue, draftHsv[1], draftHsv[2]]), hue); }} aria-label={tr("색조")} /><output>{Math.round(draftHsv[0])}°</output></div>
           <label className="hex-field"><span>HEX</span><input value={draftHex} onChange={(event) => syncHex(event.target.value)} spellCheck={false} /></label>
           <div className="rgb-fields">{["R", "G", "B"].map((label, index) => <label key={label}><span>{label}</span><input inputMode="numeric" value={draftRgb[index]} onChange={(event) => syncRgb(index, event.target.value)} /></label>)}</div>
           {colorError && <p className="field-error">{colorError}</p>}
-          <div className="picker-actions"><button className={`button ghost ${sampling ? "active" : ""}`} onClick={() => { setSamplingSlot(activeSlot); setActiveSlot(null); notify("원본 또는 결과 이미지에서 원하는 픽셀을 클릭하세요."); }}>⌾ 이미지 스포이드</button><button className="button ghost" onClick={screenPick}>⌖ 화면 스포이드</button></div>
-          <p className="picker-note">화면 스포이드는 지원 브라우저에서만 사용할 수 있습니다. 완전 투명 픽셀은 선택되지 않습니다.</p>
-          <div className="dialog-footer"><button className="button ghost" onClick={() => { setActiveSlot(null); setSamplingSlot(null); }}>취소</button><button className="button primary" onClick={applyDraft}>색상 고정</button></div>
+          <div className="picker-actions"><button className={`button ghost ${sampling ? "active" : ""}`} onClick={() => { setSamplingSlot(activeSlot); setActiveSlot(null); notify(tr("원본 또는 결과 이미지에서 원하는 픽셀을 클릭하세요.")); }}>⌾ {tr("이미지 스포이드")}</button><button className="button ghost" onClick={screenPick}>⌖ {tr("화면 스포이드")}</button></div>
+          <p className="picker-note">{tr("화면 스포이드는 지원 브라우저에서만 사용할 수 있습니다. 완전 투명 픽셀은 선택되지 않습니다.")}</p>
+          <div className="dialog-footer"><button className="button ghost" onClick={() => { setActiveSlot(null); setSamplingSlot(null); }}>{tr("취소")}</button><button className="button primary" onClick={applyDraft}>{tr("색상 고정")}</button></div>
         </section>
       </div>}
     </main>
