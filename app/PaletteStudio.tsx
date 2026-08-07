@@ -53,7 +53,7 @@ function CanvasPreview({ item, result, onPick, language }: { item: ImageItem; re
   const drag = useRef<{ pointerId: number; startX: number; startY: number; originX: number; originY: number } | null>(null);
   const moved = useRef(false);
   const [view, setView] = useState({ zoom: 1, x: 0, y: 0 });
-  const [isFitView, setIsFitView] = useState(false);
+  const [isFitView, setIsFitView] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
   const [previewStatus, setPreviewStatus] = useState<{ settings: Settings; state: "ready" | "error" } | null>(null);
   const tr = (source: string, values: Record<string, string | number> = {}) => translate(language, source, values);
@@ -138,8 +138,11 @@ function CanvasPreview({ item, result, onPick, language }: { item: ImageItem; re
 
   useEffect(() => {
     const viewport = viewportRef.current;
-    if (!viewport || !isFitView || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(() => setView({ zoom: calculateFitZoom(), x: 0, y: 0 }));
+    if (!viewport || !isFitView) return;
+    const fitToViewport = () => setView({ zoom: calculateFitZoom(), x: 0, y: 0 });
+    fitToViewport();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(fitToViewport);
     observer.observe(viewport);
     return () => observer.disconnect();
   }, [calculateFitZoom, isFitView]);
@@ -280,6 +283,8 @@ export default function PaletteStudio() {
   const [language, setLanguage] = useState<Language>("ko");
   const fileInput = useRef<HTMLInputElement>(null);
   const settingsInput = useRef<HTMLInputElement>(null);
+  const noticeRef = useRef<HTMLDivElement>(null);
+  const workspaceRef = useRef<HTMLDivElement>(null);
   const current = images.find((image) => image.id === selectedId) ?? null;
   const sampling = samplingSlot !== null;
   const tr = (source: string, values: Record<string, string | number> = {}) => translate(language, source, values);
@@ -314,6 +319,37 @@ export default function PaletteStudio() {
     return () => window.clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    const notice = noticeRef.current;
+    const workspace = workspaceRef.current;
+    if (!notice || !workspace) return;
+    let frame = 0;
+    const syncRelease = () => {
+      frame = 0;
+      if (window.innerWidth < 1181 || window.innerWidth > 1599) {
+        notice.style.removeProperty("--notice-release-offset");
+        return;
+      }
+      const panelReleaseLine = window.innerHeight - 12;
+      const offset = Math.min(0, workspace.getBoundingClientRect().bottom - panelReleaseLine);
+      notice.style.setProperty("--notice-release-offset", `${offset}px`);
+    };
+    const scheduleSync = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(syncRelease);
+    };
+    syncRelease();
+    window.addEventListener("scroll", scheduleSync, { passive: true });
+    window.addEventListener("resize", scheduleSync);
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(scheduleSync);
+    observer?.observe(workspace);
+    return () => {
+      window.removeEventListener("scroll", scheduleSync);
+      window.removeEventListener("resize", scheduleSync);
+      observer?.disconnect();
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, []);
   const changeLanguage = (nextLanguage: Language) => {
     document.documentElement.lang = nextLanguage;
     setLanguage(nextLanguage);
@@ -590,9 +626,9 @@ export default function PaletteStudio() {
         <input ref={fileInput} hidden type="file" accept="image/png,image/jpeg,image/webp" multiple onChange={loadImages} />
       </header>
 
-      <div className={`notice ${messageType}`} role="status"><span>{messageType === "error" ? "!" : messageType === "success" ? "✓" : "i"}</span>{message}</div>
+      <div ref={noticeRef} className={`notice ${messageType}`} role="status"><span>{messageType === "error" ? "!" : messageType === "success" ? "✓" : "i"}</span>{message}</div>
 
-      <div className="workspace">
+      <div ref={workspaceRef} className="workspace">
         <aside className="image-rail panel">
           <div className="panel-title"><div><span className="eyebrow">SOURCE</span><h2>{tr("이미지 목록")} <b>{images.length}</b></h2></div><button className="icon-button" aria-label={tr("이미지 추가")} onClick={() => fileInput.current?.click()}>＋</button></div>
           <button className="dropzone" onClick={() => fileInput.current?.click()} disabled={busy}><span>＋</span><strong>{tr("이미지 불러오기")}</strong><small>{tr("PNG · JPEG · WebP / 여러 장 선택 가능")}</small><small className="paste-hint">{tr("또는 Ctrl+V로 클립보드 이미지 붙여넣기")}</small></button>

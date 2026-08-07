@@ -10,6 +10,9 @@ test("고정 팔레트 행은 Tailwind의 fixed 위치 유틸리티와 충돌하
   assert.match(component, /slot\.fixed \? "is-fixed"/);
   assert.doesNotMatch(component, /slot\.fixed \? "fixed"/);
   assert.match(css, /\.palette-slot\.is-fixed/);
+  assert.match(css, /\.image-list \{[^}]*padding: 2px 12px 8px;[^}]*overflow-x: hidden;[^}]*overflow-y: auto;/);
+  assert.doesNotMatch(css, /\.image-list \{[^}]*scrollbar-gutter: stable;/);
+  assert.match(css, /\.image-item img \{[^}]*object-fit: contain;[^}]*object-position: center;/);
   assert.doesNotMatch(css, /\.palette-slot\.fixed/);
 });
 
@@ -23,6 +26,8 @@ test("이미지 미리보기는 휠 확대와 포인터 드래그 및 초기화�
   assert.match(component, /event\.stopPropagation\(\)/);
   assert.match(component, /onPointerMove=\{moveDrag\}/);
   assert.match(component, /const calculateFitZoom = useCallback/);
+  assert.match(component, /const \[isFitView, setIsFitView\] = useState\(true\)/);
+  assert.match(component, /fitToViewport\(\);/);
   assert.match(component, /viewport\.clientWidth \/ item\.width/);
   assert.match(component, /viewport\.clientHeight \/ item\.height/);
   assert.match(component, /if \(isFitView\) showActualSize\(\)/);
@@ -261,6 +266,18 @@ test("medium desktop preview gives the canvas the full available viewport", asyn
   assert.match(css, /\.pan-zoom-viewport \{[^}]*inset: 0;/);
 });
 
+test("medium desktop notice follows the preview panels through their shared release point", async () => {
+  const [component, css] = await Promise.all([
+    readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(component, /ref=\{noticeRef\} className=\{`notice/);
+  assert.match(component, /ref=\{workspaceRef\} className="workspace"/);
+  assert.match(component, /workspace\.getBoundingClientRect\(\)\.bottom - panelReleaseLine/);
+  assert.match(component, /--notice-release-offset/);
+  assert.match(css, /\.notice \{[^}]*position:sticky;[^}]*top:78px;[^}]*--notice-release-offset/);
+  assert.match(css, /\.image-rail, \.preview-panel \{ position:sticky; top:128px; \}/);
+});
 test("wide desktop editor fits its primary regions into one viewport", async () => {
   const [studio, css] = await Promise.all([
     readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),

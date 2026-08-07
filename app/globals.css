@@ -80,11 +80,11 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .dropzone strong { color: var(--ink); font-size: 12px; }
 .dropzone small { font-size: 10px; }
 .dropzone .paste-hint { margin-top: 4px; color: var(--orange-dark); font-weight: 750; }
-.image-list { min-height: 0; padding: 0 8px 8px; overflow-y: auto; flex: 1; }
+.image-list { min-height: 0; padding: 2px 12px 8px; overflow-x: hidden; overflow-y: auto; flex: 1; }
 .image-item { width: 100%; display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 9px; padding: 8px; border: 1px solid transparent; background: transparent; border-radius: 9px; text-align: left; cursor: pointer; }
 .image-item:hover { background: #f2f2ec; }
 .image-item.selected { border-color: #f39b7f; background: #fff3ed; }
-.image-item img { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; background-color: #e7e7e1; background-image: linear-gradient(45deg,#d7d7d0 25%,transparent 25%),linear-gradient(-45deg,#d7d7d0 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#d7d7d0 75%),linear-gradient(-45deg,transparent 75%,#d7d7d0 75%); background-size: 10px 10px; background-position: 0 0,0 5px,5px -5px,-5px 0; }
+.image-item img { display: block; width: 44px; height: 44px; object-fit: contain; object-position: center; border-radius: 6px; background-color: #e7e7e1; background-image: linear-gradient(45deg,#d7d7d0 25%,transparent 25%),linear-gradient(-45deg,#d7d7d0 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#d7d7d0 75%),linear-gradient(-45deg,transparent 75%,#d7d7d0 75%); background-size: 10px 10px; background-position: 0 0,0 5px,5px -5px,-5px 0; }
 .image-copy { min-width: 0; }
 .image-copy strong, .image-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .image-copy strong { font-size: 11px; margin-bottom: 4px; }
@@ -298,6 +298,7 @@ html[data-theme="dark"] .ad-pending strong { color:#b2b7ad; background:#282c26; 
 }
 
 @media (min-width:1181px) and (max-width:1599px) {
+  .notice { position:sticky; top:78px; z-index:19; transform:translateY(var(--notice-release-offset, 0px)); will-change:transform; }
   .image-rail, .preview-panel { position:sticky; top:128px; }
 }
 
