@@ -1,4 +1,4 @@
-export type Language = "ko" | "ja" | "en";
+﻿export type Language = "ko" | "ja" | "en";
 
 export const LANGUAGE_OPTIONS: { value: Language; label: string; shortLabel: string }[] = [
   { value: "ko", label: "한국어", shortLabel: "KO" },
@@ -68,6 +68,20 @@ const ja: Record<string, string> = {
   "고정 {count}": "固定 {count}",
   "모든 고정 색상과 가중치 초기화": "すべての固定色と重みをリセット",
   "모든 고정 색상과 가중치를 초기화했습니다.": "すべての固定色と重みをリセットしました。",
+  "프리셋": "プリセット",
+  "팔레트 프리셋": "パレットプリセット",
+  "팔레트 프리셋 창 닫기": "パレットプリセットを閉じる",
+  "원하는 팔레트를 선택하면 색상 수와 고정 슬롯에 즉시 적용됩니다.": "パレットを選ぶと、色数と固定スロットにすぐ適用されます。",
+  "{name} · {count}색": "{name}・{count}色",
+  "{name} 프리셋을 적용했습니다. 변환 실행을 누르면 결과에 반영됩니다.": "{name}プリセットを適用しました。変換を実行すると結果に反映されます。",
+  "게임보이": "ゲームボーイ",
+  "회색조": "グレースケール",
+  "따뜻한 대지": "ウォームアース",
+  "바다": "オーシャン",
+  "노을": "サンセット",
+  "파스텔": "パステル",
+  "사이버 네온": "サイバーネオン",
+  "레트로 아케이드": "レトロアーケード",
   "최종 색상 수": "最終色数",
   "최대 {max}": "最大 {max}",
   "{index}번 색상 선택": "{index}番の色を選択",
@@ -185,7 +199,7 @@ const en: Record<string, string> = {
   "색을 다듬을 이미지를 불러오세요": "Load an image to refine its colors", "파일은 업로드되지 않으며 원본 해상도로 브라우저 안에서 처리됩니다.": "Files are never uploaded and are processed at full resolution in your browser.", "이미지 선택": "Choose images",
   "색 보정": "Adjust colors", "초기화": "Reset", "원본에서 다시 계산되며 보정값이 누적되지 않습니다.": "Each preview is recalculated from the original, so adjustments never accumulate.", "밝기": "Brightness", "대비": "Contrast", "채도": "Saturation", "색조": "Hue",
   "픽셀화": "Pixelation", "색상 제한 전에 블록 효과 적용": "Apply a block effect before color reduction", "픽셀화 사용": "Enable pixelation", "블록 크기": "Block size", "픽셀화 블록 크기 숫자": "Pixelation block size number", "픽셀화 블록 크기 슬라이더": "Pixelation block size slider", "투명도 방식": "Alpha mode", "픽셀화 투명도 방식": "Pixelation alpha mode", "부드러운 알파": "Smooth alpha", "0 · 1 알파 (불투명 픽셀)": "Binary alpha (opaque pixels)", "0 · 1 알파는 블록 평균 불투명도가 50% 이상일 때만 완전 불투명하게 만듭니다.": "Binary alpha makes a block fully opaque only when its average opacity is at least 50%.",
-  "최종 팔레트": "Final palette", "고정 {count}": "Fixed {count}", "모든 고정 색상과 가중치 초기화": "Reset all fixed colors and weights", "모든 고정 색상과 가중치를 초기화했습니다.": "Reset all fixed colors and weights.", "최종 색상 수": "Final color count", "최대 {max}": "Max {max}", "{index}번 색상 선택": "Choose color {index}", "고정": "Fixed", "자동": "Auto", "수동": "Manual", "가중치": "Weight", "고정 해제 및 자동 가중치로 초기화": "Clear fixed color and restore automatic weight",
+  "최종 팔레트": "Final palette", "고정 {count}": "Fixed {count}", "모든 고정 색상과 가중치 초기화": "Reset all fixed colors and weights", "모든 고정 색상과 가중치를 초기화했습니다.": "Reset all fixed colors and weights.", "프리셋": "Presets", "팔레트 프리셋": "Palette presets", "팔레트 프리셋 창 닫기": "Close palette presets", "원하는 팔레트를 선택하면 색상 수와 고정 슬롯에 즉시 적용됩니다.": "Choose a palette to apply its color count and fixed slots immediately.", "{name} · {count}색": "{name} · {count} colors", "{name} 프리셋을 적용했습니다. 변환 실행을 누르면 결과에 반영됩니다.": "Applied the {name} preset. Press Convert to update the result.", "게임보이": "Game Boy", "회색조": "Grayscale", "따뜻한 대지": "Warm earth", "바다": "Ocean", "노을": "Sunset", "파스텔": "Pastel", "사이버 네온": "Cyber neon", "레트로 아케이드": "Retro arcade", "최종 색상 수": "Final color count", "최대 {max}": "Max {max}", "{index}번 색상 선택": "Choose color {index}", "고정": "Fixed", "자동": "Auto", "수동": "Manual", "가중치": "Weight", "고정 해제 및 자동 가중치로 초기화": "Clear fixed color and restore automatic weight",
   "자동 팔레트 성향": "Automatic palette tendency", "자동 팔레트 성향 숫자": "Automatic palette tendency number", "자동 팔레트 성향은 -50~50 사이의 정수여야 합니다. 기존 값으로 되돌렸습니다.": "Automatic palette tendency must be an integer from -50 to 50. The previous value was restored.", "주조색 우선": "Dominant colors", "원본 균형": "Original balance", "색상 다양성": "Color diversity",
   "저장 및 내보내기": "Save & export", "설정 저장": "Save settings", "설정 불러오기": "Load settings", "형식": "Format", "품질": "Quality", "파일명": "File name", "배경색": "Background", "투명도 유지": "Preserve alpha", "픽셀화 출력 해상도": "Pixelated output resolution", "원본 해상도 유지": "Keep original resolution", "픽셀 최적화": "Pixel optimized", "JPEG는 투명도를 지원하지 않아 선택한 배경색으로 합성됩니다.": "JPEG does not support transparency, so the image will be composited onto the selected background color.", "현재 이미지 내보내기": "Export current", "전체 내보내기": "Export all",
   "저장할 설정 선택": "Choose settings to save", "설정 저장 창 닫기": "Close save settings dialog", "파일에 포함할 항목을 선택하세요. 하나 이상 선택해야 합니다.": "Choose what to include in the file. Select at least one item.", "ADJUST 색 보정 설정 저장": "Save ADJUST color settings", "ADJUST · 색 보정": "ADJUST · Color adjustments", "밝기, 대비, 채도, 색조와 픽셀화 설정": "Brightness, contrast, saturation, hue, and pixelation", "PALETTE 최종 팔레트 설정 저장": "Save PALETTE settings", "PALETTE · 최종 팔레트": "PALETTE · Final palette", "색상 수, 자동 팔레트 성향, 고정 색상과 가중치": "Color count, automatic palette tendency, fixed colors, and weights", "내보내기 형식, 파일명, 투명도 설정은 항상 함께 저장됩니다. 불러올 때 선택하지 않았던 항목은 현재 이미지의 설정을 유지합니다.": "Export format, file name, and transparency settings are always saved. Settings omitted from the file keep their current values when loaded.", "취소": "Cancel", "선택 항목 저장": "Save selected",

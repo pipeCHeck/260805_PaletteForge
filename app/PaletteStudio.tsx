@@ -3,6 +3,7 @@
 import { ChangeEvent, MouseEvent, PointerEvent as ReactPointerEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   MAX_COLORS,
+  applyPalettePreset,
   cloneSettings,
   defaultSettings,
   deserializeSettingsDocument,
@@ -24,6 +25,7 @@ import AdPlacement from "./AdPlacement";
 type RGB = [number, number, number];
 type Slot = { fixed: boolean; color: RGB | null; weight: number; weightMode: "auto" | "manual" };
 type Settings = ReturnType<typeof defaultSettings>;
+const DEFAULT_SLOT_COLOR: RGB = [218, 218, 213];
 
 const AD_SLOTS = {
   rail: "",
@@ -31,6 +33,18 @@ const AD_SLOTS = {
   banner: "",
 } as const;
 
+type PalettePreset = { id: string; name: string; colors: string[] };
+
+const PALETTE_PRESETS: PalettePreset[] = [
+  { id: "gameboy", name: "게임보이", colors: ["#252525", "#0F380F", "#306230", "#8BAC0F", "#9BBC0F"] },
+  { id: "grayscale", name: "회색조", colors: ["#111317", "#4B4E4A", "#858983", "#C5C8C0", "#F4F4EF"] },
+  { id: "earth", name: "따뜻한 대지", colors: ["#2A1A16", "#6B3E2E", "#A8643A", "#D89B5B", "#E8C78D", "#F4E8CE"] },
+  { id: "ocean", name: "바다", colors: ["#071D2B", "#0B3C5D", "#167D9A", "#45B8AC", "#A8E6CF", "#EAF9F3"] },
+  { id: "sunset", name: "노을", colors: ["#2D1B46", "#6A275B", "#B23A48", "#F06449", "#F7A35C", "#FFD7A0"] },
+  { id: "pastel", name: "파스텔", colors: ["#F7C6C7", "#F9D5A7", "#FBE7A1", "#CDECCF", "#BFE3F5", "#D8C7F0"] },
+  { id: "cyber", name: "사이버 네온", colors: ["#090A1A", "#2B125C", "#7A04EB", "#FF2BD6", "#00E5FF", "#B7FF00"] },
+  { id: "arcade", name: "레트로 아케이드", colors: ["#1A1C2C", "#5D275D", "#B13E53", "#EF7D57", "#FFCD75", "#A7F070", "#38B764", "#257179"] },
+];
 type ImageItem = {
   id: string;
   name: string;
@@ -43,6 +57,10 @@ type ImageItem = {
   thumbnail: string;
   hasAlpha: boolean;
 };
+
+function getPaletteSlotColor(item: ImageItem, index: number): RGB {
+  return item.settings.slots[index]?.color ?? item.palette[index] ?? DEFAULT_SLOT_COLOR;
+}
 
 const SUPPORTED_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 
@@ -270,11 +288,12 @@ export default function PaletteStudio() {
   const [messageType, setMessageType] = useState<"info" | "error" | "success">("info");
   const [activeSlot, setActiveSlot] = useState<number | null>(null);
   const [samplingSlot, setSamplingSlot] = useState<number | null>(null);
-  const [draftHex, setDraftHex] = useState("#000000");
-  const [draftRgb, setDraftRgb] = useState<[string, string, string]>(["0", "0", "0"]);
+  const [draftHex, setDraftHex] = useState("#DADAD5");
+  const [draftRgb, setDraftRgb] = useState<[string, string, string]>(["218", "218", "213"]);
   const [draftHue, setDraftHue] = useState(0);
   const [colorError, setColorError] = useState("");
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [presetDialogOpen, setPresetDialogOpen] = useState(false);
   const [saveSections, setSaveSections] = useState({ adjust: true, palette: true });
   const [weightDrafts, setWeightDrafts] = useState<Record<string, string>>({});
   const [pixelSizeDrafts, setPixelSizeDrafts] = useState<Record<string, string>>({});
@@ -443,7 +462,7 @@ export default function PaletteStudio() {
 
   const openColor = (index: number) => {
     if (!current) return;
-    const color = current.settings.slots[index].color ?? current.palette[index] ?? [0, 0, 0];
+    const color = getPaletteSlotColor(current, index);
     setActiveSlot(index); setDraftHex(rgbToHex(color)); setDraftRgb(color.map(String) as [string, string, string]); setDraftHue(rgbToHsv(color)[0]); setColorError("");
   };
 
@@ -576,6 +595,17 @@ export default function PaletteStudio() {
     updateCurrent((item) => ({ ...item, settings: resetPaletteSettings(item.settings), result: null, palette: [] }));
     notify(tr("모든 고정 색상과 가중치를 초기화했습니다."), "success");
   };
+  const selectPalettePreset = (preset: PalettePreset) => {
+    if (!current) return;
+    const colors = preset.colors.map((hex) => hexToRgb(hex) as RGB);
+    const draftPrefix = `${current.id}:`;
+    setWeightDrafts((values) => Object.fromEntries(Object.entries(values).filter(([key]) => !key.startsWith(draftPrefix))));
+    updateCurrent((item) => ({ ...item, settings: applyPalettePreset(item.settings, colors), result: null, palette: colors.map((color) => [...color] as RGB) }));
+    setActiveSlot(null);
+    setSamplingSlot(null);
+    setPresetDialogOpen(false);
+    notify(tr("{name} 프리셋을 적용했습니다. 변환 실행을 누르면 결과에 반영됩니다.", { name: tr(preset.name) }), "success");
+  };
   const weightKey = (imageId: string, index: number) => `${imageId}:${index}`;
   const commitWeight = (index: number) => {
     if (!current) return;
@@ -669,13 +699,13 @@ export default function PaletteStudio() {
           </section>
 
           <section className="panel control-section">
-            <div className="panel-title compact"><div><span className="eyebrow">PALETTE</span><h2>{tr("최종 팔레트")}</h2></div><div className="palette-title-actions"><span className="fixed-count">{tr("고정 {count}", { count: fixedCount })}</span><button className="text-button" disabled={!current} title={tr("모든 고정 색상과 가중치 초기화")} onClick={resetPaletteSlots}>{tr("초기화")}</button></div></div>
+            <div className="panel-title compact"><div><span className="eyebrow">PALETTE</span><h2>{tr("최종 팔레트")}</h2></div><div className="palette-title-actions"><span className="fixed-count">{tr("고정 {count}", { count: fixedCount })}</span><button className="text-button" disabled={!current} onClick={() => setPresetDialogOpen(true)}>{tr("프리셋")}</button><button className="text-button" disabled={!current} title={tr("모든 고정 색상과 가중치 초기화")} onClick={resetPaletteSlots}>{tr("초기화")}</button></div></div>
             <label className="count-field"><span>{tr("최종 색상 수")}<small>{tr("최대 {max}", { max: MAX_COLORS })}</small></span><input type="number" min="1" max={MAX_COLORS} value={current?.settings.colorCount ?? 5} disabled={!current} onChange={(event) => changeCount(event.target.value)} /></label>
             <div className="palette-tuning">
               <label><span><strong>{tr("자동 팔레트 성향")}</strong><input className="palette-tendency-number compact-number-input" type="number" inputMode="numeric" aria-label={tr("자동 팔레트 성향 숫자")} min="-50" max="50" step="1" disabled={!current} value={current ? (paletteTendencyDrafts[current.id] ?? String(current.settings.paletteDiversity - 50)) : "0"} onChange={(event) => { if (!current) return; setPaletteTendencyDrafts((values) => ({ ...values, [current.id]: event.target.value })); }} onBlur={commitPaletteTendency} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} /></span><input type="range" aria-label={tr("자동 팔레트 성향")} min="-50" max="50" step="1" disabled={!current} value={(current?.settings.paletteDiversity ?? 50) - 50} onChange={(event) => { if (current) setPaletteTendencyDrafts((values) => { const next = { ...values }; delete next[current.id]; return next; }); updateSettings((settings) => { settings.paletteDiversity = Number(event.target.value) + 50; return settings; }); }} /><small><b>{tr("주조색 우선")}</b><b>{tr("원본 균형")}</b><b>{tr("색상 다양성")}</b></small></label>
             </div>
             <div className="palette-list">{current?.settings.slots.map((slot: Slot, index: number) => {
-              const color = slot.color ?? current.palette[index] ?? [218, 218, 213]; const hex = rgbToHex(color);
+              const color = getPaletteSlotColor(current, index); const hex = rgbToHex(color);
               return <div className={`palette-slot ${slot.fixed ? "is-fixed" : ""}`} key={index}>
                 <button className="swatch" style={{ background: hex }} onClick={() => openColor(index)} aria-label={tr("{index}번 색상 선택", { index: index + 1 })} />
                 <button className="slot-color" onClick={() => openColor(index)}><strong>{hex}</strong><small>RGB {color.join(" · ")}</small></button>
@@ -708,6 +738,18 @@ export default function PaletteStudio() {
 
       <footer className="studio-footer"><div><strong>Palette Forge</strong><span>{tr("이미지는 서버로 전송되지 않고 브라우저 안에서 처리됩니다.")}</span></div><nav aria-label={tr("사이트 정보")}><a href="/guide">{tr("서비스 안내")}</a><a href="/privacy">{tr("개인정보처리방침")}</a><a href="/terms">{tr("이용약관")}</a><a href="/guide#contact">{tr("문의")}</a></nav><small>© 2026 Palette Forge</small></footer>
 
+      {presetDialogOpen && current && <div className="modal-backdrop">
+        <section className="color-dialog preset-dialog" role="dialog" aria-modal="true" aria-label={tr("팔레트 프리셋")}>
+          <div className="dialog-head"><div><span className="eyebrow">PALETTE PRESETS</span><h2>{tr("팔레트 프리셋")}</h2></div><button className="icon-button" aria-label={tr("팔레트 프리셋 창 닫기")} onClick={() => setPresetDialogOpen(false)}>×</button></div>
+          <p className="preset-dialog-intro">{tr("원하는 팔레트를 선택하면 색상 수와 고정 슬롯에 즉시 적용됩니다.")}</p>
+          <div className="preset-grid">
+            {PALETTE_PRESETS.map((preset) => <button type="button" className="preset-card" key={preset.id} onClick={() => selectPalettePreset(preset)}>
+              <span className="preset-swatches" aria-hidden="true">{preset.colors.map((color) => <i key={color} style={{ background: color }} />)}</span>
+              <span className="preset-meta"><strong>{tr(preset.name)}</strong><small>{tr("{name} · {count}색", { name: tr(preset.name), count: preset.colors.length })}</small></span>
+            </button>)}
+          </div>
+        </section>
+      </div>}
       {saveDialogOpen && current && <div className="modal-backdrop">
         <section className="color-dialog settings-dialog" role="dialog" aria-modal="true" aria-label={tr("저장할 설정 선택")}>
           <div className="dialog-head"><div><span className="eyebrow">SAVE SETTINGS</span><h2>{tr("저장할 설정 선택")}</h2></div><button className="icon-button" aria-label={tr("설정 저장 창 닫기")} onClick={() => setSaveDialogOpen(false)}>×</button></div>

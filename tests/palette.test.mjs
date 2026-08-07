@@ -1,6 +1,7 @@
-import assert from "node:assert/strict";
+﻿import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  applyPalettePreset,
   cloneSettings,
   countUniqueOpaqueColors,
   defaultSettings,
@@ -31,6 +32,18 @@ function configured(count) {
   return settings;
 }
 
+test("팔레트 프리셋은 보정 설정을 유지하고 모든 색을 고정 가중치 1로 적용한다", () => {
+  const settings = configured(5);
+  settings.adjustments.hue = 34;
+  settings.pixelation = { enabled: true, size: 6, alphaMode: "smooth" };
+  const colors = [[15, 56, 15], [48, 98, 48], [139, 172, 15], [155, 188, 15]];
+  const applied = applyPalettePreset(settings, colors);
+  assert.equal(applied.colorCount, 4);
+  assert.deepEqual(applied.slots, colors.map((color) => ({ fixed: true, color, weight: 1, weightMode: "manual" })));
+  assert.deepEqual(applied.adjustments, settings.adjustments);
+  assert.deepEqual(applied.pixelation, settings.pixelation);
+  assert.notStrictEqual(applied.slots[0].color, colors[0]);
+});
 test("결과의 불투명 RGB 색상 수가 설정값을 넘지 않는다", () => {
   const source = pixels([[255, 0, 0], [230, 20, 10], [0, 255, 0], [0, 0, 255], [20, 20, 220], [255, 255, 0]]);
   const { result } = quantizeImage(source, configured(3));

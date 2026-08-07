@@ -38,6 +38,14 @@ test("이미지 미리보기는 휠 확대와 포인터 드래그 및 초기화�
   assert.match(css, /\.pan-zoom-viewport canvas \{[^}]*max-width:none;[^}]*max-height:none;[^}]*image-rendering:pixelated;/);
 });
 
+test("empty automatic slots open the picker with the same DADAD5 color shown in the list", async () => {
+  const component = await readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8");
+  assert.match(component, /const DEFAULT_SLOT_COLOR: RGB = \[218, 218, 213\]/);
+  assert.match(component, /function getPaletteSlotColor/);
+  assert.match(component, /const color = getPaletteSlotColor\(current, index\);[\s\S]*?setActiveSlot\(index\)/);
+  assert.match(component, /const color = getPaletteSlotColor\(current, index\); const hex = rgbToHex/);
+  assert.doesNotMatch(component, /current\.settings\.slots\[index\]\.color \?\? current\.palette\[index\] \?\? \[0, 0, 0\]/);
+});
 test("팔레트 슬롯 창은 위치 제어가 가능한 내장 색상 선택기를 제공한다", async () => {
   const [component, css] = await Promise.all([
     readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
@@ -326,6 +334,25 @@ test("palette panel exposes a centered, editable automatic palette tendency cont
   assert.doesNotMatch(translations, /"경계 보존": "Preserve edges"/);
 });
 
+test("palette presets preview useful color sets and apply them as fixed slots", async () => {
+  const [component, css, translations] = await Promise.all([
+    readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    readFile(new URL("../app/i18n.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(component, /const PALETTE_PRESETS/);
+  assert.match(component, /id: "gameboy"/);
+  assert.match(component, /id: "gameboy"[\s\S]*?colors: \["#252525", "#0F380F", "#306230", "#8BAC0F", "#9BBC0F"\]/);
+  assert.match(component, /id: "arcade"/);
+  assert.match(component, /setPresetDialogOpen\(true\)/);
+  assert.match(component, /className="color-dialog preset-dialog"/);
+  assert.match(component, /className="preset-swatches"/);
+  assert.match(component, /settings: applyPalettePreset\(item\.settings, colors\)/);
+  assert.match(component, /result: null, palette: colors\.map/);
+  assert.match(css, /\.preset-grid \{[^}]*grid-template-columns: repeat\(2/);
+  assert.match(css, /\.preset-swatches \{[^}]*display: flex;[^}]*height: 34px;/);
+  assert.match(translations, /"팔레트 프리셋": "Palette presets"/);
+});
 test("palette header resets every slot without changing the selected color count", async () => {
   const [component, css, translations] = await Promise.all([
     readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
