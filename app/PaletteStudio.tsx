@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, lazy, MouseEvent, PointerEvent as ReactPointerEvent, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { APP_VERSION } from "./version";
 import {
   MAX_COLORS,
   applyPalettePreset,
@@ -649,7 +650,7 @@ export default function PaletteStudio() {
   return (
     <main className="studio-shell">
       <header className="topbar">
-        <div className="brand"><span className="brand-mark">PF</span><div><h1>Palette Forge</h1><p>{tr("정확한 고정 색상을 지키는 로컬 이미지 양자화")}</p></div></div>
+        <div className="brand"><span className="brand-mark">PF</span><div><h1>Palette Forge <span className="brand-version" title={`Version ${APP_VERSION}`}>v{APP_VERSION}</span></h1><p>{tr("정확한 고정 색상을 지키는 로컬 이미지 양자화")}</p></div></div>
         <div className="header-actions">
           <button className="button video-open-button" onClick={() => setVideoDialogOpen(true)} disabled={busy} aria-label={tr("영상 변환")}>
             <span className="video-open-icon" aria-hidden="true">▶</span>

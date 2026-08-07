@@ -415,3 +415,13 @@ test("main header gives video conversion a prominent responsive entry point", as
   assert.match(css, /\.video-open-button \{ width: 42px; min-height: 42px;/);
   assert.doesNotMatch(css, /\.video-open-button \{ display: none; \}/);
 });
+
+test("the editor header and information footer display the package version from one shared source", async () => {
+  const studio = await readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8");
+  const info = await readFile(new URL("../app/InfoPage.tsx", import.meta.url), "utf8");
+  const versionModule = await readFile(new URL("../app/version.ts", import.meta.url), "utf8");
+
+  assert.match(versionModule, /packageInfo\.version/);
+  assert.match(studio, /className="brand-version"[^>]*>v\{APP_VERSION\}/);
+  assert.match(info, /className="app-version"[^>]*>v\{APP_VERSION\}/);
+});

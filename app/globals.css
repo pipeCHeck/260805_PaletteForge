@@ -36,6 +36,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .brand { display: flex; gap: 12px; align-items: center; }
 .brand-mark { display: grid; place-items: center; width: 40px; height: 40px; background: var(--ink); color: white; border-radius: 12px 12px 4px 12px; font-size: 12px; font-weight: 900; letter-spacing: -.04em; }
 .brand h1 { font-family: Georgia, serif; font-size: 21px; line-height: 1; margin: 0 0 5px; letter-spacing: -.03em; }
+.brand-version { display:inline-flex; vertical-align:middle; margin-left:5px; padding:2px 5px; border:1px solid var(--line); border-radius:999px; color:var(--muted); background:var(--soft); font:700 8px/1.1 Arial,sans-serif; letter-spacing:.02em; }
 .brand p { margin: 0; font-size: 11px; color: var(--muted); }
 .header-actions, .export-actions, .settings-actions, .dialog-footer, .picker-actions { display: flex; gap: 8px; }
 .header-actions { align-items: center; }

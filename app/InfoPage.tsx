@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { LANGUAGE_OPTIONS, Language, detectLanguage } from "./i18n";
+import { APP_VERSION } from "./version";
 
 type PageKind = "guide" | "privacy" | "terms";
 type GuideStep = { title: string; body: string; tip: string };
@@ -169,6 +170,6 @@ export default function InfoPage({ kind }: { kind: PageKind }) {
       <div className="legal-layout"><aside><strong>{legal.title}</strong>{legal.sections.map((section) => <a key={section.title} href={`#section-${section.title.split(".")[0]}`}>{section.title}</a>)}</aside><div className="legal-content">{legal.sections.map((section) => <section id={`section-${section.title.split(".")[0]}`} key={section.title}><h2>{section.title}</h2>{section.paragraphs?.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}{section.bullets && <ul>{section.bullets.map((bullet) => <li key={bullet}>{bullet}</li>)}</ul>}</section>)}{kind === "privacy" && <div className="legal-links"><a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noreferrer">{copy.privacy.googleLink} ↗</a><a href="https://adssettings.google.com/" target="_blank" rel="noreferrer">{copy.privacy.adsLink} ↗</a><a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noreferrer">{copy.privacy.cloudflareLink} ↗</a></div>}</div></div>
     </article>}
 
-    <footer className="info-footer"><div><strong>Palette Forge</strong><p>{copy.localFooter}</p></div><nav><a href="/guide">{copy.guideNav}</a><a href="/privacy">{copy.privacyNav}</a><a href="/terms">{copy.termsNav}</a><a href="/guide#contact">{copy.contactNav}</a></nav><small>© 2026 Palette Forge</small></footer>
+    <footer className="info-footer"><div><strong>Palette Forge</strong><p>{copy.localFooter}</p></div><nav><a href="/guide">{copy.guideNav}</a><a href="/privacy">{copy.privacyNav}</a><a href="/terms">{copy.termsNav}</a><a href="/guide#contact">{copy.contactNav}</a></nav><small>© 2026 Palette Forge <span className="app-version" title={`Version ${APP_VERSION}`}>v{APP_VERSION}</span></small></footer>
   </main>;
 }
