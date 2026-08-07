@@ -16,6 +16,7 @@ import {
   quantizeImage,
   rgbToHsv,
   rgbToOklab,
+  resetPaletteSettings,
   serializeSettings,
 } from "../lib/palette.mjs";
 
@@ -298,8 +299,9 @@ test("이미지별 설정 복제본은 서로 섞이지 않는다", () => {
   assert.equal(first.slots[0].weight, 1);
 });
 
-test("고정 색상을 연속 추가해도 팔레트 슬롯 수는 줄지 않는다", () => {
+test("고정 색상을 연속 추가해도 팔레트 슬롯 수는 줄지 않고 현재 가중치가 함께 고정된다", () => {
   let settings = configured(5);
+  settings.slots[0].weight = 1.24;
   settings = fixPaletteSlot(settings, 0, [240, 20, 0]);
   settings = fixPaletteSlot(settings, 1, [20, 190, 80]);
   settings = fixPaletteSlot(settings, 2, [30, 70, 230]);
@@ -307,6 +309,23 @@ test("고정 색상을 연속 추가해도 팔레트 슬롯 수는 줄지 않는
   assert.equal(settings.slots.length, 5);
   assert.equal(settings.slots.filter((slot) => slot.fixed).length, 3);
   assert.deepEqual(settings.slots.slice(0, 3).map((slot) => slot.color), [[240, 20, 0], [20, 190, 80], [30, 70, 230]]);
+  assert.equal(settings.slots[0].weight, 1.24);
+  assert.equal(settings.slots[0].weightMode, "manual");
+  assert.equal(settings.slots[1].weight, 1);
+  assert.equal(settings.slots[1].weightMode, "manual");
+});
+
+test("팔레트 전체 초기화는 색상 수를 유지하고 모든 슬롯을 기본 자동 상태로 되돌린다", () => {
+  const settings = configured(3);
+  settings.slots = [
+    { fixed: true, color: [240, 20, 0], weight: 2.2, weightMode: "manual" },
+    { fixed: false, color: [20, 190, 80], weight: 0.8, weightMode: "auto" },
+    { fixed: true, color: [30, 70, 230], weight: 1.4, weightMode: "manual" },
+  ];
+  const reset = resetPaletteSettings(settings);
+  assert.equal(reset.colorCount, 3);
+  assert.equal(reset.slots.length, 3);
+  assert.ok(reset.slots.every((slot) => slot.fixed === false && slot.color === null && slot.weight === 1 && slot.weightMode === "auto"));
 });
 
 test("잘못된 설정 파일은 예외로 보고하고 프로세스를 종료하지 않는다", () => {

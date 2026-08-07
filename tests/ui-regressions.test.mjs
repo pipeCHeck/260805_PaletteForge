@@ -1,4 +1,4 @@
-import assert from "node:assert/strict";
+﻿import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
@@ -22,8 +22,15 @@ test("이미지 미리보기는 휠 확대와 포인터 드래그 및 초기화�
   assert.match(component, /event\.preventDefault\(\)/);
   assert.match(component, /event\.stopPropagation\(\)/);
   assert.match(component, /onPointerMove=\{moveDrag\}/);
-  assert.match(component, /화면 맞춤/);
-  assert.match(css, /\.pan-zoom-viewport/);
+  assert.match(component, /const calculateFitZoom = useCallback/);
+  assert.match(component, /viewport\.clientWidth \/ item\.width/);
+  assert.match(component, /viewport\.clientHeight \/ item\.height/);
+  assert.match(component, /if \(isFitView\) showActualSize\(\)/);
+  assert.match(component, /tr\(isFitView \? "화면 맞춤" : "100%로 보기"\)/);
+  assert.match(component, /width: `\$\{item\.width\}px`/);
+  assert.match(component, /height: `\$\{item\.height\}px`/);
+  assert.match(css, /\.pan-zoom-viewport \{[^}]*inset: 0;/);
+  assert.match(css, /\.pan-zoom-viewport canvas \{[^}]*max-width:none;[^}]*max-height:none;[^}]*image-rendering:pixelated;/);
 });
 
 test("팔레트 슬롯 창은 위치 제어가 가능한 내장 색상 선택기를 제공한다", async () => {
@@ -50,7 +57,7 @@ test("색 보정 패널은 픽셀화 온오프, 블록 크기, 알파 방식을 
 
 test("설정 패널의 작은 숫자와 보조 정보는 읽을 수 있는 크기를 유지한다", async () => {
   const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
-  assert.match(css, /\.pixelation-size input\[type="number"\] \{[^}]*min-height: 28px;[^}]*font: 12px/);
+  assert.match(css, /\.compact-number-input \{[^}]*min-height: 28px;[^}]*font-family: inherit;[^}]*font-size: 12px/);
   assert.match(css, /\.weight span \{[^}]*font-size: 10px/);
   assert.match(css, /\.slot-color small \{[^}]*font-size: 10px/);
 });
@@ -100,8 +107,12 @@ test("zoomed preview preserves canvas clicks until a drag actually begins", asyn
 });
 
 test("compact control typography uses consistent readable sizing and alignment", async () => {
-  const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
-  assert.match(css, /\.sliders output \{[^}]*text-align: center;/);
+  const [component, css] = await Promise.all([
+    readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(css, /\.sliders output \{[^}]*text-align: center;[^}]*font-family: inherit;[^}]*font-size: 12px;/);
+  assert.doesNotMatch(component, /key === "hue" \? "°" : ""/);
   assert.match(css, /\.pixelation-size > div \{[^}]*font-size: 12px;/);
   assert.match(css, /\.pixelation-option > span \{[^}]*font-size: 12px;/);
   assert.match(css, /\.pixelation-help \{[^}]*font-size: 10px;/);
@@ -240,11 +251,14 @@ test("ultrawide layouts keep the central preview at a comfortable width", async 
   assert.match(css, /grid-template-columns:274px minmax\(430px,1fr\) 370px/);
 });
 
-test("medium desktop preview stays within one viewport", async () => {
+test("medium desktop preview gives the canvas the full available viewport", async () => {
   const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
   assert.match(css, /@media \(min-width:761px\) and \(max-width:1599px\)/);
-  assert.match(css, /\.preview-panel \{[^}]*height:calc\(100dvh - 140px\);[^}]*min-height:0;[^}]*max-height:calc\(100dvh - 140px\);/);
-  assert.match(css, /\.pan-zoom-viewport canvas \{[^}]*max-height:min\(360px,100%\);/);
+  assert.match(css, /\.image-rail, \.preview-panel \{[^}]*height:calc\(100dvh - 140px\);[^}]*min-height:0;[^}]*max-height:calc\(100dvh - 140px\);/);
+  assert.match(css, /\.image-rail, \.preview-panel \{ position:sticky; top:128px; \}/);
+  assert.match(css, /\.image-rail, \.preview-panel \{ position:static; top:auto; \}/);
+  assert.match(css, /\.canvas-wrap \{[^}]*padding: 0;/);
+  assert.match(css, /\.pan-zoom-viewport \{[^}]*inset: 0;/);
 });
 
 test("wide desktop editor fits its primary regions into one viewport", async () => {
@@ -269,24 +283,32 @@ test("preview canvas uses an explicit center anchor at medium widths", async () 
   assert.match(component, /calc\(-50% \+ \$\{view\.y\}px\)/);
   assert.match(css, /\.pan-zoom-viewport canvas \{[^}]*position:absolute;[^}]*left:50%;[^}]*top:50%;/);
 });
-test("palette panel exposes only the three-point automatic palette tendency control", async () => {
+test("palette panel exposes a centered, editable automatic palette tendency control", async () => {
   const [component, css, translations] = await Promise.all([
     readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../app/i18n.ts", import.meta.url), "utf8"),
   ]);
   assert.match(component, /className="palette-tuning"/);
-  assert.match(component, /settings\.paletteDiversity = Number\(event\.target\.value\)/);
-  assert.match(component, /aria-label=\{tr\("자동 팔레트 성향"\)\}/);
+  assert.match(component, /className="palette-tendency-number compact-number-input"/);
+  assert.match(component, /aria-label=\{tr\("자동 팔레트 성향 숫자"\)\}/);
+  assert.match(component, /paletteTendencyDrafts\[current\.id\].*String\(current\.settings\.paletteDiversity - 50\)/);
+  assert.match(component, /settings\.paletteDiversity = tendency \+ 50/);
+  assert.match(component, /settings\.paletteDiversity = Number\(event\.target\.value\) \+ 50/);
+  assert.match(component, /aria-label=\{tr\("자동 팔레트 성향"\)\} min="-50" max="50"/);
+  assert.match(component, /\(current\?\.settings\.paletteDiversity \?\? 50\) - 50/);
   assert.match(component, /tr\("주조색 우선"\).*tr\("원본 균형"\).*tr\("색상 다양성"\)/);
   assert.doesNotMatch(component, /edgePreservation|경계 보존/);
-  assert.match(css, /.palette-tuning {/);
+  assert.match(css, /.palette-tuning \{/);
+  assert.match(css, /\.compact-number-input \{[^}]*width: 60px;[^}]*min-height: 28px;[^}]*text-align: right;[^}]*font-family: inherit;[^}]*font-size: 12px/);
   assert.match(css, /.palette-list \{[^}]*scrollbar-gutter: stable;/);
   assert.match(css, /.weight span \{[^}]*white-space: nowrap;/);
   assert.match(css, /grid-template-columns: 38px minmax\(0,1fr\) auto 78px 24px;/);
   assert.match(translations, /"자동 팔레트 성향": "Automatic palette tendency"/);
+  assert.match(translations, /"자동 팔레트 성향 숫자": "Automatic palette tendency number"/);
   assert.doesNotMatch(translations, /"경계 보존": "Preserve edges"/);
 });
+
 test("palette header resets every slot without changing the selected color count", async () => {
   const [component, css, translations] = await Promise.all([
     readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
@@ -294,8 +316,8 @@ test("palette header resets every slot without changing the selected color count
     readFile(new URL("../app/i18n.ts", import.meta.url), "utf8"),
   ]);
   assert.match(component, /const resetPaletteSlots = \(\) =>/);
-  assert.match(component, /Array\.from\(\{ length: settings\.colorCount \}/);
-  assert.match(component, /fixed: false, color: null, weight: 1, weightMode: "auto"/);
+  assert.match(component, /settings: resetPaletteSettings\(item\.settings\), result: null, palette: \[\]/);
+  assert.match(component, /resetPaletteSettings/);
   assert.match(component, /className="palette-title-actions"/);
   assert.match(component, /onClick=\{resetPaletteSlots\}/);
   assert.match(css, /\.palette-title-actions \{[^}]*display: flex;[^}]*align-items: center;/);

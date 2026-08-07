@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { ChangeEvent, MouseEvent, PointerEvent as ReactPointerEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -14,6 +14,7 @@ import {
   parsePaletteWeight,
   rgbToHex,
   rgbToHsv,
+  resetPaletteSettings,
   serializeSettings,
 } from "../lib/palette.mjs";
 import QuantizeWorker from "./quantize.worker?worker";
@@ -52,6 +53,7 @@ function CanvasPreview({ item, result, onPick, language }: { item: ImageItem; re
   const drag = useRef<{ pointerId: number; startX: number; startY: number; originX: number; originY: number } | null>(null);
   const moved = useRef(false);
   const [view, setView] = useState({ zoom: 1, x: 0, y: 0 });
+  const [isFitView, setIsFitView] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [previewStatus, setPreviewStatus] = useState<{ settings: Settings; state: "ready" | "error" } | null>(null);
   const tr = (source: string, values: Record<string, string | number> = {}) => translate(language, source, values);
@@ -111,22 +113,41 @@ function CanvasPreview({ item, result, onPick, language }: { item: ImageItem; re
     onPick(sampled[index + 3] === 0 ? null : [sampled[index], sampled[index + 1], sampled[index + 2]]);
   };
 
+  const calculateFitZoom = useCallback(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return 1;
+    return Math.min(8, Math.max(0.05, Math.min(viewport.clientWidth / item.width, viewport.clientHeight / item.height)));
+  }, [item.height, item.width]);
+
   useEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport) return;
     const zoomWithWheel = (event: globalThis.WheelEvent) => {
       event.preventDefault();
       event.stopPropagation();
+      setIsFitView(false);
       setView((current) => {
-        const zoom = Math.min(8, Math.max(0.5, current.zoom * (event.deltaY < 0 ? 1.12 : 1 / 1.12)));
-        return zoom <= 1 ? { zoom, x: 0, y: 0 } : { ...current, zoom };
+        const zoom = Math.min(8, Math.max(0.05, current.zoom * (event.deltaY < 0 ? 1.12 : 1 / 1.12)));
+        const fitZoom = calculateFitZoom();
+        return zoom <= fitZoom ? { zoom, x: 0, y: 0 } : { ...current, zoom };
       });
     };
     viewport.addEventListener("wheel", zoomWithWheel, { passive: false });
     return () => viewport.removeEventListener("wheel", zoomWithWheel);
-  }, []);
+  }, [calculateFitZoom]);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport || !isFitView || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => setView({ zoom: calculateFitZoom(), x: 0, y: 0 }));
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, [calculateFitZoom, isFitView]);
+
   const startDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0 || view.zoom <= 1 || (event.target as HTMLElement).closest("button")) return;
+    const viewport = viewportRef.current;
+    const canPan = viewport && (item.width * view.zoom > viewport.clientWidth + 1 || item.height * view.zoom > viewport.clientHeight + 1);
+    if (event.button !== 0 || !canPan || (event.target as HTMLElement).closest("button")) return;
     drag.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, originX: view.x, originY: view.y };
     moved.current = false;
   };
@@ -149,12 +170,16 @@ function CanvasPreview({ item, result, onPick, language }: { item: ImageItem; re
     setIsDragging(false);
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
   };
-  const resetView = () => setView({ zoom: 1, x: 0, y: 0 });
-  return <div ref={viewportRef} className={`pan-zoom-viewport ${isDragging ? "is-dragging" : ""} ${isPreparing ? "is-processing" : ""}`} aria-busy={isPreparing} onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={stopDrag} onPointerCancel={stopDrag} onDoubleClick={resetView}>
-    <canvas ref={ref} onClick={click} draggable={false} style={{ transform: `translate(calc(-50% + ${view.x}px), calc(-50% + ${view.y}px)) scale(${view.zoom})` }} aria-label={tr(result ? "변환 결과 이미지" : "색 보정이 적용된 원본 이미지")} />
+  const showActualSize = () => { setIsFitView(false); setView({ zoom: 1, x: 0, y: 0 }); };
+  const toggleFitView = () => {
+    if (isFitView) showActualSize();
+    else { setIsFitView(true); setView({ zoom: calculateFitZoom(), x: 0, y: 0 }); }
+  };
+  return <div ref={viewportRef} className={`pan-zoom-viewport ${isDragging ? "is-dragging" : ""} ${isPreparing ? "is-processing" : ""}`} aria-busy={isPreparing} onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={stopDrag} onPointerCancel={stopDrag} onDoubleClick={showActualSize}>
+    <canvas ref={ref} onClick={click} draggable={false} style={{ width: `${item.width}px`, height: `${item.height}px`, transform: `translate(calc(-50% + ${view.x}px), calc(-50% + ${view.y}px)) scale(${view.zoom})` }} aria-label={tr(result ? "변환 결과 이미지" : "색 보정이 적용된 원본 이미지")} />
     {isPreparing && <div className="preview-processing" role="status" aria-live="polite"><i /><span><strong>{tr("미리보기 계산 중…")}</strong><small>{tr("색 보정과 픽셀화를 적용하고 있습니다.")}</small></span></div>}
     {previewFailed && <div className="preview-processing is-error" role="alert"><span><strong>{tr("미리보기를 계산하지 못했습니다.")}</strong><small>{tr("설정을 다시 변경하거나 이미지를 다시 불러와주세요.")}</small></span></div>}
-    <div className="zoom-controls"><span>{Math.round(view.zoom * 100)}%</span><button type="button" onClick={resetView} disabled={view.zoom === 1 && view.x === 0 && view.y === 0}>{tr("화면 맞춤")}</button></div>
+    <div className="zoom-controls"><span>{Math.round(view.zoom * 100)}%</span><button type="button" onClick={toggleFitView}>{tr(isFitView ? "화면 맞춤" : "100%로 보기")}</button></div>
   </div>;
 }
 
@@ -250,6 +275,7 @@ export default function PaletteStudio() {
   const [saveSections, setSaveSections] = useState({ adjust: true, palette: true });
   const [weightDrafts, setWeightDrafts] = useState<Record<string, string>>({});
   const [pixelSizeDrafts, setPixelSizeDrafts] = useState<Record<string, string>>({});
+  const [paletteTendencyDrafts, setPaletteTendencyDrafts] = useState<Record<string, string>>({});
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [language, setLanguage] = useState<Language>("ko");
   const fileInput = useRef<HTMLInputElement>(null);
@@ -511,10 +537,7 @@ export default function PaletteStudio() {
     if (!current) return;
     const draftPrefix = `${current.id}:`;
     setWeightDrafts((values) => Object.fromEntries(Object.entries(values).filter(([key]) => !key.startsWith(draftPrefix))));
-    updateSettings((settings) => {
-      settings.slots = Array.from({ length: settings.colorCount }, () => ({ fixed: false, color: null, weight: 1, weightMode: "auto" }));
-      return settings;
-    });
+    updateCurrent((item) => ({ ...item, settings: resetPaletteSettings(item.settings), result: null, palette: [] }));
     notify(tr("모든 고정 색상과 가중치를 초기화했습니다."), "success");
   };
   const weightKey = (imageId: string, index: number) => `${imageId}:${index}`;
@@ -526,6 +549,17 @@ export default function PaletteStudio() {
     setWeightDrafts((values) => { const next = { ...values }; delete next[key]; return next; });
     if (weight === null) { notify(tr("가중치는 0.1~5 사이의 숫자여야 합니다. 기존 값으로 되돌렸습니다."), "error"); return; }
     updateSettings((settings) => { settings.slots[index].weight = weight; settings.slots[index].weightMode = "manual"; return settings; });
+  };
+  const commitPaletteTendency = () => {
+    if (!current) return;
+    const draft = paletteTendencyDrafts[current.id] ?? String(current.settings.paletteDiversity - 50);
+    const tendency = Number(draft);
+    setPaletteTendencyDrafts((values) => { const next = { ...values }; delete next[current.id]; return next; });
+    if (!Number.isInteger(tendency) || tendency < -50 || tendency > 50) {
+      notify(tr("자동 팔레트 성향은 -50~50 사이의 정수여야 합니다. 기존 값으로 되돌렸습니다."), "error");
+      return;
+    }
+    if (tendency !== current.settings.paletteDiversity - 50) updateSettings((settings) => { settings.paletteDiversity = tendency + 50; return settings; });
   };
   const commitPixelSize = () => {
     if (!current) return;
@@ -589,10 +623,10 @@ export default function PaletteStudio() {
           <section className="panel control-section">
             <div className="panel-title compact"><div><span className="eyebrow">ADJUST</span><h2>{tr("색 보정")}</h2></div>{current && <button className="text-button" onClick={() => updateSettings((settings) => { settings.adjustments = defaultSettings().adjustments; return settings; })}>{tr("초기화")}</button>}</div>
             <p className="section-note">{tr("원본에서 다시 계산되며 보정값이 누적되지 않습니다.")}</p>
-            <div className="sliders">{adjustmentFields.map(([key, label, min, max]) => <label key={key}><span>{tr(label)}<output>{current?.settings.adjustments[key] ?? 0}{key === "hue" ? "°" : ""}</output></span><input type="range" min={min} max={max} value={current?.settings.adjustments[key] ?? 0} disabled={!current} onChange={(event) => updateSettings((settings) => { settings.adjustments[key] = Number(event.target.value); return settings; })} /></label>)}</div>
+            <div className="sliders">{adjustmentFields.map(([key, label, min, max]) => <label key={key}><span>{tr(label)}<output>{current?.settings.adjustments[key] ?? 0}</output></span><input type="range" min={min} max={max} value={current?.settings.adjustments[key] ?? 0} disabled={!current} onChange={(event) => updateSettings((settings) => { settings.adjustments[key] = Number(event.target.value); return settings; })} /></label>)}</div>
             <div className={`pixelation-setting ${current?.settings.pixelation.enabled ? "is-enabled" : ""}`}>
               <label className="pixelation-toggle"><span><strong>{tr("픽셀화")}</strong><small>{tr("색상 제한 전에 블록 효과 적용")}</small></span><input type="checkbox" aria-label={tr("픽셀화 사용")} disabled={!current} checked={current?.settings.pixelation.enabled ?? false} onChange={(event) => updateSettings((settings) => { settings.pixelation.enabled = event.target.checked; return settings; })} /></label>
-              <div className="pixelation-size"><div><span>{tr("블록 크기")}</span><input type="number" inputMode="numeric" aria-label={tr("픽셀화 블록 크기 숫자")} min="2" max="64" step="1" disabled={!current || !current.settings.pixelation.enabled} value={current ? (pixelSizeDrafts[current.id] ?? String(current.settings.pixelation.size)) : "8"} onChange={(event) => { if (!current) return; setPixelSizeDrafts((values) => ({ ...values, [current.id]: event.target.value })); }} onBlur={commitPixelSize} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} /></div><input type="range" aria-label={tr("픽셀화 블록 크기 슬라이더")} min="2" max="64" step="1" disabled={!current || !current.settings.pixelation.enabled} value={current?.settings.pixelation.size ?? 8} onChange={(event) => { if (current) setPixelSizeDrafts((values) => { const next = { ...values }; delete next[current.id]; return next; }); updateSettings((settings) => { settings.pixelation.size = Number(event.target.value); return settings; }); }} /></div>
+              <div className="pixelation-size"><div><span>{tr("블록 크기")}</span><input className="compact-number-input" type="number" inputMode="numeric" aria-label={tr("픽셀화 블록 크기 숫자")} min="2" max="64" step="1" disabled={!current || !current.settings.pixelation.enabled} value={current ? (pixelSizeDrafts[current.id] ?? String(current.settings.pixelation.size)) : "8"} onChange={(event) => { if (!current) return; setPixelSizeDrafts((values) => ({ ...values, [current.id]: event.target.value })); }} onBlur={commitPixelSize} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} /></div><input type="range" aria-label={tr("픽셀화 블록 크기 슬라이더")} min="2" max="64" step="1" disabled={!current || !current.settings.pixelation.enabled} value={current?.settings.pixelation.size ?? 8} onChange={(event) => { if (current) setPixelSizeDrafts((values) => { const next = { ...values }; delete next[current.id]; return next; }); updateSettings((settings) => { settings.pixelation.size = Number(event.target.value); return settings; }); }} /></div>
               <label className="pixelation-option"><span>{tr("투명도 방식")}</span><select aria-label={tr("픽셀화 투명도 방식")} disabled={!current || !current.settings.pixelation.enabled} value={current?.settings.pixelation.alphaMode ?? "smooth"} onChange={(event) => updateSettings((settings) => { settings.pixelation.alphaMode = event.target.value; return settings; })}><option value="smooth">{tr("부드러운 알파")}</option><option value="binary">{tr("0 · 1 알파 (불투명 픽셀)")}</option></select></label>
               <small className="pixelation-help">{tr("0 · 1 알파는 블록 평균 불투명도가 50% 이상일 때만 완전 불투명하게 만듭니다.")}</small>
             </div>
@@ -602,7 +636,7 @@ export default function PaletteStudio() {
             <div className="panel-title compact"><div><span className="eyebrow">PALETTE</span><h2>{tr("최종 팔레트")}</h2></div><div className="palette-title-actions"><span className="fixed-count">{tr("고정 {count}", { count: fixedCount })}</span><button className="text-button" disabled={!current} title={tr("모든 고정 색상과 가중치 초기화")} onClick={resetPaletteSlots}>{tr("초기화")}</button></div></div>
             <label className="count-field"><span>{tr("최종 색상 수")}<small>{tr("최대 {max}", { max: MAX_COLORS })}</small></span><input type="number" min="1" max={MAX_COLORS} value={current?.settings.colorCount ?? 5} disabled={!current} onChange={(event) => changeCount(event.target.value)} /></label>
             <div className="palette-tuning">
-              <label><span><strong>{tr("자동 팔레트 성향")}</strong><output>{current?.settings.paletteDiversity ?? 50}</output></span><input type="range" aria-label={tr("자동 팔레트 성향")} min="0" max="100" step="1" disabled={!current} value={current?.settings.paletteDiversity ?? 50} onChange={(event) => updateSettings((settings) => { settings.paletteDiversity = Number(event.target.value); return settings; })} /><small><b>{tr("주조색 우선")}</b><b>{tr("원본 균형")}</b><b>{tr("색상 다양성")}</b></small></label>
+              <label><span><strong>{tr("자동 팔레트 성향")}</strong><input className="palette-tendency-number compact-number-input" type="number" inputMode="numeric" aria-label={tr("자동 팔레트 성향 숫자")} min="-50" max="50" step="1" disabled={!current} value={current ? (paletteTendencyDrafts[current.id] ?? String(current.settings.paletteDiversity - 50)) : "0"} onChange={(event) => { if (!current) return; setPaletteTendencyDrafts((values) => ({ ...values, [current.id]: event.target.value })); }} onBlur={commitPaletteTendency} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} /></span><input type="range" aria-label={tr("자동 팔레트 성향")} min="-50" max="50" step="1" disabled={!current} value={(current?.settings.paletteDiversity ?? 50) - 50} onChange={(event) => { if (current) setPaletteTendencyDrafts((values) => { const next = { ...values }; delete next[current.id]; return next; }); updateSettings((settings) => { settings.paletteDiversity = Number(event.target.value) + 50; return settings; }); }} /><small><b>{tr("주조색 우선")}</b><b>{tr("원본 균형")}</b><b>{tr("색상 다양성")}</b></small></label>
             </div>
             <div className="palette-list">{current?.settings.slots.map((slot: Slot, index: number) => {
               const color = slot.color ?? current.palette[index] ?? [218, 218, 213]; const hex = rgbToHex(color);
