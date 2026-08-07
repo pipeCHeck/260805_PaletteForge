@@ -197,17 +197,34 @@ test("service guide and legal pages provide clear navigation, local-processing d
     readFile(new URL("../app/info.css", import.meta.url), "utf8"),
   ]);
   assert.match(component, /const COPY: Record<Language, PageCopy>/);
-  assert.match(component, /원본 이미지는 이 브라우저 밖으로 나가지 않습니다/);
+  assert.match(component, /원본 이미지와 영상은 이 브라우저 밖으로 나가지 않습니다/);
   assert.match(component, /guide\.steps\.map/);
+  assert.match(component, /이미지와 영상의 색을 원하는 스타일로 다시 설계하세요/);
+  assert.match(component, /画像と動画の色を、思いどおりのスタイルへ/);
+  assert.match(component, /Reshape the colors of images and videos/);
+  assert.match(component, /공통 팔레트/);
+  assert.match(component, /フレーム別モード/);
+  assert.match(component, /Per-frame mode/);
   assert.match(component, /github\.com\/pipeCHeck\/260805_PaletteForge\/issues/);
   assert.match(component, /Google AdSense와 광고 쿠키/);
-  assert.match(component, /이미지와 저작권/);
+  assert.match(component, /미디어와 권리/);
   assert.match(studio, /className="studio-footer"/);
   assert.match(guideRoute, /kind="guide"/);
   assert.match(privacyRoute, /kind="privacy"/);
   assert.match(termsRoute, /kind="terms"/);
   assert.match(css, /\.guide-grid/);
   assert.match(css, /\.process-flow/);
+});
+
+test("brand and metadata describe current image, video, palette, and pixel features", async () => {
+  const studio = await readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8");
+  const layout = await readFile(new URL("../app/layout.tsx", import.meta.url), "utf8");
+  const translations = await readFile(new URL("../app/i18n.ts", import.meta.url), "utf8");
+
+  assert.match(studio, /이미지와 영상을 팔레트·픽셀 스타일로 변환하는 브라우저 도구/);
+  assert.match(layout, /이미지·영상 팔레트 변환/);
+  assert.match(layout, /색상 제한, 고정 팔레트, 색 보정과 픽셀화/);
+  assert.match(translations, /A browser tool for transforming images and videos with palettes and pixel styles/);
 });
 
 test("information pages use reliable full-document navigation for every internal route", async () => {

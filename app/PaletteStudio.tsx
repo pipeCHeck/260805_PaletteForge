@@ -650,7 +650,7 @@ export default function PaletteStudio() {
   return (
     <main className="studio-shell">
       <header className="topbar">
-        <div className="brand"><span className="brand-mark">PF</span><div><h1>Palette Forge <span className="brand-version" title={`Version ${APP_VERSION}`}>v{APP_VERSION}</span></h1><p>{tr("정확한 고정 색상을 지키는 로컬 이미지 양자화")}</p></div></div>
+        <div className="brand"><span className="brand-mark">PF</span><div><h1>Palette Forge <span className="brand-version" title={`Version ${APP_VERSION}`}>v{APP_VERSION}</span></h1><p>{tr("이미지와 영상을 팔레트·픽셀 스타일로 변환하는 브라우저 도구")}</p></div></div>
         <div className="header-actions">
           <button className="button video-open-button" onClick={() => setVideoDialogOpen(true)} disabled={busy} aria-label={tr("영상 변환")}>
             <span className="video-open-icon" aria-hidden="true">▶</span>
@@ -745,7 +745,7 @@ export default function PaletteStudio() {
       <AdPlacement placement="banner" slot={AD_SLOTS.banner} label="Advertisements" pendingText={tr("\uC2B9\uC778 \uD6C4 \uAD11\uACE0\uAC00 \uD45C\uC2DC\uB429\uB2C8\uB2E4.")} />
       </div>
 
-      <footer className="studio-footer"><div><strong>Palette Forge</strong><span>{tr("이미지는 서버로 전송되지 않고 브라우저 안에서 처리됩니다.")}</span></div><nav aria-label={tr("사이트 정보")}><a href="/guide">{tr("서비스 안내")}</a><a href="/privacy">{tr("개인정보처리방침")}</a><a href="/terms">{tr("이용약관")}</a><a href="/guide#contact">{tr("문의")}</a></nav><small>© 2026 Palette Forge</small></footer>
+      <footer className="studio-footer"><div><strong>Palette Forge</strong><span>{tr("이미지와 영상은 서버로 전송되지 않고 브라우저 안에서 처리됩니다.")}</span></div><nav aria-label={tr("사이트 정보")}><a href="/guide">{tr("서비스 안내")}</a><a href="/privacy">{tr("개인정보처리방침")}</a><a href="/terms">{tr("이용약관")}</a><a href="/guide#contact">{tr("문의")}</a></nav><small>© 2026 Palette Forge</small></footer>
 
       {videoDialogOpen && <Suspense fallback={<div className="modal-backdrop video-modal-backdrop"><div className="video-loading">{tr("영상 변환 준비")}</div></div>}><VideoConverter open language={language} seedSettings={current?.settings ?? null} onClose={() => setVideoDialogOpen(false)} /></Suspense>}
 
