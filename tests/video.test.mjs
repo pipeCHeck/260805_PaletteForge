@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { defaultSettings } from "../lib/palette.mjs";
+import { defaultSettings, mapPixels, mapPixelsWithTemporalHysteresis } from "../lib/palette.mjs";
 import {
   createAnalysisTimestamps,
   createCommonPaletteSettings,
@@ -212,6 +212,39 @@ test("temporal EMA substantially reduces repeated palette jitter", () => {
     state = result.state;
   });
   assert.ok(stableMotion < generatedMotion * 0.45, `expected ${stableMotion} to be much smaller than ${generatedMotion}`);
+});
+
+test("pixel hysteresis keeps a stable color when a pixel barely crosses a palette boundary", () => {
+  const palette = [[64, 64, 64], [192, 192, 192]];
+  let boundary = -1;
+  for (let value = 1; value < 256; value += 1) {
+    const previous = mapPixels(solidFrame(1, 1, [value - 1, value - 1, value - 1]), palette);
+    const current = mapPixels(solidFrame(1, 1, [value, value, value]), palette);
+    if (previous[0] === 64 && current[0] === 192) { boundary = value; break; }
+  }
+  assert.ok(boundary > 0);
+  const before = solidFrame(1, 1, [boundary - 1, boundary - 1, boundary - 1]);
+  const first = mapPixelsWithTemporalHysteresis(before, palette);
+  const after = solidFrame(1, 1, [boundary, boundary, boundary]);
+  const ordinary = mapPixels(after, palette);
+  const stable = mapPixelsWithTemporalHysteresis(after, palette, [1, 1], first.assignments, first.sourceLuma);
+
+  assert.equal(ordinary[0], 192);
+  assert.equal(stable.result[0], 64);
+});
+
+test("pixel hysteresis releases immediately when motion changes source luminance", () => {
+  const palette = [[64, 64, 64], [192, 192, 192]];
+  const first = mapPixelsWithTemporalHysteresis(solidFrame(1, 1, [65, 65, 65]), palette);
+  const moved = mapPixelsWithTemporalHysteresis(
+    solidFrame(1, 1, [191, 191, 191]),
+    palette,
+    [1, 1],
+    first.assignments,
+    first.sourceLuma,
+  );
+
+  assert.equal(moved.result[0], 192);
 });
 
 test("palette usage sampling ignores transparent pixels and stays normalized", () => {

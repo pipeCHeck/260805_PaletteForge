@@ -1,9 +1,12 @@
-import { createQuantization, mapPixels, prepareImage } from "../lib/palette.mjs";
+import { createQuantization, mapPixels, mapPixelsWithTemporalHysteresis, prepareImage } from "../lib/palette.mjs";
 import { createFrameSignature, estimatePaletteUsage, stabilizeFramePalette } from "../lib/video.mjs";
 
 type RGB = [number, number, number];
 type TemporalPaletteState = { palette: RGB[]; weights: number[]; usage: number[]; signature: unknown; framesSinceCut: number; transitionCandidate?: unknown };
 let temporalPaletteState: TemporalPaletteState | null = null;
+let temporalAssignments: Uint8Array | null = null;
+let temporalSourceLuma: Uint8Array | null = null;
+let temporalPaletteSize = 0;
 
 self.onmessage = (event: MessageEvent<{ operation?: "prepare" | "quantize"; pixels: ArrayBuffer; width: number; height: number; settings: unknown; temporalPaletteEnabled?: boolean }>) => {
   try {
@@ -24,7 +27,29 @@ self.onmessage = (event: MessageEvent<{ operation?: "prepare" | "quantize"; pixe
       )
       : { palette: output.palette, weights: output.weights, state: null, sceneCut: false, difference: 0, frameDifference: 0, sceneScore: 0 };
     temporalPaletteState = event.data.temporalPaletteEnabled ? stabilized.state as TemporalPaletteState : null;
-    const result = mapPixels(output.prepared, stabilized.palette, stabilized.weights);
+    let result: Uint8ClampedArray;
+    if (event.data.temporalPaletteEnabled) {
+      if (stabilized.sceneCut || temporalPaletteSize !== stabilized.palette.length) {
+        temporalAssignments = null;
+        temporalSourceLuma = null;
+      }
+      const mapped = mapPixelsWithTemporalHysteresis(
+        output.prepared,
+        stabilized.palette,
+        stabilized.weights,
+        temporalAssignments,
+        temporalSourceLuma,
+      );
+      result = mapped.result;
+      temporalAssignments = mapped.assignments;
+      temporalSourceLuma = mapped.sourceLuma;
+      temporalPaletteSize = stabilized.palette.length;
+    } else {
+      temporalAssignments = null;
+      temporalSourceLuma = null;
+      temporalPaletteSize = 0;
+      result = mapPixels(output.prepared, stabilized.palette, stabilized.weights);
+    }
     self.postMessage(
       {
         result: result.buffer,
