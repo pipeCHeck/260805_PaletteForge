@@ -22,7 +22,6 @@ import {
   createAnalysisTimestamps,
   createCommonPaletteSettings,
   createFramePaletteSettings,
-  FRAME_PALETTE_HISTORY_LIMIT,
   formatVideoElapsedTime,
   isSupportedVideoFile,
   stagedVideoProgress,
@@ -57,12 +56,11 @@ type VideoInfo = {
   audioCodec: string | null;
   hasAlpha: boolean;
 };
-type PaletteHistoryEntry = { palette: RGB[]; weights: number[] };
-type WorkerResult = { result: Uint8ClampedArray; palette: RGB[]; weights: number[]; sceneCut: boolean; difference: number };
+type WorkerResult = { result: Uint8ClampedArray; palette: RGB[]; weights: number[]; sceneCut: boolean; difference: number; frameDifference: number; sceneScore: number };
 
-function quantizeWithWorker(worker: Worker, pixels: Uint8ClampedArray, width: number, height: number, settings: Settings, temporalPaletteHistory?: PaletteHistoryEntry[]) {
+function quantizeWithWorker(worker: Worker, pixels: Uint8ClampedArray, width: number, height: number, settings: Settings, temporalPaletteEnabled = false) {
   return new Promise<WorkerResult>((resolve, reject) => {
-    worker.onmessage = (event: MessageEvent<{ error?: string; result?: ArrayBuffer; palette?: RGB[]; weights?: number[]; sceneCut?: boolean; difference?: number }>) => {
+    worker.onmessage = (event: MessageEvent<{ error?: string; result?: ArrayBuffer; palette?: RGB[]; weights?: number[]; sceneCut?: boolean; difference?: number; frameDifference?: number; sceneScore?: number }>) => {
       if (event.data.error || !event.data.result) { reject(new Error(event.data.error || "영상 프레임 변환에 실패했습니다.")); return; }
       resolve({
         result: new Uint8ClampedArray(event.data.result),
@@ -70,10 +68,12 @@ function quantizeWithWorker(worker: Worker, pixels: Uint8ClampedArray, width: nu
         weights: event.data.weights ?? [],
         sceneCut: event.data.sceneCut ?? false,
         difference: event.data.difference ?? 0,
+        frameDifference: event.data.frameDifference ?? 0,
+        sceneScore: event.data.sceneScore ?? 0,
       });
     };
     worker.onerror = () => reject(new Error("영상 프레임 작업자를 실행하지 못했습니다."));
-    worker.postMessage({ operation: "quantize", pixels: pixels.buffer, width, height, settings, temporalPaletteHistory }, [pixels.buffer]);
+    worker.postMessage({ operation: "quantize", pixels: pixels.buffer, width, height, settings, temporalPaletteEnabled }, [pixels.buffer]);
   });
 }
 
@@ -359,7 +359,6 @@ export default function VideoConverter({
       const context = frameCanvas.getContext("2d", { willReadFrequently: true });
       if (!context) throw new Error(tr("영상 변환용 캔버스를 만들 수 없습니다."));
       const framePalettes = new Map<string, number>();
-      const framePaletteHistory: PaletteHistoryEntry[] = [];
       const conversion = await Conversion.init({
         input,
         output,
@@ -384,16 +383,8 @@ export default function VideoConverter({
               outputDimensions.width,
               outputDimensions.height,
               conversionSettings,
-              paletteMode === "frame" ? framePaletteHistory : undefined,
+              paletteMode === "frame",
             );
-            if (paletteMode === "frame") {
-              if (converted.sceneCut) framePaletteHistory.length = 0;
-              framePaletteHistory.push({
-                palette: converted.palette.map((color) => [...color] as RGB),
-                weights: [...converted.weights],
-              });
-              if (framePaletteHistory.length > FRAME_PALETTE_HISTORY_LIMIT) framePaletteHistory.shift();
-            }
             context.putImageData(new ImageData(converted.result, outputDimensions.width, outputDimensions.height), 0, 0);
             updateLivePreview(frameCanvas, false, !conversionSettings.pixelation.enabled);
             if (paletteMode === "frame") {
