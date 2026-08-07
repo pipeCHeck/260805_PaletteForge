@@ -1,6 +1,6 @@
-﻿"use client";
+"use client";
 
-import { ChangeEvent, MouseEvent, PointerEvent as ReactPointerEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, lazy, MouseEvent, PointerEvent as ReactPointerEvent, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   MAX_COLORS,
   applyPalettePreset,
@@ -21,6 +21,8 @@ import {
 import QuantizeWorker from "./quantize.worker?worker";
 import { LANGUAGE_OPTIONS, Language, detectLanguage, localizeError, translate } from "./i18n";
 import AdPlacement from "./AdPlacement";
+
+const VideoConverter = lazy(() => import("./VideoConverter"));
 
 type RGB = [number, number, number];
 type Slot = { fixed: boolean; color: RGB | null; weight: number; weightMode: "auto" | "manual" };
@@ -294,6 +296,7 @@ export default function PaletteStudio() {
   const [colorError, setColorError] = useState("");
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [presetDialogOpen, setPresetDialogOpen] = useState(false);
+  const [videoDialogOpen, setVideoDialogOpen] = useState(false);
   const [saveSections, setSaveSections] = useState({ adjust: true, palette: true });
   const [weightDrafts, setWeightDrafts] = useState<Record<string, string>>({});
   const [pixelSizeDrafts, setPixelSizeDrafts] = useState<Record<string, string>>({});
@@ -648,6 +651,11 @@ export default function PaletteStudio() {
       <header className="topbar">
         <div className="brand"><span className="brand-mark">PF</span><div><h1>Palette Forge</h1><p>{tr("정확한 고정 색상을 지키는 로컬 이미지 양자화")}</p></div></div>
         <div className="header-actions">
+          <button className="button video-open-button" onClick={() => setVideoDialogOpen(true)} disabled={busy} aria-label={tr("영상 변환")}>
+            <span className="video-open-icon" aria-hidden="true">▶</span>
+            <span className="video-open-copy"><small>VIDEO</small><strong>{tr("영상 변환")}</strong></span>
+          </button>
+          <span className="header-action-divider" aria-hidden="true" />
           <button className="button theme-toggle" type="button" onClick={toggleTheme} aria-pressed={theme === "dark"} aria-label={tr("{mode} 모드로 전환", { mode: tr(theme === "dark" ? "라이트" : "다크") })} title={tr("{mode} 모드로 전환", { mode: tr(theme === "dark" ? "라이트" : "다크") })}><span className="theme-icon" aria-hidden="true">{theme === "dark" ? "☀" : "☾"}</span><span className="theme-label">{tr(theme === "dark" ? "라이트" : "다크")}</span></button>
           <label className="language-control"><span aria-hidden="true">文</span><select value={language} aria-label={tr("언어 선택")} onChange={(event) => changeLanguage(event.target.value as Language)}>{LANGUAGE_OPTIONS.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select></label>
           <button className="button ghost" onClick={() => fileInput.current?.click()} disabled={busy}>{tr("이미지 추가")}</button>
@@ -737,6 +745,8 @@ export default function PaletteStudio() {
       </div>
 
       <footer className="studio-footer"><div><strong>Palette Forge</strong><span>{tr("이미지는 서버로 전송되지 않고 브라우저 안에서 처리됩니다.")}</span></div><nav aria-label={tr("사이트 정보")}><a href="/guide">{tr("서비스 안내")}</a><a href="/privacy">{tr("개인정보처리방침")}</a><a href="/terms">{tr("이용약관")}</a><a href="/guide#contact">{tr("문의")}</a></nav><small>© 2026 Palette Forge</small></footer>
+
+      {videoDialogOpen && <Suspense fallback={<div className="modal-backdrop video-modal-backdrop"><div className="video-loading">{tr("영상 변환 준비")}</div></div>}><VideoConverter open language={language} seedSettings={current?.settings ?? null} onClose={() => setVideoDialogOpen(false)} /></Suspense>}
 
       {presetDialogOpen && current && <div className="modal-backdrop">
         <section className="color-dialog preset-dialog" role="dialog" aria-modal="true" aria-label={tr("팔레트 프리셋")}>

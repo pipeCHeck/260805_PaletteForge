@@ -1,4 +1,4 @@
-﻿import assert from "node:assert/strict";
+import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
@@ -366,4 +366,41 @@ test("palette header resets every slot without changing the selected color count
   assert.match(component, /onClick=\{resetPaletteSlots\}/);
   assert.match(css, /\.palette-title-actions \{[^}]*display: flex;[^}]*align-items: center;/);
   assert.match(translations, /"모든 고정 색상과 가중치 초기화": "Reset all fixed colors and weights"/);
+});
+
+test("video palette presets are available and frame mode starts progress at zero", async () => {
+  const [component, css, translations] = await Promise.all([
+    readFile(new URL("../app/VideoConverter.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    readFile(new URL("../app/i18n.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(component, /const VIDEO_PALETTE_PRESETS/);
+  assert.match(component, /id: "gameboy"/);
+  assert.match(component, /id: "arcade"/);
+  assert.match(component, /applyPalettePreset\(current, colors\)/);
+  assert.match(component, /className="video-preset-panel"/);
+  assert.match(component, /stagedVideoProgress\("conversion", 0, paletteMode === "common"\)/);
+  assert.match(component, /stagedVideoProgress\("conversion", value, paletteMode === "common"\)/);
+  assert.match(component, /now - lastRenderedAt < 250/);
+  assert.match(component, /context\.drawImage\(source, 0, 0, width, height\)/);
+  assert.match(component, /updateLivePreview\(frameCanvas, false/);
+  assert.match(component, /className="video-live-preview"/);
+  assert.match(css, /\.video-preset-panel \{/);
+  assert.match(css, /\.video-live-preview-shell \{/);
+  assert.match(translations, /"영상 팔레트 프리셋": "Video palette presets"/);
+  assert.match(translations, /"마지막 완료 프레임": "Latest completed frame"/);
+});
+
+test("main header gives video conversion a prominent responsive entry point", async () => {
+  const [component, css] = await Promise.all([
+    readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  assert.ok(component.indexOf("video-open-button") < component.indexOf("theme-toggle"));
+  assert.match(component, /className="video-open-icon"[^>]*>▶<\/span>/);
+  assert.match(component, /className="video-open-copy"><small>VIDEO<\/small>/);
+  assert.match(component, /className="header-action-divider"/);
+  assert.match(css, /\.video-open-button \{[^}]*min-height: 46px;[^}]*linear-gradient/);
+  assert.match(css, /\.video-open-button \{ width: 42px; min-height: 42px;/);
+  assert.doesNotMatch(css, /\.video-open-button \{ display: none; \}/);
 });
