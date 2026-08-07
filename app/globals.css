@@ -417,9 +417,13 @@ html[data-theme="dark"] .ad-pending strong { color:#b2b7ad; background:#282c26; 
 .video-pixel-size input, .video-setting-heading input, .video-weight { width: 62px; min-height: 30px; padding: 4px 7px; border: 1px solid var(--line); border-radius: 7px; color: var(--ink); background: white; text-align: right; font-size: 11px; }
 .video-setting-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .video-setting-heading h3 { margin: 0; }
+.video-setting-heading > .text-button, .video-palette-heading-actions > .text-button { color: var(--orange-dark); }
+.video-setting-heading .text-button:disabled { opacity: .4; cursor: not-allowed; }
 .video-setting-heading label { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 10px; font-weight: 750; }
 .video-diversity small { display: flex; justify-content: space-between; color: var(--muted); font-size: 8px; }
 .video-slot-list { max-height: 242px; margin-top: 12px; overflow: auto; border-top: 1px solid var(--line); }
+.video-slot-list.is-disabled { opacity: .42; }
+.video-frame-palette-note { margin: 10px 0 0; padding: 8px 9px; border: 1px solid #d8dce9; border-radius: 7px; color: #536078; background: #f0f3fb; font-size: 9px; line-height: 1.45; }
 .video-slot { min-width: 0; padding: 7px 2px; display: grid; grid-template-columns: 34px minmax(55px, 1fr) 62px; align-items: center; gap: 7px; border-bottom: 1px solid var(--line); }
 .video-slot > input[type="color"] { width: 32px; height: 30px; padding: 2px; border: 1px solid var(--line); border-radius: 7px; background: white; }
 .video-slot > label { display: flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 750; }
@@ -428,6 +432,8 @@ html[data-theme="dark"] .ad-pending strong { color:#b2b7ad; background:#282c26; 
 .video-progress-card { margin-top: 14px; padding: 12px 14px; border: 1px solid #c7dbcb; border-radius: 11px; background: #edf6ef; }
 .video-progress-card.is-error { border-color: #efc0b3; background: #fff0ea; }
 .video-progress-card > div { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 11px; }
+.video-progress-meta { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 10px; font-weight: 750; white-space: nowrap; }
+.video-progress-meta time { color: var(--ink); font-variant-numeric: tabular-nums; font-weight: 850; }
 .video-progress-card output { color: var(--orange-dark); font-weight: 900; }
 .video-progress-card progress { width: 100%; height: 9px; margin-top: 8px; accent-color: var(--orange); }
 .video-progress-card small { display: block; margin-top: 5px; color: var(--muted); font-size: 9px; }
@@ -445,6 +451,7 @@ html[data-theme="dark"] .video-mode-option { background: #191c18; }
 html[data-theme="dark"] :is(.video-pixel-size input,.video-setting-heading input,.video-weight,.video-slot > input[type="color"]) { color: var(--ink); background: #252923; }
 html[data-theme="dark"] .video-progress-card { border-color: #365540; background: #203126; }
 html[data-theme="dark"] .video-progress-card.is-error { border-color: #744033; background: #39231d; }
+html[data-theme="dark"] .video-frame-palette-note { border-color: #3d465f; color: #bdc8e5; background: #202636; }
 
 @media (max-width: 900px) {
   .video-modal-backdrop { padding: 0; }

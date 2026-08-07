@@ -385,10 +385,21 @@ test("video palette presets are available and frame mode starts progress at zero
   assert.match(component, /context\.drawImage\(source, 0, 0, width, height\)/);
   assert.match(component, /updateLivePreview\(frameCanvas, false/);
   assert.match(component, /className="video-live-preview"/);
+  assert.match(component, /const busy = loadingFile \|\| status === "analysis"/);
+  assert.match(component, /videoOutputDimensions\(video\.width, video\.height, outputSpec\.codec\)/);
+  assert.match(component, /alpha: video\.hasAlpha && outputSpec\.format === "webm" \? "keep" : "discard"/);
+  assert.match(component, /new Set\(converted\.palette\.map/);
+  assert.match(component, /paletteMode === "frame" \? createFramePaletteSettings\(settings\)/);
+  assert.match(component, /const resetVideoAdjustments = \(\) =>/);
+  assert.match(component, /const resetVideoPalette = \(\) =>/);
+  assert.match(component, /className="video-frame-palette-note"/);
+  assert.match(component, /disabled=\{busy \|\| paletteMode === "frame"\}/);
   assert.match(css, /\.video-preset-panel \{/);
+  assert.match(css, /\.video-slot-list\.is-disabled \{/);
   assert.match(css, /\.video-live-preview-shell \{/);
   assert.match(translations, /"영상 팔레트 프리셋": "Video palette presets"/);
   assert.match(translations, /"마지막 완료 프레임": "Latest completed frame"/);
+  assert.match(translations, /"Fixed colors and weights below are ignored in automatic palette-per-frame mode\."/);
 });
 
 test("main header gives video conversion a prominent responsive entry point", async () => {
