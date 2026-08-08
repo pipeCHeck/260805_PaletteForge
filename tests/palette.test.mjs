@@ -4,13 +4,16 @@ import {
   applyPalettePreset,
   cloneSettings,
   countUniqueOpaqueColors,
+  cyclePaletteSlotMode,
   defaultSettings,
   deserializeSettings,
   deserializeSettingsDocument,
   fixPaletteSlot,
+  fixPaletteSlotWeight,
   getExportDimensions,
   hsvToRgb,
   mapPixels,
+  paletteSlotMode,
   parsePaletteWeight,
   pixelatePixels,
   prepareImage,
@@ -37,14 +40,14 @@ test("면 정리 기본값은 균형인 50이다", () => {
   assert.equal(defaultSettings().surfaceCleanup, 50);
 });
 
-test("팔레트 프리셋은 보정 설정을 유지하고 모든 색을 고정 가중치 1로 적용한다", () => {
+test("팔레트 프리셋은 보정 설정을 유지하고 색상 고정·가중치 자동 상태로 적용한다", () => {
   const settings = configured(5);
   settings.adjustments.hue = 34;
   settings.pixelation = { enabled: true, size: 6, alphaMode: "smooth" };
   const colors = [[15, 56, 15], [48, 98, 48], [139, 172, 15], [155, 188, 15]];
   const applied = applyPalettePreset(settings, colors);
   assert.equal(applied.colorCount, 4);
-  assert.deepEqual(applied.slots, colors.map((color) => ({ fixed: true, color, weight: 1, weightMode: "manual" })));
+  assert.deepEqual(applied.slots, colors.map((color) => ({ fixed: true, color, weight: 1, weightMode: "auto" })));
   assert.deepEqual(applied.adjustments, settings.adjustments);
   assert.deepEqual(applied.pixelation, settings.pixelation);
   assert.notStrictEqual(applied.slots[0].color, colors[0]);
@@ -373,7 +376,7 @@ test("이미지별 설정 복제본은 서로 섞이지 않는다", () => {
   assert.equal(first.slots[0].weight, 1);
 });
 
-test("고정 색상을 연속 추가해도 팔레트 슬롯 수는 줄지 않고 현재 가중치가 함께 고정된다", () => {
+test("고정 색상을 연속 추가해도 팔레트 슬롯 수는 줄지 않고 가중치는 자동 상태를 유지한다", () => {
   let settings = configured(5);
   settings.slots[0].weight = 1.24;
   settings = fixPaletteSlot(settings, 0, [240, 20, 0]);
@@ -384,9 +387,29 @@ test("고정 색상을 연속 추가해도 팔레트 슬롯 수는 줄지 않고
   assert.equal(settings.slots.filter((slot) => slot.fixed).length, 3);
   assert.deepEqual(settings.slots.slice(0, 3).map((slot) => slot.color), [[240, 20, 0], [20, 190, 80], [30, 70, 230]]);
   assert.equal(settings.slots[0].weight, 1.24);
-  assert.equal(settings.slots[0].weightMode, "manual");
+  assert.equal(settings.slots[0].weightMode, "auto");
   assert.equal(settings.slots[1].weight, 1);
-  assert.equal(settings.slots[1].weightMode, "manual");
+  assert.equal(settings.slots[1].weightMode, "auto");
+});
+
+test("팔레트 슬롯 상태는 자동에서 색 고정, 전체 고정, 다시 자동 순서로 전환된다", () => {
+  let settings = configured(2);
+  assert.equal(paletteSlotMode(settings.slots[0]), "auto");
+  settings = cyclePaletteSlotMode(settings, 0, [12, 34, 56]);
+  assert.equal(paletteSlotMode(settings.slots[0]), "color-fixed");
+  assert.deepEqual(settings.slots[0].color, [12, 34, 56]);
+  settings.slots[0].weight = 1.27;
+  settings = cyclePaletteSlotMode(settings, 0, [12, 34, 56]);
+  assert.equal(paletteSlotMode(settings.slots[0]), "fixed");
+  assert.equal(settings.slots[0].weight, 1.27);
+  settings = cyclePaletteSlotMode(settings, 0, [12, 34, 56]);
+  assert.deepEqual(settings.slots[0], { fixed: false, color: null, weight: 1, weightMode: "auto" });
+});
+
+test("가중치를 직접 지정하면 현재 색과 가중치가 함께 고정된다", () => {
+  const settings = fixPaletteSlotWeight(configured(2), 0, [90, 80, 70], 2.4);
+  assert.deepEqual(settings.slots[0], { fixed: true, color: [90, 80, 70], weight: 2.4, weightMode: "manual" });
+  assert.equal(paletteSlotMode(settings.slots[0]), "fixed");
 });
 
 test("팔레트 전체 초기화는 색상 수를 유지하고 모든 슬롯을 기본 자동 상태로 되돌린다", () => {

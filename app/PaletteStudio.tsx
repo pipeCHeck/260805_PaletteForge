@@ -6,14 +6,17 @@ import {
   MAX_COLORS,
   applyPalettePreset,
   cloneSettings,
+  cyclePaletteSlotMode,
   defaultSettings,
   deserializeSettingsDocument,
   fixPaletteSlot,
+  fixPaletteSlotWeight,
   getExportDimensions,
   hexToRgb,
   hsvToRgb,
   normalizeSlotCount,
   parsePaletteWeight,
+  paletteSlotMode,
   removePaletteSlot,
   rgbToHex,
   rgbToHsv,
@@ -303,6 +306,7 @@ export default function PaletteStudio() {
   const [videoDialogOpen, setVideoDialogOpen] = useState(false);
   const [saveSections, setSaveSections] = useState({ adjust: true, palette: true });
   const [weightDrafts, setWeightDrafts] = useState<Record<string, string>>({});
+  const [adjustmentDrafts, setAdjustmentDrafts] = useState<Record<string, string>>({});
   const [pixelSizeDrafts, setPixelSizeDrafts] = useState<Record<string, string>>({});
   const [paletteTendencyDrafts, setPaletteTendencyDrafts] = useState<Record<string, string>>({});
   const [surfaceCleanupDrafts, setSurfaceCleanupDrafts] = useState<Record<string, string>>({});
@@ -640,7 +644,8 @@ export default function PaletteStudio() {
     const weight = parsePaletteWeight(draft);
     setWeightDrafts((values) => { const next = { ...values }; delete next[key]; return next; });
     if (weight === null) { notify(tr("가중치는 0.1~5 사이의 숫자여야 합니다. 기존 값으로 되돌렸습니다."), "error"); return; }
-    updateSettings((settings) => { settings.slots[index].weight = weight; settings.slots[index].weightMode = "manual"; return settings; });
+    const color = getPaletteSlotColor(current, index);
+    updateSettings((settings) => fixPaletteSlotWeight(settings, index, color, weight));
   };
   const commitPaletteTendency = () => {
     if (!current) return;
@@ -679,6 +684,18 @@ export default function PaletteStudio() {
     ["brightness", "밝기", -100, 100], ["contrast", "대비", -100, 100],
     ["saturation", "채도", -100, 100], ["hue", "색조", -180, 180],
   ] as const, []);
+  const adjustmentKey = (imageId: string, key: keyof Settings["adjustments"]) => `${imageId}:${key}`;
+  const commitAdjustment = (key: keyof Settings["adjustments"], label: string, min: number, max: number) => {
+    if (!current) return;
+    const draftKey = adjustmentKey(current.id, key);
+    const value = Number(adjustmentDrafts[draftKey] ?? String(current.settings.adjustments[key]));
+    setAdjustmentDrafts((drafts) => { const next = { ...drafts }; delete next[draftKey]; return next; });
+    if (!Number.isInteger(value) || value < min || value > max) {
+      notify(tr("{name} 값은 {min}~{max} 사이의 정수여야 합니다. 기존 값으로 되돌렸습니다.", { name: tr(label), min, max }), "error");
+      return;
+    }
+    if (value !== current.settings.adjustments[key]) updateSettings((settings) => { settings.adjustments[key] = value; return settings; });
+  };
 
   return (
     <main className="studio-shell">
@@ -731,7 +748,10 @@ export default function PaletteStudio() {
           <section className="panel control-section">
             <div className="panel-title compact"><div><span className="eyebrow">ADJUST</span><h2>{tr("색 보정")}</h2></div>{current && <button className="text-button" onClick={() => updateSettings((settings) => { settings.adjustments = defaultSettings().adjustments; return settings; })}>{tr("초기화")}</button>}</div>
             <p className="section-note">{tr("원본에서 다시 계산되며 보정값이 누적되지 않습니다.")}</p>
-            <div className="sliders">{adjustmentFields.map(([key, label, min, max]) => <label key={key}><span>{tr(label)}<output>{current?.settings.adjustments[key] ?? 0}</output></span><input type="range" min={min} max={max} value={current?.settings.adjustments[key] ?? 0} disabled={!current} onChange={(event) => updateSettings((settings) => { settings.adjustments[key] = Number(event.target.value); return settings; })} /></label>)}</div>
+            <div className="sliders">{adjustmentFields.map(([key, label, min, max]) => {
+              const draftKey = current ? adjustmentKey(current.id, key) : key;
+              return <label key={key}><span>{tr(label)}<input className="adjustment-number compact-number-input" type="number" inputMode="numeric" min={min} max={max} step="1" aria-label={`${tr(label)} ${tr("숫자 직접 입력")}`} disabled={!current} value={current ? (adjustmentDrafts[draftKey] ?? String(current.settings.adjustments[key])) : "0"} onChange={(event) => { if (!current) return; setAdjustmentDrafts((drafts) => ({ ...drafts, [draftKey]: event.target.value })); }} onBlur={() => commitAdjustment(key, label, min, max)} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} /></span><input type="range" min={min} max={max} value={current?.settings.adjustments[key] ?? 0} disabled={!current} onChange={(event) => { if (current) setAdjustmentDrafts((drafts) => { const next = { ...drafts }; delete next[adjustmentKey(current.id, key)]; return next; }); updateSettings((settings) => { settings.adjustments[key] = Number(event.target.value); return settings; }); }} /></label>;
+            })}</div>
             <div className={`pixelation-setting ${current?.settings.pixelation.enabled ? "is-enabled" : ""}`}>
               <label className="pixelation-toggle"><span><strong>{tr("픽셀화")}</strong><small>{tr("색상 제한 전에 블록 효과 적용")}</small></span><input type="checkbox" aria-label={tr("픽셀화 사용")} disabled={!current} checked={current?.settings.pixelation.enabled ?? false} onChange={(event) => updateSettings((settings) => { settings.pixelation.enabled = event.target.checked; return settings; })} /></label>
               <div className="pixelation-size"><div><span>{tr("블록 크기")}</span><input className="compact-number-input" type="number" inputMode="numeric" aria-label={tr("픽셀화 블록 크기 숫자")} min="2" max="64" step="1" disabled={!current || !current.settings.pixelation.enabled} value={current ? (pixelSizeDrafts[current.id] ?? String(current.settings.pixelation.size)) : "8"} onChange={(event) => { if (!current) return; setPixelSizeDrafts((values) => ({ ...values, [current.id]: event.target.value })); }} onBlur={commitPixelSize} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} /></div><input type="range" aria-label={tr("픽셀화 블록 크기 슬라이더")} min="2" max="64" step="1" disabled={!current || !current.settings.pixelation.enabled} value={current?.settings.pixelation.size ?? 8} onChange={(event) => { if (current) setPixelSizeDrafts((values) => { const next = { ...values }; delete next[current.id]; return next; }); updateSettings((settings) => { settings.pixelation.size = Number(event.target.value); return settings; }); }} /></div>
@@ -748,18 +768,16 @@ export default function PaletteStudio() {
               <label className="surface-cleanup"><span><strong>{tr("면 정리 강도")}</strong><input className="surface-cleanup-number compact-number-input" type="number" inputMode="numeric" aria-label={tr("면 정리 강도 숫자")} min="0" max="100" step="1" disabled={!current} value={current ? (surfaceCleanupDrafts[current.id] ?? String(current.settings.surfaceCleanup ?? 50)) : "50"} onChange={(event) => { if (!current) return; setSurfaceCleanupDrafts((values) => ({ ...values, [current.id]: event.target.value })); }} onBlur={commitSurfaceCleanup} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} /></span><input type="range" aria-label={tr("면 정리 강도")} min="0" max="100" step="1" disabled={!current} value={current?.settings.surfaceCleanup ?? 50} onChange={(event) => { if (current) setSurfaceCleanupDrafts((values) => { const next = { ...values }; delete next[current.id]; return next; }); updateSettings((settings) => { settings.surfaceCleanup = Number(event.target.value); return settings; }); }} /><small><b>{tr("디테일 유지")}</b><b>{tr("균형")}</b><b>{tr("깔끔한 면")}</b></small></label>
             </div>
             <div className="palette-list">{current?.settings.slots.map((slot: Slot, index: number) => {
-              const color = getPaletteSlotColor(current, index); const hex = rgbToHex(color);
-              return <div className={`palette-slot ${slot.fixed ? "is-fixed" : ""}`} key={index}>
+              const color = getPaletteSlotColor(current, index); const hex = rgbToHex(color); const mode = paletteSlotMode(slot);
+              const modeLabel = mode === "auto" ? "자동" : mode === "color-fixed" ? "색 고정" : "고정";
+              const modeAction = mode === "auto" ? "색상을 고정하고 가중치는 자동으로 유지" : mode === "color-fixed" ? "색상과 현재 가중치를 모두 고정" : "색상과 가중치를 모두 자동으로 전환";
+              return <div className={`palette-slot ${slot.fixed ? "is-fixed" : ""} ${mode === "fixed" ? "is-weight-fixed" : ""}`} key={index}>
                 <button className="swatch" style={{ background: hex }} onClick={() => openColor(index)} aria-label={tr("{index}번 색상 선택", { index: index + 1 })} />
                 <button className="slot-color" onClick={() => openColor(index)}><strong>{hex}</strong><small>RGB {color.join(" · ")}</small></button>
-                <button className="slot-tag" type="button" title={tr(slot.fixed ? "고정 해제 및 자동 가중치로 초기화" : "색상 고정")} aria-label={tr(slot.fixed ? "고정 해제 및 자동 가중치로 초기화" : "색상 고정")} onClick={() => updateSettings((settings) => {
-                  if (!slot.fixed) return fixPaletteSlot(settings, index, color);
-                  settings.slots[index] = { fixed: false, color: null, weight: 1, weightMode: "auto" };
-                  return settings;
-                })}>{tr(slot.fixed ? "고정" : "자동")}</button>
+                <button className="slot-tag" type="button" title={tr(modeAction)} aria-label={tr(modeAction)} onClick={() => updateSettings((settings) => cyclePaletteSlotMode(settings, index, color))}>{tr(modeLabel)}</button>
                 <label className="weight"><span>{tr("가중치")} · {tr(slot.weightMode === "auto" ? "자동" : "수동")}</span><input type="number" inputMode="decimal" min="0.1" max="5" step="0.1" value={weightDrafts[weightKey(current.id, index)] ?? String(slot.weight)} onChange={(event) => {
                   const key = weightKey(current.id, index); setWeightDrafts((values) => ({ ...values, [key]: event.target.value }));
-                }} onBlur={() => commitWeight(index)} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} /></label>
+                }} disabled={!slot.fixed && !slot.color} title={!slot.fixed && !slot.color ? tr("먼저 변환하여 자동 색상을 생성하거나 색상을 고정하세요.") : undefined} onBlur={() => commitWeight(index)} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} /></label>
                 <button className="delete-slot" disabled={(current?.settings.colorCount ?? 1) <= 1} title={tr("{index}번 팔레트 색상 삭제", { index: index + 1 })} aria-label={tr("{index}번 팔레트 색상 삭제", { index: index + 1 })} onClick={() => deletePaletteSlot(index)}>×</button>
               </div>;
             })}</div>

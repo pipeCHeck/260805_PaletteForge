@@ -157,7 +157,8 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .section-note { margin: 0 17px 12px; color: var(--muted); font-size: 11px; line-height: 1.55; }
 .sliders { padding: 0 17px 15px; display: grid; gap: 10px; }
 .sliders label > span { display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 700; }
-.sliders output { min-width: 44px; padding: 3px 7px; text-align: center; background: #edeee8; border-radius: 5px; color: #52564d; font-family: inherit; font-size: 12px; line-height: 1.4; font-weight: 600; }
+.sliders .adjustment-number { width: 52px; min-height: 26px; padding: 3px 7px; text-align: right; background: #edeee8; border-color: transparent; border-radius: 5px; color: #52564d; font-family: inherit; font-size: 12px; line-height: 1.4; font-weight: 600; }
+.sliders .adjustment-number:focus { border-color: var(--orange); background: white; outline: 2px solid color-mix(in srgb, var(--orange) 18%, transparent); }
 input[type="range"] { width: 100%; height: 3px; margin: 8px 0 0; accent-color: var(--orange); }
 .pixelation-setting { margin: 0 17px 16px; padding: 10px 11px; border: 1px solid var(--line); border-radius: 9px; background: #f6f6f1; }
 .pixelation-setting.is-enabled { border-color: #f4b19a; background: #fff7f2; }
@@ -199,6 +200,7 @@ input[type="range"] { width: 100%; height: 3px; margin: 8px 0 0; accent-color: v
 .slot-tag { padding: 3px 5px; border: 0; border-radius: 9px; background: #e9eae5; color: #70736b; font-size: 10px; font-weight: 850; white-space: nowrap; cursor: pointer; }
 .slot-tag:hover { box-shadow: inset 0 0 0 1px #c9ccc3; }
 .is-fixed .slot-tag { background: #ffe0d3; color: #b13a17; }
+.is-weight-fixed .slot-tag { background: #ffbfaa; color: #8f260a; }
 .weight { width: 78px; }
 .weight span { display: block; margin-bottom: 3px; overflow: hidden; color: var(--muted); font-size: 10px; white-space: nowrap; text-overflow: ellipsis; }
 .weight input { width: 100%; padding: 5px; border: 1px solid var(--line); background: white; border-radius: 5px; font-size: 12px; }
@@ -302,6 +304,7 @@ html[data-theme="dark"] .settings-dialog-note { color: #c4c8be; background: #242
 html[data-theme="dark"] .palette-slot { border-color: #30342e; }
 html[data-theme="dark"] .palette-slot.is-fixed { background: #30221d; }
 html[data-theme="dark"] .is-fixed .slot-tag { color: #ffb49a; background: #573023; }
+html[data-theme="dark"] .is-weight-fixed .slot-tag { color: #ffd1c1; background: #7a3824; }
 html[data-theme="dark"] .swatch,
 html[data-theme="dark"] .current-color { border-color: #292d28; box-shadow: 0 0 0 1px #656b61, inset 0 0 0 1px rgba(255,255,255,.08); }
 html[data-theme="dark"] :is(input:not([type="range"]):not([type="checkbox"]):not([type="color"]), select) { color: var(--ink); border-color: #4a5047; background: #242822; }
@@ -437,12 +440,12 @@ html[data-theme="dark"] .ad-pending strong { color:#b2b7ad; background:#282c26; 
 .video-slot-color strong, .video-slot-color small { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .video-slot-color strong { font: 750 10px/1.2 ui-monospace, monospace; }
 .video-slot-color small { margin-top: 3px; color: var(--muted); font-size: 8px; }
-.video-slot-mode { display: flex; align-items: center; gap: 4px; font-size: 9px; font-weight: 750; }
-.video-slot-mode input { margin: 0; accent-color: var(--orange); }
+.video-slot-mode { justify-self: start; min-width: 34px; font-size: 9px; font-weight: 800; }
 .video-delete-slot { width: 24px; height: 28px; padding: 0; border: 0; border-radius: 6px; color: #a9492c; background: transparent; cursor: pointer; font-size: 18px; }
 .video-delete-slot:hover:not(:disabled) { background: #e9ebe4; }
 .video-delete-slot:disabled { opacity: .28; cursor: not-allowed; }
 .video-slot.is-fixed { background: rgba(255,92,42,.06); }
+.video-slot.is-weight-fixed { background: rgba(255,92,42,.11); }
 .video-progress-card { margin-top: 14px; padding: 12px 14px; border: 1px solid #c7dbcb; border-radius: 11px; background: #edf6ef; }
 .video-progress-card.is-error { border-color: #efc0b3; background: #fff0ea; }
 .video-progress-card > div { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 11px; }

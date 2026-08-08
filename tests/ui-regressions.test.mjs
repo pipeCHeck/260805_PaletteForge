@@ -124,7 +124,8 @@ test("compact control typography uses consistent readable sizing and alignment",
     readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ]);
-  assert.match(css, /\.sliders output \{[^}]*text-align: center;[^}]*font-family: inherit;[^}]*font-size: 12px;/);
+  assert.match(component, /className="adjustment-number compact-number-input"[\s\S]*?onBlur=\{\(\) => commitAdjustment\(key, label, min, max\)\}/);
+  assert.match(css, /\.sliders \.adjustment-number \{[^}]*text-align: right;[^}]*font-family: inherit;[^}]*font-size: 12px;/);
   assert.doesNotMatch(component, /key === "hue" \? "°" : ""/);
   assert.match(css, /\.pixelation-size > div \{[^}]*font-size: 12px;/);
   assert.match(css, /\.pixelation-option > span \{[^}]*font-size: 12px;/);
@@ -351,7 +352,9 @@ test("palette panel exposes a centered, editable automatic palette tendency cont
   assert.match(css, /.palette-list \{[^}]*scrollbar-gutter: stable;/);
   assert.match(css, /.weight span \{[^}]*white-space: nowrap;/);
   assert.match(css, /grid-template-columns: 38px minmax\(0,1fr\) auto 72px 22px;/);
-  assert.match(component, /<button className="slot-tag"[^>]*slot\.fixed \? "고정 해제 및 자동 가중치로 초기화" : "색상 고정"/);
+  assert.match(component, /mode === "auto" \? "자동" : mode === "color-fixed" \? "색 고정" : "고정"/);
+  assert.match(component, /cyclePaletteSlotMode\(settings, index, color\)/);
+  assert.match(component, /fixPaletteSlotWeight\(settings, index, color, weight\)/);
   assert.doesNotMatch(component, /className="reset-slot"/);
   assert.match(css, /\.delete-slot \{[^}]*width: 22px;[^}]*border: 0;[^}]*background: transparent;/);
   assert.match(translations, /"자동 팔레트 성향": "Automatic palette tendency"/);
@@ -423,6 +426,9 @@ test("video palette presets are available and frame mode starts progress at zero
   assert.match(component, /id: "arcade"/);
   assert.match(component, /applyPalettePreset\(current, colors\)/);
   assert.match(component, /className="video-preset-panel"/);
+  assert.match(component, /className="video-slot-mode slot-tag"/);
+  assert.match(component, /cyclePaletteSlotMode\(current, index, color\)/);
+  assert.match(component, /fixPaletteSlotWeight\(current, index, color, value\)/);
   assert.match(component, /stagedVideoProgress\("conversion", 0, paletteMode === "common"\)/);
   assert.match(component, /stagedVideoProgress\("conversion", value, paletteMode === "common"\)/);
   assert.match(component, /now - lastRenderedAt < 250/);
