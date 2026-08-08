@@ -33,6 +33,10 @@ function configured(count) {
   return settings;
 }
 
+test("면 정리 기본값은 균형인 50이다", () => {
+  assert.equal(defaultSettings().surfaceCleanup, 50);
+});
+
 test("팔레트 프리셋은 보정 설정을 유지하고 모든 색을 고정 가중치 1로 적용한다", () => {
   const settings = configured(5);
   settings.adjustments.hue = 34;
@@ -179,14 +183,14 @@ test("높은 면 정리 강도는 평탄한 영역의 고립된 팔레트 잡색
   assert.equal(countUniqueOpaqueColors(cleaned), 1);
 });
 
-test("면 정리 최대값은 중간 강도에서 남는 작은 색 덩어리까지 통합한다", () => {
-  const patch = new Set([14, 15, 20, 21]);
-  const source = pixels(Array.from({ length: 36 }, (_, index) => patch.has(index) ? [127, 127, 127] : [117, 117, 117]));
+test("면 정리 최대값은 중간 강도에서 남는 넓은 색 덩어리까지 통합한다", () => {
+  const patch = new Set([52, 53, 54, 55, 64, 65, 66, 67, 76, 77, 78, 79, 88, 89, 90, 91]);
+  const source = pixels(Array.from({ length: 144 }, (_, index) => patch.has(index) ? [127, 127, 127] : [117, 117, 117]));
   const palette = [[100, 100, 100], [140, 140, 140]];
-  const medium = mapPixels(source, palette, [1, 1], { width: 6, height: 6, surfaceCleanup: 70 });
-  const maximum = mapPixels(source, palette, [1, 1], { width: 6, height: 6, surfaceCleanup: 100 });
-  const lightPixels = (data) => Array.from({ length: 36 }, (_, index) => data[index * 4]).filter((value) => value === 140).length;
-  assert.equal(lightPixels(medium), 4);
+  const medium = mapPixels(source, palette, [1, 1], { width: 12, height: 12, surfaceCleanup: 70 });
+  const maximum = mapPixels(source, palette, [1, 1], { width: 12, height: 12, surfaceCleanup: 100 });
+  const lightPixels = (data) => Array.from({ length: 144 }, (_, index) => data[index * 4]).filter((value) => value === 140).length;
+  assert.equal(lightPixels(medium), 16);
   assert.equal(lightPixels(maximum), 0);
 });
 
@@ -477,7 +481,7 @@ test("자동 팔레트 성향과 면 정리 강도는 PALETTE 설정에 저장�
   document.edgePreservation = 64;
   const legacyPalette = deserializeSettingsDocument(JSON.stringify(document), configured(5)).settings;
   assert.equal(legacyPalette.paletteDiversity, 50);
-  assert.equal(legacyPalette.surfaceCleanup, 0);
+  assert.equal(legacyPalette.surfaceCleanup, 50);
   assert.equal("edgePreservation" in legacyPalette, false);
 });
 

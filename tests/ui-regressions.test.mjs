@@ -342,6 +342,7 @@ test("palette panel exposes a centered, editable automatic palette tendency cont
   assert.match(component, /tr\("주조색 우선"\).*tr\("원본 균형"\).*tr\("색상 다양성"\)/);
   assert.match(component, /className="surface-cleanup-number compact-number-input"/);
   assert.match(component, /aria-label=\{tr\("면 정리 강도"\)\} min="0" max="100"/);
+  assert.match(component, /current\?\.settings\.surfaceCleanup \?\? 50/);
   assert.match(component, /settings\.surfaceCleanup = strength/);
   assert.match(component, /tr\("디테일 유지"\).*tr\("균형"\).*tr\("깔끔한 면"\)/);
   assert.doesNotMatch(component, /edgePreservation|경계 보존/);

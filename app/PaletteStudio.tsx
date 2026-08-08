@@ -655,14 +655,14 @@ export default function PaletteStudio() {
   };
   const commitSurfaceCleanup = () => {
     if (!current) return;
-    const draft = surfaceCleanupDrafts[current.id] ?? String(current.settings.surfaceCleanup ?? 0);
+    const draft = surfaceCleanupDrafts[current.id] ?? String(current.settings.surfaceCleanup ?? 50);
     const strength = Number(draft);
     setSurfaceCleanupDrafts((values) => { const next = { ...values }; delete next[current.id]; return next; });
     if (!Number.isInteger(strength) || strength < 0 || strength > 100) {
       notify(tr("면 정리 강도는 0~100 사이의 정수여야 합니다. 기존 값으로 되돌렸습니다."), "error");
       return;
     }
-    if (strength !== (current.settings.surfaceCleanup ?? 0)) updateSettings((settings) => { settings.surfaceCleanup = strength; return settings; });
+    if (strength !== (current.settings.surfaceCleanup ?? 50)) updateSettings((settings) => { settings.surfaceCleanup = strength; return settings; });
   };
   const commitPixelSize = () => {
     if (!current) return;
@@ -745,7 +745,7 @@ export default function PaletteStudio() {
             <label className="count-field"><span>{tr("최종 색상 수")}<small>{tr("최대 {max}", { max: MAX_COLORS })}</small></span><input type="number" min="1" max={MAX_COLORS} value={current?.settings.colorCount ?? 5} disabled={!current} onChange={(event) => changeCount(event.target.value)} /></label>
             <div className="palette-tuning">
               <label><span><strong>{tr("자동 팔레트 성향")}</strong><input className="palette-tendency-number compact-number-input" type="number" inputMode="numeric" aria-label={tr("자동 팔레트 성향 숫자")} min="-50" max="50" step="1" disabled={!current} value={current ? (paletteTendencyDrafts[current.id] ?? String(current.settings.paletteDiversity - 50)) : "0"} onChange={(event) => { if (!current) return; setPaletteTendencyDrafts((values) => ({ ...values, [current.id]: event.target.value })); }} onBlur={commitPaletteTendency} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} /></span><input type="range" aria-label={tr("자동 팔레트 성향")} min="-50" max="50" step="1" disabled={!current} value={(current?.settings.paletteDiversity ?? 50) - 50} onChange={(event) => { if (current) setPaletteTendencyDrafts((values) => { const next = { ...values }; delete next[current.id]; return next; }); updateSettings((settings) => { settings.paletteDiversity = Number(event.target.value) + 50; return settings; }); }} /><small><b>{tr("주조색 우선")}</b><b>{tr("원본 균형")}</b><b>{tr("색상 다양성")}</b></small></label>
-              <label className="surface-cleanup"><span><strong>{tr("면 정리 강도")}</strong><input className="surface-cleanup-number compact-number-input" type="number" inputMode="numeric" aria-label={tr("면 정리 강도 숫자")} min="0" max="100" step="1" disabled={!current} value={current ? (surfaceCleanupDrafts[current.id] ?? String(current.settings.surfaceCleanup ?? 0)) : "0"} onChange={(event) => { if (!current) return; setSurfaceCleanupDrafts((values) => ({ ...values, [current.id]: event.target.value })); }} onBlur={commitSurfaceCleanup} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} /></span><input type="range" aria-label={tr("면 정리 강도")} min="0" max="100" step="1" disabled={!current} value={current?.settings.surfaceCleanup ?? 0} onChange={(event) => { if (current) setSurfaceCleanupDrafts((values) => { const next = { ...values }; delete next[current.id]; return next; }); updateSettings((settings) => { settings.surfaceCleanup = Number(event.target.value); return settings; }); }} /><small><b>{tr("디테일 유지")}</b><b>{tr("균형")}</b><b>{tr("깔끔한 면")}</b></small></label>
+              <label className="surface-cleanup"><span><strong>{tr("면 정리 강도")}</strong><input className="surface-cleanup-number compact-number-input" type="number" inputMode="numeric" aria-label={tr("면 정리 강도 숫자")} min="0" max="100" step="1" disabled={!current} value={current ? (surfaceCleanupDrafts[current.id] ?? String(current.settings.surfaceCleanup ?? 50)) : "50"} onChange={(event) => { if (!current) return; setSurfaceCleanupDrafts((values) => ({ ...values, [current.id]: event.target.value })); }} onBlur={commitSurfaceCleanup} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} /></span><input type="range" aria-label={tr("면 정리 강도")} min="0" max="100" step="1" disabled={!current} value={current?.settings.surfaceCleanup ?? 50} onChange={(event) => { if (current) setSurfaceCleanupDrafts((values) => { const next = { ...values }; delete next[current.id]; return next; }); updateSettings((settings) => { settings.surfaceCleanup = Number(event.target.value); return settings; }); }} /><small><b>{tr("디테일 유지")}</b><b>{tr("균형")}</b><b>{tr("깔끔한 면")}</b></small></label>
             </div>
             <div className="palette-list">{current?.settings.slots.map((slot: Slot, index: number) => {
               const color = getPaletteSlotColor(current, index); const hex = rgbToHex(color);

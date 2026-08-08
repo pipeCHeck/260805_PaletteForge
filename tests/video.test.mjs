@@ -87,7 +87,7 @@ test("frame palette settings ignore every fixed color and manual weight", () => 
   assert.equal(applied.colorCount, 2);
   assert.equal(applied.paletteDiversity, 78);
   assert.equal(applied.adjustments.brightness, 12);
-  assert.equal(applied.surfaceCleanup, 0);
+  assert.equal(applied.surfaceCleanup, 50);
   assert.deepEqual(applied.slots, [
     { fixed: false, color: null, weight: 1, weightMode: "auto" },
     { fixed: false, color: null, weight: 1, weightMode: "auto" },
