@@ -128,6 +128,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .checker { background-color: #e7e7e1; background-image: linear-gradient(45deg,#d7d7d0 25%,transparent 25%),linear-gradient(-45deg,#d7d7d0 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#d7d7d0 75%),linear-gradient(-45deg,transparent 75%,#d7d7d0 75%); background-size: 18px 18px; background-position: 0 0,0 9px,9px -9px,-9px 0; }
 .pan-zoom-viewport { position: absolute; inset: 0; display: grid; place-items: center; overflow: hidden; overscroll-behavior: contain; touch-action: none; cursor: default; }
 .pan-zoom-viewport canvas { position:absolute; left:50%; top:50%; display:block; max-width:none; max-height:none; box-shadow:0 9px 35px rgba(0,0,0,.18); background:transparent; image-rendering:crisp-edges; image-rendering:pixelated; cursor:crosshair; transform-origin:center; transition:transform .08s ease-out; user-select:none; }
+.pan-zoom-viewport.is-view-initializing canvas { visibility: hidden; transition: none; }
 .pan-zoom-viewport.is-processing canvas { opacity: .55; }
 .pan-zoom-viewport:has(canvas:hover) { cursor: grab; }
 .pan-zoom-viewport.is-dragging, .pan-zoom-viewport.is-dragging canvas { cursor: grabbing; }
@@ -150,6 +151,15 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .result-placeholder, .empty-preview { text-align: center; color: var(--muted); }
 .result-placeholder span { font-size: 30px; }
 .result-placeholder p { margin: 8px 0; font-size: 11px; }
+.example-loading { margin: auto; width: min(410px, calc(100% - 48px)); padding: 34px 24px; text-align: center; color: var(--muted); }
+.example-loading-preview { position: relative; width: min(280px, 100%); aspect-ratio: 16 / 10; margin: 0 auto 22px; display: grid; place-items: center; overflow: hidden; border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 14px 35px rgba(25,26,23,.09); }
+.example-loading-preview::after { content: ""; position: absolute; inset: -45% -80%; background: linear-gradient(105deg, transparent 38%, rgba(255,255,255,.72) 50%, transparent 62%); animation: example-loading-sweep 1.5s ease-in-out infinite; }
+.example-loading-preview span { position: relative; z-index: 1; display: grid; place-items: center; width: 64px; height: 64px; border-radius: 18px; color: white; background: var(--orange); font: 800 19px/1 Georgia, serif; box-shadow: 0 9px 24px rgba(255,90,48,.24); animation: example-loading-pulse 1.25s ease-in-out infinite; }
+.example-loading-preview i { position: absolute; z-index: 1; left: calc(50% - 8px); top: calc(50% - 53px); width: 12px; height: 12px; border: 2px solid var(--orange); border-left-color: transparent; border-radius: 50%; animation: preview-spin .8s linear infinite; }
+.example-loading h2 { margin: 0 0 7px; color: var(--ink); font: 700 21px/1.25 Georgia, serif; }
+.example-loading p { margin: 0; font-size: 12px; line-height: 1.65; }
+@keyframes example-loading-sweep { 0% { transform: translateX(-35%); } 100% { transform: translateX(35%); } }
+@keyframes example-loading-pulse { 0%, 100% { transform: scale(.96); } 50% { transform: scale(1.04); } }
 .empty-preview { margin: auto; max-width: 430px; padding: 40px; }
 .empty-glyph { display: inline-grid; place-items: center; width: 66px; height: 66px; color: var(--orange); background: #ffede5; border: 1px solid #ffd0bd; border-radius: 20px; font-size: 30px; transform: rotate(-4deg); }
 .empty-preview h2 { margin: 22px 0 8px; color: var(--ink); font: 700 23px/1.2 Georgia, serif; }
@@ -298,6 +308,8 @@ html[data-theme="dark"] :is(.zoom-controls, .preview-mode-toggle) { border-color
 html[data-theme="dark"] .preview-mode-toggle button[aria-pressed="true"] { color: white; background: var(--orange-dark); }
 html[data-theme="dark"] .preview-processing { border-color: rgba(255,255,255,.14); background: rgba(28,31,27,.96); }
 html[data-theme="dark"] .preview-processing.is-error { color: #ffc0ac; border-color: #8b4d3e; background: rgba(55,31,25,.97); }
+html[data-theme="dark"] .example-loading-preview { box-shadow: 0 14px 35px rgba(0,0,0,.24); }
+html[data-theme="dark"] .example-loading-preview::after { background: linear-gradient(105deg, transparent 38%, rgba(255,255,255,.16) 50%, transparent 62%); }
 html[data-theme="dark"] .empty-glyph { background: #39241d; border-color: #653628; }
 html[data-theme="dark"] .sliders output { color: #d1d5cb; background: #2b3029; }
 html[data-theme="dark"] .pixelation-setting { background: #20231f; }

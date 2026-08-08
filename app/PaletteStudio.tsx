@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, lazy, MouseEvent, PointerEvent as ReactPointerEvent, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, lazy, MouseEvent, PointerEvent as ReactPointerEvent, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { APP_VERSION } from "./version";
 import {
   MAX_COLORS,
@@ -99,6 +99,7 @@ function CanvasPreview({ item, result, onPick, language }: { item: ImageItem; re
   const drag = useRef<{ pointerId: number; startX: number; startY: number; originX: number; originY: number } | null>(null);
   const moved = useRef(false);
   const [view, setView] = useState({ zoom: 1, x: 0, y: 0 });
+  const [isViewReady, setIsViewReady] = useState(false);
   const [isFitView, setIsFitView] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
   const [showAdjusted, setShowAdjusted] = useState(() => result || !item.isExample);
@@ -195,7 +196,7 @@ function CanvasPreview({ item, result, onPick, language }: { item: ImageItem; re
     return () => viewport.removeEventListener("wheel", zoomWithWheel);
   }, [calculateFitZoom]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport || !isFitView) return;
     const fitToViewport = () => setView({ zoom: calculateFitZoom(), x: 0, y: 0 });
@@ -205,6 +206,11 @@ function CanvasPreview({ item, result, onPick, language }: { item: ImageItem; re
     observer.observe(viewport);
     return () => observer.disconnect();
   }, [calculateFitZoom, isFitView]);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setIsViewReady(true));
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
 
   const startDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
     const viewport = viewportRef.current;
@@ -237,7 +243,7 @@ function CanvasPreview({ item, result, onPick, language }: { item: ImageItem; re
     if (isFitView) showActualSize();
     else { setIsFitView(true); setView({ zoom: calculateFitZoom(), x: 0, y: 0 }); }
   };
-  return <div ref={viewportRef} className={`pan-zoom-viewport ${isDragging ? "is-dragging" : ""} ${isPreparing ? "is-processing" : ""}`} aria-busy={isPreparing} onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={stopDrag} onPointerCancel={stopDrag} onDoubleClick={showActualSize}>
+  return <div ref={viewportRef} className={`pan-zoom-viewport ${isViewReady ? "" : "is-view-initializing"} ${isDragging ? "is-dragging" : ""} ${isPreparing ? "is-processing" : ""}`} aria-busy={isPreparing} onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={stopDrag} onPointerCancel={stopDrag} onDoubleClick={showActualSize}>
     <canvas ref={ref} onClick={click} draggable={false} style={{ width: `${item.width}px`, height: `${item.height}px`, transform: `translate(calc(-50% + ${view.x}px), calc(-50% + ${view.y}px)) scale(${view.zoom})` }} aria-label={tr(result ? "변환 결과 이미지" : showAdjusted ? "색 보정이 적용된 원본 이미지" : "원본 이미지")} />
     {isPreparing && <div className="preview-processing" role="status" aria-live="polite"><i /><span><strong>{tr("미리보기 계산 중…")}</strong><small>{tr("색 보정과 픽셀화를 적용하고 있습니다.")}</small></span></div>}
     {previewFailed && <div className="preview-processing is-error" role="alert"><span><strong>{tr("미리보기를 계산하지 못했습니다.")}</strong><small>{tr("설정을 다시 변경하거나 이미지를 다시 불러와주세요.")}</small></span></div>}
@@ -348,12 +354,12 @@ export default function PaletteStudio() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [language, setLanguage] = useState<Language>("ko");
   const [languageReady, setLanguageReady] = useState(false);
+  const [exampleLoading, setExampleLoading] = useState(true);
   const fileInput = useRef<HTMLInputElement>(null);
   const settingsInput = useRef<HTMLInputElement>(null);
   const noticeRef = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
   const exampleStarted = useRef(false);
-  const exampleIdRef = useRef<string | null>(null);
   const current = images.find((image) => image.id === selectedId) ?? null;
   const sampling = samplingSlot !== null;
   const tr = (source: string, values: Record<string, string | number> = {}) => translate(language, source, values);
@@ -466,10 +472,8 @@ export default function PaletteStudio() {
       } catch { errors.push(translate(language, "{name}: 파일이 손상되었거나 디코딩할 수 없습니다.", { name: displayName })); }
     }
     if (loaded.length) {
-      const exampleId = exampleIdRef.current;
-      setImages((items) => [...items.filter((item) => item.id !== exampleId), ...loaded]);
-      setSelectedId((id) => !id || id === exampleId ? loaded[0].id : id);
-      exampleIdRef.current = null;
+      setImages((items) => [...items, ...loaded]);
+      setSelectedId(loaded[0].id);
     }
     setBusy(false);
     if (errors.length) notify(errors.join(" "), "error");
@@ -622,13 +626,13 @@ export default function PaletteStudio() {
           exampleTitle: example.name,
         };
         const converted = await convertOne(source);
-        exampleIdRef.current = id;
         setImages([converted]);
         setSelectedId(id);
-        notify(translate(language, "{name} 예시와 설정을 자동으로 불러와 변환했습니다. 내 이미지를 추가하면 예시는 교체됩니다.", { name: translate(language, example.name) }), "success");
+        notify(translate(language, "{name} 예시와 설정을 자동으로 불러와 변환했습니다. 내 이미지를 추가해도 예시는 목록에 유지됩니다.", { name: translate(language, example.name) }), "success");
       } catch {
         notify(translate(language, "예시 이미지를 불러오지 못했습니다. 직접 이미지를 추가해주세요."), "error");
       } finally {
+        setExampleLoading(false);
         setBusy(false);
       }
     })();
@@ -833,10 +837,14 @@ export default function PaletteStudio() {
         </aside>
 
         <section className="preview-panel panel">
-          <div className="panel-title"><div><span className="eyebrow">PREVIEW</span><h2>{current ? getImageDisplayName(current, language) : tr("미리보기")}</h2></div>{current && <span className="dimension">{current.width} × {current.height}px</span>}</div>
+          <div className="panel-title"><div><span className="eyebrow">PREVIEW</span><h2>{current ? getImageDisplayName(current, language) : tr(exampleLoading ? "예시 이미지 준비 중" : "미리보기")}</h2></div>{current && <span className="dimension">{current.width} × {current.height}px</span>}</div>
           {current ? <div className={`compare ${sampling ? "sampling" : ""}`}>
             <figure><figcaption><span>{tr("원본 + 보정 미리보기")}</span><small>{tr("휠 확대 · 드래그 이동 · 클릭 색상 추출")}</small></figcaption><div className="canvas-wrap checker"><CanvasPreview key={`${current.id}-original`} item={current} result={false} onPick={pick} language={language} /></div></figure>
             <figure><figcaption><span>{tr("변환 결과")}</span><small>{current.result ? tr("{count}색 · 휠 확대 · 드래그 이동", { count: current.palette.length }) : tr("변환 전")}</small></figcaption><div className="canvas-wrap checker">{current.result ? <CanvasPreview key={`${current.id}-result`} item={current} result onPick={pick} language={language} /> : <div className="result-placeholder"><span>◇</span><p>{tr("변환 실행 후 결과가 표시됩니다.")}</p></div>}</div></figure>
+          </div> : exampleLoading ? <div className="example-loading" role="status" aria-live="polite">
+            <div className="example-loading-preview checker" aria-hidden="true"><span>PF</span><i /></div>
+            <h2>{tr("예시 이미지를 준비하고 있습니다")}</h2>
+            <p>{tr("이미지와 설정을 불러온 뒤 자동으로 변환합니다.")}</p>
           </div> : <div className="empty-preview"><span className="empty-glyph">◫</span><h2>{tr("색을 다듬을 이미지를 불러오세요")}</h2><p>{tr("파일은 업로드되지 않으며 원본 해상도로 브라우저 안에서 처리됩니다.")}</p><button className="button primary" onClick={() => fileInput.current?.click()}>{tr("이미지 선택")}</button></div>}
         </section>
 

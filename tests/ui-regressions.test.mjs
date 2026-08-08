@@ -27,6 +27,9 @@ test("이미지 미리보기는 휠 확대와 포인터 드래그 및 초기화�
   assert.match(component, /onPointerMove=\{moveDrag\}/);
   assert.match(component, /const calculateFitZoom = useCallback/);
   assert.match(component, /const \[isFitView, setIsFitView\] = useState\(true\)/);
+  assert.match(component, /const \[isViewReady, setIsViewReady\] = useState\(false\)/);
+  assert.match(component, /useLayoutEffect\(\(\) => \{[\s\S]*?fitToViewport\(\);[\s\S]*?observer\.observe\(viewport\)/);
+  assert.match(component, /isViewReady \? "" : "is-view-initializing"/);
   assert.match(component, /fitToViewport\(\);/);
   assert.match(component, /viewport\.clientWidth \/ item\.width/);
   assert.match(component, /viewport\.clientHeight \/ item\.height/);
@@ -36,6 +39,7 @@ test("이미지 미리보기는 휠 확대와 포인터 드래그 및 초기화�
   assert.match(component, /height: `\$\{item\.height\}px`/);
   assert.match(css, /\.pan-zoom-viewport \{[^}]*inset: 0;/);
   assert.match(css, /\.pan-zoom-viewport canvas \{[^}]*max-width:none;[^}]*max-height:none;[^}]*image-rendering:pixelated;/);
+  assert.match(css, /\.pan-zoom-viewport\.is-view-initializing canvas \{[^}]*visibility: hidden;[^}]*transition: none;/);
 });
 
 test("empty automatic slots open the picker with the same DADAD5 color shown in the list", async () => {
@@ -205,9 +209,10 @@ test("clipboard image paste uses the existing image loading flow without hijacki
 });
 
 test("opening the editor loads one random bundled example with its settings and converts it", async () => {
-  const [component, translations] = await Promise.all([
+  const [component, translations, css] = await Promise.all([
     readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/i18n.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ]);
   assert.match(component, /const EXAMPLE_ASSETS = \[/);
   assert.equal((component.match(/id: "example-\d{2}"/g) ?? []).length, 8);
@@ -223,8 +228,17 @@ test("opening the editor loads one random bundled example with its settings and 
   assert.match(translations, /"별빛을 품은 마녀": "Witch of Starlight"/);
   assert.match(translations, /"예시 · \{name\}": "Example · \{name\}"/);
   assert.match(component, /const converted = await convertOne\(source\)/);
+  assert.match(component, /const \[exampleLoading, setExampleLoading\] = useState\(true\)/);
+  assert.match(component, /className="example-loading" role="status" aria-live="polite"/);
+  assert.match(component, /setExampleLoading\(false\)/);
+  assert.match(translations, /"예시 이미지 준비 중": "Preparing example image"/);
+  assert.match(css, /\.example-loading-preview \{[^}]*aspect-ratio: 16 \/ 10;/);
+  assert.match(css, /\.example-loading-preview i \{[^}]*left: calc\(50% - 8px\);[^}]*top: calc\(50% - 53px\);/);
+  assert.match(css, /@keyframes example-loading-sweep/);
   assert.match(component, /setImages\(\[converted\]\)/);
-  assert.match(component, /items\.filter\(\(item\) => item\.id !== exampleId\)/);
+  assert.match(component, /setImages\(\(items\) => \[\.\.\.items, \.\.\.loaded\]\)/);
+  assert.match(component, /setSelectedId\(loaded\[0\]\.id\)/);
+  assert.doesNotMatch(component, /items\.filter\(\(item\) => item\.id !== exampleId\)/);
   const exampleFiles = await Promise.all(Array.from({ length: 8 }, (_, index) => {
     const number = String(index + 1).padStart(2, "0");
     return Promise.all([
