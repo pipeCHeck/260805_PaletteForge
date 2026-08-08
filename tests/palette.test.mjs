@@ -17,6 +17,7 @@ import {
   quantizeImage,
   rgbToHsv,
   rgbToOklab,
+  removePaletteSlot,
   resetPaletteSettings,
   serializeSettings,
 } from "../lib/palette.mjs";
@@ -43,6 +44,22 @@ test("팔레트 프리셋은 보정 설정을 유지하고 모든 색을 고정 
   assert.deepEqual(applied.adjustments, settings.adjustments);
   assert.deepEqual(applied.pixelation, settings.pixelation);
   assert.notStrictEqual(applied.slots[0].color, colors[0]);
+});
+
+test("특정 팔레트 색상을 삭제하면 순서를 유지하며 최종 색상 수도 하나 줄어든다", () => {
+  const settings = configured(3);
+  settings.slots = [
+    { fixed: true, color: [10, 20, 30], weight: 1.2, weightMode: "manual" },
+    { fixed: false, color: null, weight: 1, weightMode: "auto" },
+    { fixed: true, color: [200, 210, 220], weight: 2, weightMode: "manual" },
+  ];
+  const removed = removePaletteSlot(settings, 1);
+  assert.equal(removed.colorCount, 2);
+  assert.equal(removed.slots.length, 2);
+  assert.deepEqual(removed.slots[0], settings.slots[0]);
+  assert.deepEqual(removed.slots[1], settings.slots[2]);
+  assert.throws(() => removePaletteSlot(configured(1), 0), /최소 한 가지/);
+  assert.throws(() => removePaletteSlot(settings, 3), /올바르지 않습니다/);
 });
 test("결과의 불투명 RGB 색상 수가 설정값을 넘지 않는다", () => {
   const source = pixels([[255, 0, 0], [230, 20, 10], [0, 255, 0], [0, 0, 255], [20, 20, 220], [255, 255, 0]]);
@@ -142,6 +159,46 @@ test("RGB와 HSV 색상 선택 값은 왕복 변환된다", () => {
 test("가중치 1은 기본 OKLab 최근접 매핑과 동일하다", () => {
   const source = pixels([[10, 10, 10], [245, 245, 245]]);
   assert.deepEqual(Array.from(mapPixels(source, [[0, 0, 0], [255, 255, 255]], [1, 1])), [0, 0, 0, 255, 255, 255, 255, 255]);
+});
+
+test("면 정리 강도 0은 기존 최근접 매핑 결과를 정확히 유지한다", () => {
+  const source = pixels([[117, 117, 117], [123, 123, 123], [117, 117, 117]]);
+  const palette = [[100, 100, 100], [140, 140, 140]];
+  const original = mapPixels(source, palette, [1, 1]);
+  const disabled = mapPixels(source, palette, [1, 1], { width: 3, height: 1, surfaceCleanup: 0 });
+  assert.deepEqual(disabled, original);
+});
+
+test("높은 면 정리 강도는 평탄한 영역의 고립된 팔레트 잡색을 정리한다", () => {
+  const source = pixels(Array.from({ length: 9 }, (_, index) => index === 4 ? [123, 123, 123] : [117, 117, 117]));
+  const palette = [[100, 100, 100], [140, 140, 140]];
+  const original = mapPixels(source, palette, [1, 1]);
+  const cleaned = mapPixels(source, palette, [1, 1], { width: 3, height: 3, surfaceCleanup: 100 });
+  assert.equal(original[4 * 4], 140);
+  assert.equal(cleaned[4 * 4], 100);
+  assert.equal(countUniqueOpaqueColors(cleaned), 1);
+});
+
+test("면 정리 최대값은 중간 강도에서 남는 작은 색 덩어리까지 통합한다", () => {
+  const patch = new Set([14, 15, 20, 21]);
+  const source = pixels(Array.from({ length: 36 }, (_, index) => patch.has(index) ? [127, 127, 127] : [117, 117, 117]));
+  const palette = [[100, 100, 100], [140, 140, 140]];
+  const medium = mapPixels(source, palette, [1, 1], { width: 6, height: 6, surfaceCleanup: 70 });
+  const maximum = mapPixels(source, palette, [1, 1], { width: 6, height: 6, surfaceCleanup: 100 });
+  const lightPixels = (data) => Array.from({ length: 36 }, (_, index) => data[index * 4]).filter((value) => value === 140).length;
+  assert.equal(lightPixels(medium), 4);
+  assert.equal(lightPixels(maximum), 0);
+});
+
+test("면 정리는 원본의 강한 경계와 알파를 보존한다", () => {
+  const source = pixels([
+    [100, 100, 100], [100, 100, 100], [140, 140, 140], [140, 140, 140],
+    [100, 100, 100, 90], [100, 100, 100], [140, 140, 140], [140, 140, 140, 0],
+  ]);
+  const palette = [[100, 100, 100], [140, 140, 140]];
+  const cleaned = mapPixels(source, palette, [1, 1], { width: 4, height: 2, surfaceCleanup: 100 });
+  assert.deepEqual(Array.from({ length: 8 }, (_, index) => cleaned[index * 4]), [100, 100, 140, 140, 100, 100, 140, 140]);
+  assert.deepEqual(Array.from({ length: 8 }, (_, index) => cleaned[index * 4 + 3]), [255, 255, 255, 255, 90, 255, 255, 0]);
 });
 
 test("완전 투명 픽셀은 추출과 색상 수 계산에서 제외된다", () => {
@@ -402,20 +459,25 @@ test("색상 다양성은 반투명 희귀색보다 충분한 면적의 서로 �
   assert.ok(palette.some(([red, green, blue]) => blue > red + 50 && blue > green + 50));
   assert.equal(palette.some(([red, green, blue]) => red > 220 && blue > 220 && green < 40), false);
 });
-test("자동 팔레트 성향은 PALETTE 설정에 저장되고 이전 파일은 기본값을 사용한다", () => {
+test("자동 팔레트 성향과 면 정리 강도는 PALETTE 설정에 저장되고 이전 파일은 기본값을 사용한다", () => {
   const settings = configured(3);
   settings.paletteDiversity = 72;
+  settings.surfaceCleanup = 64;
   const serialized = serializeSettings(settings, ["palette"]);
   const document = JSON.parse(serialized);
   assert.equal(document.paletteDiversity, 72);
+  assert.equal(document.surfaceCleanup, 64);
   assert.equal("edgePreservation" in document, false);
   const loaded = deserializeSettingsDocument(serialized, configured(5)).settings;
   assert.equal(loaded.paletteDiversity, 72);
+  assert.equal(loaded.surfaceCleanup, 64);
   assert.equal("edgePreservation" in loaded, false);
   delete document.paletteDiversity;
+  delete document.surfaceCleanup;
   document.edgePreservation = 64;
   const legacyPalette = deserializeSettingsDocument(JSON.stringify(document), configured(5)).settings;
   assert.equal(legacyPalette.paletteDiversity, 50);
+  assert.equal(legacyPalette.surfaceCleanup, 0);
   assert.equal("edgePreservation" in legacyPalette, false);
 });
 
@@ -423,4 +485,10 @@ test("자동 팔레트 성향은 0부터 100 사이의 정수만 허용한다", 
   const diversity = defaultSettings();
   diversity.paletteDiversity = 101;
   assert.throws(() => deserializeSettings(JSON.stringify(diversity)), /자동 팔레트 성향/);
+});
+
+test("면 정리 강도는 0부터 100 사이의 정수만 허용한다", () => {
+  const settings = defaultSettings();
+  settings.surfaceCleanup = 101;
+  assert.throws(() => deserializeSettings(JSON.stringify(settings)), /면 정리 강도/);
 });

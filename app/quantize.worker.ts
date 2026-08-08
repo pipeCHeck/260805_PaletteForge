@@ -39,6 +39,7 @@ self.onmessage = (event: MessageEvent<{ operation?: "prepare" | "quantize"; pixe
         stabilized.weights,
         temporalAssignments,
         temporalSourceLuma,
+        { width: event.data.width, height: event.data.height, surfaceCleanup: output.settings.surfaceCleanup },
       );
       result = mapped.result;
       temporalAssignments = mapped.assignments;
@@ -48,7 +49,11 @@ self.onmessage = (event: MessageEvent<{ operation?: "prepare" | "quantize"; pixe
       temporalAssignments = null;
       temporalSourceLuma = null;
       temporalPaletteSize = 0;
-      result = mapPixels(output.prepared, stabilized.palette, stabilized.weights);
+      result = mapPixels(output.prepared, stabilized.palette, stabilized.weights, {
+        width: event.data.width,
+        height: event.data.height,
+        surfaceCleanup: output.settings.surfaceCleanup,
+      });
     }
     self.postMessage(
       {

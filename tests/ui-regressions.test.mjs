@@ -340,14 +340,22 @@ test("palette panel exposes a centered, editable automatic palette tendency cont
   assert.match(component, /aria-label=\{tr\("자동 팔레트 성향"\)\} min="-50" max="50"/);
   assert.match(component, /\(current\?\.settings\.paletteDiversity \?\? 50\) - 50/);
   assert.match(component, /tr\("주조색 우선"\).*tr\("원본 균형"\).*tr\("색상 다양성"\)/);
+  assert.match(component, /className="surface-cleanup-number compact-number-input"/);
+  assert.match(component, /aria-label=\{tr\("면 정리 강도"\)\} min="0" max="100"/);
+  assert.match(component, /settings\.surfaceCleanup = strength/);
+  assert.match(component, /tr\("디테일 유지"\).*tr\("균형"\).*tr\("깔끔한 면"\)/);
   assert.doesNotMatch(component, /edgePreservation|경계 보존/);
   assert.match(css, /.palette-tuning \{/);
   assert.match(css, /\.compact-number-input \{[^}]*width: 60px;[^}]*min-height: 28px;[^}]*text-align: right;[^}]*font-family: inherit;[^}]*font-size: 12px/);
   assert.match(css, /.palette-list \{[^}]*scrollbar-gutter: stable;/);
   assert.match(css, /.weight span \{[^}]*white-space: nowrap;/);
-  assert.match(css, /grid-template-columns: 38px minmax\(0,1fr\) auto 78px 24px;/);
+  assert.match(css, /grid-template-columns: 38px minmax\(0,1fr\) auto 72px 22px;/);
+  assert.match(component, /<button className="slot-tag"[^>]*slot\.fixed \? "고정 해제 및 자동 가중치로 초기화" : "색상 고정"/);
+  assert.doesNotMatch(component, /className="reset-slot"/);
+  assert.match(css, /\.delete-slot \{[^}]*width: 22px;[^}]*border: 0;[^}]*background: transparent;/);
   assert.match(translations, /"자동 팔레트 성향": "Automatic palette tendency"/);
   assert.match(translations, /"자동 팔레트 성향 숫자": "Automatic palette tendency number"/);
+  assert.match(translations, /"면 정리 강도": "Surface cleanup"/);
   assert.doesNotMatch(translations, /"경계 보존": "Preserve edges"/);
 });
 
@@ -360,6 +368,15 @@ test("palette presets preview useful color sets and apply them as fixed slots", 
   assert.match(component, /const PALETTE_PRESETS/);
   assert.match(component, /id: "gameboy"/);
   assert.match(component, /id: "gameboy"[\s\S]*?colors: \["#252525", "#0F380F", "#306230", "#8BAC0F", "#9BBC0F"\]/);
+  assert.match(component, /id: "earth"[\s\S]*?colors: \["#2A1A16", "#4A2A22", "#6B3E2E", "#A8643A", "#C47A46", "#D89B5B", "#E8C78D", "#F4E8CE"\]/);
+  assert.match(component, /id: "ocean"[\s\S]*?colors: \["#071D2B", "#0B3C5D", "#0E5E78", "#167D9A", "#45B8AC", "#70CFBE", "#A8E6CF", "#EAF9F3"\]/);
+  assert.match(component, /id: "sunset"[\s\S]*?colors: \["#2D1B46", "#6A275B", "#8E2F58", "#B23A48", "#F06449", "#F47A4B", "#F7A35C", "#FFD7A0"\]/);
+  assert.doesNotMatch(component, /id: "coral"/);
+  assert.match(component, /id: "prism-pop"[\s\S]*?name: "프리즘 팝"[\s\S]*?colors: \["#FFFFFF", "#1E0B20", "#FDE302", "#F89B3F", "#F87D7F", "#EE1436", "#EB1569", "#9C0A64", "#3D195A", "#2D528B", "#23A1C9", "#55DDE9"\]/);
+  assert.doesNotMatch(component, /id: "lantern-alley"/);
+  assert.match(component, /id: "cosmic-candy"[\s\S]*?name: "코스믹 캔디"[\s\S]*?colors: \["#FFFFFF", "#03053C", "#160252", "#300467", "#2F33A3", "#60A9CE", "#05C9FC", "#BAEE68", "#FEE039", "#F9A77A", "#F46795", "#CF3B96", "#7D0E93"\]/);
+  assert.match(component, /id: "amber-ink"[\s\S]*?name: "호박빛 먹선"[\s\S]*?colors: \["#FFFFFF", "#E3E1DE", "#F9D0BB", "#E5A88A", "#E5885E", "#D58A4E", "#F8CA6C", "#B27C6A", "#8A6C52", "#516373", "#575757", "#2C2A2A"\]/);
+  assert.match(component, /id: "cyber"[\s\S]*?colors: \["#090A1A", "#2B125C", "#3D2BFF", "#7A04EB", "#FF2BD6", "#00E5FF", "#B7FF00", "#EDD903"\]/);
   assert.match(component, /id: "arcade"/);
   assert.match(component, /setPresetDialogOpen\(true\)/);
   assert.match(component, /className="color-dialog preset-dialog"/);
@@ -393,6 +410,15 @@ test("video palette presets are available and frame mode starts progress at zero
   ]);
   assert.match(component, /const VIDEO_PALETTE_PRESETS/);
   assert.match(component, /id: "gameboy"/);
+  assert.match(component, /id: "earth"[\s\S]*?colors: \["#2A1A16", "#4A2A22", "#6B3E2E", "#A8643A", "#C47A46", "#D89B5B", "#E8C78D", "#F4E8CE"\]/);
+  assert.match(component, /id: "ocean"[\s\S]*?colors: \["#071D2B", "#0B3C5D", "#0E5E78", "#167D9A", "#45B8AC", "#70CFBE", "#A8E6CF", "#EAF9F3"\]/);
+  assert.match(component, /id: "sunset"[\s\S]*?colors: \["#2D1B46", "#6A275B", "#8E2F58", "#B23A48", "#F06449", "#F47A4B", "#F7A35C", "#FFD7A0"\]/);
+  assert.doesNotMatch(component, /id: "coral"/);
+  assert.match(component, /id: "prism-pop"[\s\S]*?name: "프리즘 팝"[\s\S]*?colors: \["#FFFFFF", "#1E0B20", "#FDE302", "#F89B3F", "#F87D7F", "#EE1436", "#EB1569", "#9C0A64", "#3D195A", "#2D528B", "#23A1C9", "#55DDE9"\]/);
+  assert.doesNotMatch(component, /id: "lantern-alley"/);
+  assert.match(component, /id: "cosmic-candy"[\s\S]*?name: "코스믹 캔디"[\s\S]*?colors: \["#FFFFFF", "#03053C", "#160252", "#300467", "#2F33A3", "#60A9CE", "#05C9FC", "#BAEE68", "#FEE039", "#F9A77A", "#F46795", "#CF3B96", "#7D0E93"\]/);
+  assert.match(component, /id: "amber-ink"[\s\S]*?name: "호박빛 먹선"[\s\S]*?colors: \["#FFFFFF", "#E3E1DE", "#F9D0BB", "#E5A88A", "#E5885E", "#D58A4E", "#F8CA6C", "#B27C6A", "#8A6C52", "#516373", "#575757", "#2C2A2A"\]/);
+  assert.match(component, /id: "cyber"[\s\S]*?colors: \["#090A1A", "#2B125C", "#3D2BFF", "#7A04EB", "#FF2BD6", "#00E5FF", "#B7FF00", "#EDD903"\]/);
   assert.match(component, /id: "arcade"/);
   assert.match(component, /applyPalettePreset\(current, colors\)/);
   assert.match(component, /className="video-preset-panel"/);
@@ -409,14 +435,42 @@ test("video palette presets are available and frame mode starts progress at zero
   assert.match(component, /paletteMode === "frame" \? createFramePaletteSettings\(settings\)/);
   assert.match(component, /const resetVideoAdjustments = \(\) =>/);
   assert.match(component, /const resetVideoPalette = \(\) =>/);
+  assert.match(component, /const deleteVideoPaletteSlot = \(index: number\) =>/);
+  assert.match(component, /className="video-parameter-number compact-number-input"/);
+  assert.match(component, /commitVideoNumber\("paletteTendency", "자동 팔레트 성향", -50, 50\)/);
+  assert.match(component, /commitVideoNumber\("surfaceCleanup", "면 정리 강도", 0, 100\)/);
+  assert.match(component, /className="video-surface-cleanup"/);
+  assert.match(component, /className="video-color-control"/);
+  assert.match(component, /<strong>\{hex\}<\/strong><small>RGB \{color\.join\(" · "\)\}<\/small>/);
+  assert.match(component, /className="video-delete-slot"/);
   assert.match(component, /className="video-frame-palette-note"/);
   assert.match(component, /disabled=\{busy \|\| paletteMode === "frame"\}/);
   assert.match(css, /\.video-preset-panel \{/);
   assert.match(css, /\.video-slot-list\.is-disabled \{/);
   assert.match(css, /\.video-live-preview-shell \{/);
+  assert.match(css, /\.video-slot-color strong/);
+  assert.match(css, /\.video-parameter-number\.compact-number-input/);
   assert.match(translations, /"영상 팔레트 프리셋": "Video palette presets"/);
+  assert.match(translations, /"프리즘 팝": "Prism pop"/);
+  assert.match(translations, /"코스믹 캔디": "Cosmic candy"/);
+  assert.doesNotMatch(translations, /"등불 골목": "Lantern alley"/);
+  assert.match(translations, /"호박빛 먹선": "Amber ink"/);
+  assert.doesNotMatch(translations, /"산호초": "Coral reef"/);
   assert.match(translations, /"마지막 완료 프레임": "Latest completed frame"/);
   assert.match(translations, /"Fixed colors and weights below are ignored in automatic palette-per-frame mode\."/);
+});
+
+test("image and video palettes can remove one color while preserving at least one slot", async () => {
+  const [studio, video, palette] = await Promise.all([
+    readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/VideoConverter.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../lib/palette.mjs", import.meta.url), "utf8"),
+  ]);
+  assert.match(palette, /export function removePaletteSlot\(settings, index\)/);
+  assert.match(palette, /normalized\.colorCount -= 1/);
+  assert.match(studio, /className="delete-slot"/);
+  assert.match(studio, /settings: removePaletteSlot\(item\.settings, index\)/);
+  assert.match(video, /setSettings\(\(current\) => removePaletteSlot\(current, index\)\)/);
 });
 
 test("main header gives video conversion a prominent responsive entry point", async () => {

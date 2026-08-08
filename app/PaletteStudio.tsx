@@ -14,6 +14,7 @@ import {
   hsvToRgb,
   normalizeSlotCount,
   parsePaletteWeight,
+  removePaletteSlot,
   rgbToHex,
   rgbToHsv,
   resetPaletteSettings,
@@ -41,11 +42,13 @@ type PalettePreset = { id: string; name: string; colors: string[] };
 const PALETTE_PRESETS: PalettePreset[] = [
   { id: "gameboy", name: "게임보이", colors: ["#252525", "#0F380F", "#306230", "#8BAC0F", "#9BBC0F"] },
   { id: "grayscale", name: "회색조", colors: ["#111317", "#4B4E4A", "#858983", "#C5C8C0", "#F4F4EF"] },
-  { id: "earth", name: "따뜻한 대지", colors: ["#2A1A16", "#6B3E2E", "#A8643A", "#D89B5B", "#E8C78D", "#F4E8CE"] },
-  { id: "ocean", name: "바다", colors: ["#071D2B", "#0B3C5D", "#167D9A", "#45B8AC", "#A8E6CF", "#EAF9F3"] },
-  { id: "sunset", name: "노을", colors: ["#2D1B46", "#6A275B", "#B23A48", "#F06449", "#F7A35C", "#FFD7A0"] },
-  { id: "pastel", name: "파스텔", colors: ["#F7C6C7", "#F9D5A7", "#FBE7A1", "#CDECCF", "#BFE3F5", "#D8C7F0"] },
-  { id: "cyber", name: "사이버 네온", colors: ["#090A1A", "#2B125C", "#7A04EB", "#FF2BD6", "#00E5FF", "#B7FF00"] },
+  { id: "earth", name: "따뜻한 대지", colors: ["#2A1A16", "#4A2A22", "#6B3E2E", "#A8643A", "#C47A46", "#D89B5B", "#E8C78D", "#F4E8CE"] },
+  { id: "ocean", name: "바다", colors: ["#071D2B", "#0B3C5D", "#0E5E78", "#167D9A", "#45B8AC", "#70CFBE", "#A8E6CF", "#EAF9F3"] },
+  { id: "sunset", name: "노을", colors: ["#2D1B46", "#6A275B", "#8E2F58", "#B23A48", "#F06449", "#F47A4B", "#F7A35C", "#FFD7A0"] },
+  { id: "prism-pop", name: "프리즘 팝", colors: ["#FFFFFF", "#1E0B20", "#FDE302", "#F89B3F", "#F87D7F", "#EE1436", "#EB1569", "#9C0A64", "#3D195A", "#2D528B", "#23A1C9", "#55DDE9"] },
+  { id: "cosmic-candy", name: "코스믹 캔디", colors: ["#FFFFFF", "#03053C", "#160252", "#300467", "#2F33A3", "#60A9CE", "#05C9FC", "#BAEE68", "#FEE039", "#F9A77A", "#F46795", "#CF3B96", "#7D0E93"] },
+  { id: "amber-ink", name: "호박빛 먹선", colors: ["#FFFFFF", "#E3E1DE", "#F9D0BB", "#E5A88A", "#E5885E", "#D58A4E", "#F8CA6C", "#B27C6A", "#8A6C52", "#516373", "#575757", "#2C2A2A"] },
+  { id: "cyber", name: "사이버 네온", colors: ["#090A1A", "#2B125C", "#3D2BFF", "#7A04EB", "#FF2BD6", "#00E5FF", "#B7FF00", "#EDD903"] },
   { id: "arcade", name: "레트로 아케이드", colors: ["#1A1C2C", "#5D275D", "#B13E53", "#EF7D57", "#FFCD75", "#A7F070", "#38B764", "#257179"] },
 ];
 type ImageItem = {
@@ -302,6 +305,7 @@ export default function PaletteStudio() {
   const [weightDrafts, setWeightDrafts] = useState<Record<string, string>>({});
   const [pixelSizeDrafts, setPixelSizeDrafts] = useState<Record<string, string>>({});
   const [paletteTendencyDrafts, setPaletteTendencyDrafts] = useState<Record<string, string>>({});
+  const [surfaceCleanupDrafts, setSurfaceCleanupDrafts] = useState<Record<string, string>>({});
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [language, setLanguage] = useState<Language>("ko");
   const fileInput = useRef<HTMLInputElement>(null);
@@ -610,6 +614,24 @@ export default function PaletteStudio() {
     setPresetDialogOpen(false);
     notify(tr("{name} 프리셋을 적용했습니다. 변환 실행을 누르면 결과에 반영됩니다.", { name: tr(preset.name) }), "success");
   };
+  const deletePaletteSlot = (index: number) => {
+    if (!current) return;
+    if (current.settings.colorCount <= 1) {
+      notify(tr("팔레트에는 최소 한 가지 색상이 필요합니다."), "error");
+      return;
+    }
+    const draftPrefix = `${current.id}:`;
+    setWeightDrafts((values) => Object.fromEntries(Object.entries(values).filter(([key]) => !key.startsWith(draftPrefix))));
+    updateCurrent((item) => ({
+      ...item,
+      settings: removePaletteSlot(item.settings, index),
+      result: null,
+      palette: item.palette.filter((_, paletteIndex) => paletteIndex !== index).slice(0, item.settings.colorCount - 1),
+    }));
+    setActiveSlot(null);
+    setSamplingSlot(null);
+    notify(tr("팔레트에서 {index}번 색상을 삭제했습니다.", { index: index + 1 }), "success");
+  };
   const weightKey = (imageId: string, index: number) => `${imageId}:${index}`;
   const commitWeight = (index: number) => {
     if (!current) return;
@@ -630,6 +652,17 @@ export default function PaletteStudio() {
       return;
     }
     if (tendency !== current.settings.paletteDiversity - 50) updateSettings((settings) => { settings.paletteDiversity = tendency + 50; return settings; });
+  };
+  const commitSurfaceCleanup = () => {
+    if (!current) return;
+    const draft = surfaceCleanupDrafts[current.id] ?? String(current.settings.surfaceCleanup ?? 0);
+    const strength = Number(draft);
+    setSurfaceCleanupDrafts((values) => { const next = { ...values }; delete next[current.id]; return next; });
+    if (!Number.isInteger(strength) || strength < 0 || strength > 100) {
+      notify(tr("면 정리 강도는 0~100 사이의 정수여야 합니다. 기존 값으로 되돌렸습니다."), "error");
+      return;
+    }
+    if (strength !== (current.settings.surfaceCleanup ?? 0)) updateSettings((settings) => { settings.surfaceCleanup = strength; return settings; });
   };
   const commitPixelSize = () => {
     if (!current) return;
@@ -712,17 +745,22 @@ export default function PaletteStudio() {
             <label className="count-field"><span>{tr("최종 색상 수")}<small>{tr("최대 {max}", { max: MAX_COLORS })}</small></span><input type="number" min="1" max={MAX_COLORS} value={current?.settings.colorCount ?? 5} disabled={!current} onChange={(event) => changeCount(event.target.value)} /></label>
             <div className="palette-tuning">
               <label><span><strong>{tr("자동 팔레트 성향")}</strong><input className="palette-tendency-number compact-number-input" type="number" inputMode="numeric" aria-label={tr("자동 팔레트 성향 숫자")} min="-50" max="50" step="1" disabled={!current} value={current ? (paletteTendencyDrafts[current.id] ?? String(current.settings.paletteDiversity - 50)) : "0"} onChange={(event) => { if (!current) return; setPaletteTendencyDrafts((values) => ({ ...values, [current.id]: event.target.value })); }} onBlur={commitPaletteTendency} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} /></span><input type="range" aria-label={tr("자동 팔레트 성향")} min="-50" max="50" step="1" disabled={!current} value={(current?.settings.paletteDiversity ?? 50) - 50} onChange={(event) => { if (current) setPaletteTendencyDrafts((values) => { const next = { ...values }; delete next[current.id]; return next; }); updateSettings((settings) => { settings.paletteDiversity = Number(event.target.value) + 50; return settings; }); }} /><small><b>{tr("주조색 우선")}</b><b>{tr("원본 균형")}</b><b>{tr("색상 다양성")}</b></small></label>
+              <label className="surface-cleanup"><span><strong>{tr("면 정리 강도")}</strong><input className="surface-cleanup-number compact-number-input" type="number" inputMode="numeric" aria-label={tr("면 정리 강도 숫자")} min="0" max="100" step="1" disabled={!current} value={current ? (surfaceCleanupDrafts[current.id] ?? String(current.settings.surfaceCleanup ?? 0)) : "0"} onChange={(event) => { if (!current) return; setSurfaceCleanupDrafts((values) => ({ ...values, [current.id]: event.target.value })); }} onBlur={commitSurfaceCleanup} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} /></span><input type="range" aria-label={tr("면 정리 강도")} min="0" max="100" step="1" disabled={!current} value={current?.settings.surfaceCleanup ?? 0} onChange={(event) => { if (current) setSurfaceCleanupDrafts((values) => { const next = { ...values }; delete next[current.id]; return next; }); updateSettings((settings) => { settings.surfaceCleanup = Number(event.target.value); return settings; }); }} /><small><b>{tr("디테일 유지")}</b><b>{tr("균형")}</b><b>{tr("깔끔한 면")}</b></small></label>
             </div>
             <div className="palette-list">{current?.settings.slots.map((slot: Slot, index: number) => {
               const color = getPaletteSlotColor(current, index); const hex = rgbToHex(color);
               return <div className={`palette-slot ${slot.fixed ? "is-fixed" : ""}`} key={index}>
                 <button className="swatch" style={{ background: hex }} onClick={() => openColor(index)} aria-label={tr("{index}번 색상 선택", { index: index + 1 })} />
                 <button className="slot-color" onClick={() => openColor(index)}><strong>{hex}</strong><small>RGB {color.join(" · ")}</small></button>
-                <span className="slot-tag">{tr(slot.fixed ? "고정" : "자동")}</span>
+                <button className="slot-tag" type="button" title={tr(slot.fixed ? "고정 해제 및 자동 가중치로 초기화" : "색상 고정")} aria-label={tr(slot.fixed ? "고정 해제 및 자동 가중치로 초기화" : "색상 고정")} onClick={() => updateSettings((settings) => {
+                  if (!slot.fixed) return fixPaletteSlot(settings, index, color);
+                  settings.slots[index] = { fixed: false, color: null, weight: 1, weightMode: "auto" };
+                  return settings;
+                })}>{tr(slot.fixed ? "고정" : "자동")}</button>
                 <label className="weight"><span>{tr("가중치")} · {tr(slot.weightMode === "auto" ? "자동" : "수동")}</span><input type="number" inputMode="decimal" min="0.1" max="5" step="0.1" value={weightDrafts[weightKey(current.id, index)] ?? String(slot.weight)} onChange={(event) => {
                   const key = weightKey(current.id, index); setWeightDrafts((values) => ({ ...values, [key]: event.target.value }));
                 }} onBlur={() => commitWeight(index)} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} /></label>
-                <button className="reset-slot" title={tr("고정 해제 및 자동 가중치로 초기화")} onClick={() => updateSettings((settings) => { settings.slots[index] = { fixed: false, color: null, weight: 1, weightMode: "auto" }; return settings; })}>↺</button>
+                <button className="delete-slot" disabled={(current?.settings.colorCount ?? 1) <= 1} title={tr("{index}번 팔레트 색상 삭제", { index: index + 1 })} aria-label={tr("{index}번 팔레트 색상 삭제", { index: index + 1 })} onClick={() => deletePaletteSlot(index)}>×</button>
               </div>;
             })}</div>
           </section>
@@ -772,7 +810,7 @@ export default function PaletteStudio() {
             </label>
             <label htmlFor="save-palette" aria-label={tr("PALETTE 최종 팔레트 설정 저장")} className={saveSections.palette ? "is-selected" : ""}>
               <input id="save-palette" type="checkbox" checked={saveSections.palette} onChange={(event) => setSaveSections((sections) => ({ ...sections, palette: event.target.checked }))} />
-              <span><strong>{tr("PALETTE · 최종 팔레트")}</strong><small>{tr("색상 수, 자동 팔레트 성향, 고정 색상과 가중치")}</small></span>
+                <span><strong>{tr("PALETTE · 최종 팔레트")}</strong><small>{tr("색상 수, 자동 팔레트 성향, 면 정리 강도, 고정 색상과 가중치")}</small></span>
             </label>
           </div>
           <p className="settings-dialog-note">{tr("내보내기 형식, 파일명, 투명도 설정은 항상 함께 저장됩니다. 불러올 때 선택하지 않았던 항목은 현재 이미지의 설정을 유지합니다.")}</p>

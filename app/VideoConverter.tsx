@@ -17,7 +17,7 @@ import {
   WebMOutputFormat,
   type VideoCodec,
 } from "mediabunny";
-import { applyPalettePreset, cloneSettings, defaultSettings, hexToRgb, normalizeSlotCount, resetPaletteSettings, rgbToHex } from "../lib/palette.mjs";
+import { applyPalettePreset, cloneSettings, defaultSettings, hexToRgb, normalizeSlotCount, removePaletteSlot, resetPaletteSettings, rgbToHex } from "../lib/palette.mjs";
 import {
   createAnalysisTimestamps,
   createCommonPaletteSettings,
@@ -34,16 +34,20 @@ import { Language, translate } from "./i18n";
 
 type RGB = [number, number, number];
 type Settings = ReturnType<typeof defaultSettings>;
+type AdjustmentKey = keyof Settings["adjustments"];
+type VideoNumericField = AdjustmentKey | "paletteTendency" | "surfaceCleanup";
 type PaletteMode = "common" | "frame";
 type VideoPalettePreset = { id: string; name: string; colors: string[] };
 const VIDEO_PALETTE_PRESETS: VideoPalettePreset[] = [
   { id: "gameboy", name: "게임보이", colors: ["#252525", "#0F380F", "#306230", "#8BAC0F", "#9BBC0F"] },
   { id: "grayscale", name: "회색조", colors: ["#111317", "#4B4E4A", "#858983", "#C5C8C0", "#F4F4EF"] },
-  { id: "earth", name: "따뜻한 대지", colors: ["#2A1A16", "#6B3E2E", "#A8643A", "#D89B5B", "#E8C78D", "#F4E8CE"] },
-  { id: "ocean", name: "바다", colors: ["#071D2B", "#0B3C5D", "#167D9A", "#45B8AC", "#A8E6CF", "#EAF9F3"] },
-  { id: "sunset", name: "노을", colors: ["#2D1B46", "#6A275B", "#B23A48", "#F06449", "#F7A35C", "#FFD7A0"] },
-  { id: "pastel", name: "파스텔", colors: ["#F7C6C7", "#F9D5A7", "#FBE7A1", "#CDECCF", "#BFE3F5", "#D8C7F0"] },
-  { id: "cyber", name: "사이버 네온", colors: ["#090A1A", "#2B125C", "#7A04EB", "#FF2BD6", "#00E5FF", "#B7FF00"] },
+  { id: "earth", name: "따뜻한 대지", colors: ["#2A1A16", "#4A2A22", "#6B3E2E", "#A8643A", "#C47A46", "#D89B5B", "#E8C78D", "#F4E8CE"] },
+  { id: "ocean", name: "바다", colors: ["#071D2B", "#0B3C5D", "#0E5E78", "#167D9A", "#45B8AC", "#70CFBE", "#A8E6CF", "#EAF9F3"] },
+  { id: "sunset", name: "노을", colors: ["#2D1B46", "#6A275B", "#8E2F58", "#B23A48", "#F06449", "#F47A4B", "#F7A35C", "#FFD7A0"] },
+  { id: "prism-pop", name: "프리즘 팝", colors: ["#FFFFFF", "#1E0B20", "#FDE302", "#F89B3F", "#F87D7F", "#EE1436", "#EB1569", "#9C0A64", "#3D195A", "#2D528B", "#23A1C9", "#55DDE9"] },
+  { id: "cosmic-candy", name: "코스믹 캔디", colors: ["#FFFFFF", "#03053C", "#160252", "#300467", "#2F33A3", "#60A9CE", "#05C9FC", "#BAEE68", "#FEE039", "#F9A77A", "#F46795", "#CF3B96", "#7D0E93"] },
+  { id: "amber-ink", name: "호박빛 먹선", colors: ["#FFFFFF", "#E3E1DE", "#F9D0BB", "#E5A88A", "#E5885E", "#D58A4E", "#F8CA6C", "#B27C6A", "#8A6C52", "#516373", "#575757", "#2C2A2A"] },
+  { id: "cyber", name: "사이버 네온", colors: ["#090A1A", "#2B125C", "#3D2BFF", "#7A04EB", "#FF2BD6", "#00E5FF", "#B7FF00", "#EDD903"] },
   { id: "arcade", name: "레트로 아케이드", colors: ["#1A1C2C", "#5D275D", "#B13E53", "#EF7D57", "#FFCD75", "#A7F070", "#38B764", "#257179"] },
 ];
 type VideoInfo = {
@@ -132,6 +136,7 @@ export default function VideoConverter({
   const [resultPalette, setResultPalette] = useState<RGB[]>([]);
   const [livePreviewReady, setLivePreviewReady] = useState(false);
   const [loadingFile, setLoadingFile] = useState(false);
+  const [numericDrafts, setNumericDrafts] = useState<Partial<Record<VideoNumericField, string>>>({});
   const inputRef = useRef<HTMLInputElement>(null);
   const livePreviewRef = useRef<HTMLCanvasElement>(null);
   const livePreviewReadyRef = useRef(false);
@@ -215,6 +220,35 @@ export default function VideoConverter({
     clearResult();
   };
 
+  const commitVideoNumber = (field: VideoNumericField, label: string, min: number, max: number) => {
+    const currentValue = field === "paletteTendency"
+      ? settings.paletteDiversity - 50
+      : field === "surfaceCleanup"
+        ? settings.surfaceCleanup
+        : settings.adjustments[field];
+    const value = Number(numericDrafts[field] ?? String(currentValue));
+    setNumericDrafts((drafts) => { const next = { ...drafts }; delete next[field]; return next; });
+    if (!Number.isInteger(value) || value < min || value > max) {
+      setMessage(tr("{name} 값은 {min}~{max} 사이의 정수여야 합니다. 기존 값으로 되돌렸습니다.", { name: tr(label), min, max }));
+      return;
+    }
+    if (value === currentValue) return;
+    updateSettings((draft) => {
+      if (field === "paletteTendency") draft.paletteDiversity = value + 50;
+      else if (field === "surfaceCleanup") draft.surfaceCleanup = value;
+      else draft.adjustments[field] = value;
+    });
+  };
+
+  const updateVideoSlider = (field: VideoNumericField, value: number) => {
+    setNumericDrafts((drafts) => { const next = { ...drafts }; delete next[field]; return next; });
+    updateSettings((draft) => {
+      if (field === "paletteTendency") draft.paletteDiversity = value + 50;
+      else if (field === "surfaceCleanup") draft.surfaceCleanup = value;
+      else draft.adjustments[field] = value;
+    });
+  };
+
   const applyVideoPreset = (preset: VideoPalettePreset) => {
     const colors = preset.colors.map((color) => hexToRgb(color) as RGB);
     setSettings((current) => applyPalettePreset(current, colors));
@@ -225,6 +259,7 @@ export default function VideoConverter({
 
   const resetVideoAdjustments = () => {
     const defaults = defaultSettings();
+    setNumericDrafts((drafts) => { const next = { ...drafts }; delete next.brightness; delete next.contrast; delete next.saturation; delete next.hue; return next; });
     updateSettings((draft) => {
       draft.adjustments = cloneSettings(defaults.adjustments);
       draft.pixelation = cloneSettings(defaults.pixelation);
@@ -233,10 +268,22 @@ export default function VideoConverter({
   };
 
   const resetVideoPalette = () => {
+    setNumericDrafts((drafts) => { const next = { ...drafts }; delete next.paletteTendency; return next; });
     setSettings((current) => resetPaletteSettings(current));
     setPresetOpen(false);
     clearResult();
     setMessage(tr("영상 팔레트의 고정 색상과 가중치를 초기화했습니다."));
+  };
+
+  const deleteVideoPaletteSlot = (index: number) => {
+    if (busy || paletteMode === "frame") return;
+    if (settings.colorCount <= 1) {
+      setMessage(tr("팔레트에는 최소 한 가지 색상이 필요합니다."));
+      return;
+    }
+    setSettings((current) => removePaletteSlot(current, index));
+    clearResult();
+    setMessage(tr("팔레트에서 {index}번 색상을 삭제했습니다.", { index: index + 1 }));
   };
 
   const inspectVideo = async (file: File) => {
@@ -494,7 +541,11 @@ export default function VideoConverter({
 
           <section className="video-setting-card video-adjustments">
             <div className="video-setting-heading"><h3>{tr("색 보정")}</h3><button type="button" className="text-button" disabled={busy} onClick={resetVideoAdjustments}>{tr("초기화")}</button></div>
-            {([ ["brightness", "밝기"], ["contrast", "대비"], ["saturation", "채도"], ["hue", "색조"] ] as const).map(([key, label]) => <label key={key}><span>{tr(label)}<output>{settings.adjustments[key]}</output></span><input type="range" min={key === "hue" ? -180 : -100} max={key === "hue" ? 180 : 100} value={settings.adjustments[key]} disabled={busy} onChange={(event) => updateSettings((draft) => { draft.adjustments[key] = Number(event.target.value); })} /></label>)}
+            {([ ["brightness", "밝기"], ["contrast", "대비"], ["saturation", "채도"], ["hue", "색조"] ] as const).map(([key, label]) => {
+              const min = key === "hue" ? -180 : -100;
+              const max = key === "hue" ? 180 : 100;
+              return <label key={key}><span>{tr(label)}<input className="video-parameter-number compact-number-input" type="number" inputMode="numeric" min={min} max={max} step="1" aria-label={`${tr(label)} ${tr("숫자 직접 입력")}`} value={numericDrafts[key] ?? String(settings.adjustments[key])} disabled={busy} onChange={(event) => setNumericDrafts((drafts) => ({ ...drafts, [key]: event.target.value }))} onBlur={() => commitVideoNumber(key, label, min, max)} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} /></span><input type="range" min={min} max={max} value={settings.adjustments[key]} disabled={busy} onChange={(event) => updateVideoSlider(key, Number(event.target.value))} /></label>;
+            })}
             <label className="video-pixel-toggle"><span>{tr("픽셀화")}</span><input type="checkbox" checked={settings.pixelation.enabled} disabled={busy} onChange={(event) => updateSettings((draft) => { draft.pixelation.enabled = event.target.checked; })} /></label>
             <label className="video-pixel-size"><span>{tr("블록 크기")}</span><input type="number" min="2" max="64" value={settings.pixelation.size} disabled={busy || !settings.pixelation.enabled} onChange={(event) => { const value = Number(event.target.value); if (value >= 2 && value <= 64) updateSettings((draft) => { draft.pixelation.size = value; }); }} /></label>
           </section>
@@ -506,14 +557,17 @@ export default function VideoConverter({
                 <span aria-hidden="true">{preset.colors.map((color) => <i key={color} style={{ background: color }} />)}</span>
                 <strong>{tr(preset.name)}</strong><small>{tr("{name} · {count}색", { name: tr(preset.name), count: preset.colors.length })}</small>
               </button>)}
-            </div>}            <label className="video-diversity"><span>{tr("자동 팔레트 성향")}<output>{settings.paletteDiversity - 50}</output></span><input type="range" min="0" max="100" value={settings.paletteDiversity} disabled={busy} onChange={(event) => updateSettings((draft) => { draft.paletteDiversity = Number(event.target.value); })} /><small><b>{tr("주조색 우선")}</b><b>{tr("원본 균형")}</b><b>{tr("색상 다양성")}</b></small></label>
+            </div>}            <label className="video-diversity"><span>{tr("자동 팔레트 성향")}<input className="video-parameter-number compact-number-input" type="number" inputMode="numeric" min="-50" max="50" step="1" aria-label={tr("자동 팔레트 성향 숫자")} value={numericDrafts.paletteTendency ?? String(settings.paletteDiversity - 50)} disabled={busy} onChange={(event) => setNumericDrafts((drafts) => ({ ...drafts, paletteTendency: event.target.value }))} onBlur={() => commitVideoNumber("paletteTendency", "자동 팔레트 성향", -50, 50)} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} /></span><input type="range" min="-50" max="50" value={settings.paletteDiversity - 50} disabled={busy} onChange={(event) => updateVideoSlider("paletteTendency", Number(event.target.value))} /><small><b>{tr("주조색 우선")}</b><b>{tr("원본 균형")}</b><b>{tr("색상 다양성")}</b></small></label>
+            <label className="video-surface-cleanup"><span>{tr("면 정리 강도")}<input className="video-parameter-number compact-number-input" type="number" inputMode="numeric" min="0" max="100" step="1" aria-label={tr("면 정리 강도 숫자")} value={numericDrafts.surfaceCleanup ?? String(settings.surfaceCleanup)} disabled={busy} onChange={(event) => setNumericDrafts((drafts) => ({ ...drafts, surfaceCleanup: event.target.value }))} onBlur={() => commitVideoNumber("surfaceCleanup", "면 정리 강도", 0, 100)} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} /></span><input type="range" min="0" max="100" value={settings.surfaceCleanup} disabled={busy} onChange={(event) => updateVideoSlider("surfaceCleanup", Number(event.target.value))} /><small><b>{tr("디테일 유지")}</b><b>{tr("균형")}</b><b>{tr("깔끔한 면")}</b></small></label>
             {paletteMode === "frame" && <p className="video-frame-palette-note">{tr("프레임별 자동 팔레트에서는 아래 고정 색상과 가중치를 사용하지 않습니다.")}</p>}
             <div className={`video-slot-list ${paletteMode === "frame" ? "is-disabled" : ""}`}>{settings.slots.map((slot: { fixed: boolean; color: RGB | null; weight: number }, index: number) => {
               const color = slot.color ?? [218, 218, 213] as RGB;
+              const hex = rgbToHex(color);
               return <div className={`video-slot ${slot.fixed ? "is-fixed" : ""}`} key={index}>
-                <input type="color" aria-label={tr("{index}번 팔레트 색상", { index: index + 1 })} value={rgbToHex(color)} disabled={busy || paletteMode === "frame"} onChange={(event) => { const rgb = hexToRgb(event.target.value); if (rgb) updateSettings((draft) => { draft.slots[index] = { ...draft.slots[index], fixed: true, color: rgb, weightMode: "manual" }; }); }} />
-                <label><input type="checkbox" checked={slot.fixed} disabled={busy || paletteMode === "frame"} onChange={(event) => updateSettings((draft) => { draft.slots[index].fixed = event.target.checked; if (!event.target.checked) { draft.slots[index].color = null; draft.slots[index].weightMode = "auto"; draft.slots[index].weight = 1; } else { draft.slots[index].color = color; draft.slots[index].weightMode = "manual"; } })} /><span>{tr(slot.fixed ? "고정" : "자동")}</span></label>
+                <label className="video-color-control"><input type="color" aria-label={tr("{index}번 팔레트 색상", { index: index + 1 })} value={hex} disabled={busy || paletteMode === "frame"} onChange={(event) => { const rgb = hexToRgb(event.target.value); if (rgb) updateSettings((draft) => { draft.slots[index] = { ...draft.slots[index], fixed: true, color: rgb, weightMode: "manual" }; }); }} /><span className="video-slot-color"><strong>{hex}</strong><small>RGB {color.join(" · ")}</small></span></label>
+                <label className="video-slot-mode"><input type="checkbox" checked={slot.fixed} disabled={busy || paletteMode === "frame"} onChange={(event) => updateSettings((draft) => { draft.slots[index].fixed = event.target.checked; if (!event.target.checked) { draft.slots[index].color = null; draft.slots[index].weightMode = "auto"; draft.slots[index].weight = 1; } else { draft.slots[index].color = color; draft.slots[index].weightMode = "manual"; } })} /><span>{tr(slot.fixed ? "고정" : "자동")}</span></label>
                 <input className="video-weight" type="number" min="0.1" max="5" step="0.1" aria-label={tr("{index}번 팔레트 가중치", { index: index + 1 })} value={slot.weight} disabled={busy || paletteMode === "frame"} onChange={(event) => { const value = Number(event.target.value); if (value >= .1 && value <= 5) updateSettings((draft) => { draft.slots[index].weight = value; draft.slots[index].weightMode = "manual"; }); }} />
+                <button type="button" className="video-delete-slot" disabled={busy || paletteMode === "frame" || settings.colorCount <= 1} title={tr("{index}번 팔레트 색상 삭제", { index: index + 1 })} aria-label={tr("{index}번 팔레트 색상 삭제", { index: index + 1 })} onClick={() => deleteVideoPaletteSlot(index)}>×</button>
               </div>;
             })}</div>
           </section>

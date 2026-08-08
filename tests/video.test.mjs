@@ -87,10 +87,25 @@ test("frame palette settings ignore every fixed color and manual weight", () => 
   assert.equal(applied.colorCount, 2);
   assert.equal(applied.paletteDiversity, 78);
   assert.equal(applied.adjustments.brightness, 12);
+  assert.equal(applied.surfaceCleanup, 0);
   assert.deepEqual(applied.slots, [
     { fixed: false, color: null, weight: 1, weightMode: "auto" },
     { fixed: false, color: null, weight: 1, weightMode: "auto" },
   ]);
+});
+
+test("video temporal mapping applies edge-aware surface cleanup without changing palette colors", () => {
+  const source = solidFrame(3, 3, [117, 117, 117]);
+  source.set([123, 123, 123, 255], 4 * 4);
+  const palette = [[100, 100, 100], [140, 140, 140]];
+  const mapped = mapPixelsWithTemporalHysteresis(source, palette, [1, 1], null, null, {
+    width: 3,
+    height: 3,
+    surfaceCleanup: 100,
+  });
+  assert.equal(mapped.result[4 * 4], 100);
+  assert.equal(mapped.assignments[4], 0);
+  assert.deepEqual(new Set(Array.from({ length: 9 }, (_, index) => mapped.result[index * 4])), new Set([100]));
 });
 
 test("frame palettes use optimal color matching and strong smoothing for small changes", () => {
