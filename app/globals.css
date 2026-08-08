@@ -132,9 +132,12 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .pan-zoom-viewport:has(canvas:hover) { cursor: grab; }
 .pan-zoom-viewport.is-dragging, .pan-zoom-viewport.is-dragging canvas { cursor: grabbing; }
 .pan-zoom-viewport.is-dragging canvas { transition: none; }
-.zoom-controls { position: absolute; right: 8px; bottom: 8px; display: flex; align-items: center; gap: 5px; padding: 4px; border: 1px solid rgba(25,26,23,.14); border-radius: 8px; background: rgba(251,251,247,.9); box-shadow: 0 3px 12px rgba(0,0,0,.1); backdrop-filter: blur(8px); }
+.preview-control-bar { position: absolute; z-index: 2; right: 8px; bottom: 8px; max-width: calc(100% - 16px); display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 6px; pointer-events: none; }
+.zoom-controls, .preview-mode-toggle { display: flex; align-items: center; gap: 5px; padding: 4px; border: 1px solid rgba(25,26,23,.14); border-radius: 8px; background: rgba(251,251,247,.9); box-shadow: 0 3px 12px rgba(0,0,0,.1); backdrop-filter: blur(8px); pointer-events: auto; }
 .zoom-controls span { min-width: 38px; padding-left: 3px; text-align: center; color: var(--muted); font: 750 10px/1 ui-monospace, monospace; }
-.zoom-controls button { min-height: 25px; padding: 0 7px; border: 0; border-radius: 5px; color: var(--ink); background: white; font-size: 10px; font-weight: 750; cursor: pointer; }
+.zoom-controls button, .preview-mode-toggle button { min-height: 25px; padding: 0 7px; border: 0; border-radius: 5px; color: var(--ink); background: white; font-size: 10px; font-weight: 750; cursor: pointer; }
+.preview-mode-toggle { gap: 2px; }
+.preview-mode-toggle button[aria-pressed="true"] { color: white; background: var(--orange); }
 .zoom-controls button:disabled { opacity: .45; cursor: default; }
 .preview-processing { position: absolute; z-index: 3; left: 50%; top: 50%; display: flex; align-items: center; gap: 9px; min-width: 205px; padding: 10px 13px; border: 1px solid rgba(25,26,23,.14); border-radius: 10px; background: rgba(251,251,247,.94); box-shadow: 0 7px 25px rgba(0,0,0,.15); transform: translate(-50%,-50%); pointer-events: none; }
 .preview-processing i { width: 17px; height: 17px; flex: 0 0 auto; border: 2px solid #ddd8d0; border-top-color: var(--orange); border-radius: 50%; animation: preview-spin .75s linear infinite; }
@@ -265,7 +268,7 @@ input[type="range"] { width: 100%; height: 3px; margin: 8px 0 0; accent-color: v
 html[data-theme="dark"] body { background: radial-gradient(circle at 55% 0%, #242820 0, var(--paper) 45%); }
 html[data-theme="dark"] .topbar { background: rgba(23,26,22,.9); }
 html[data-theme="dark"] .brand-mark { color: #171915; background: #f2f3ed; }
-html[data-theme="dark"] :is(.button:not(.primary), .icon-button, .zoom-controls button) { background: #242822; }
+html[data-theme="dark"] :is(.button:not(.primary), .icon-button, .zoom-controls button, .preview-mode-toggle button) { background: #242822; }
 html[data-theme="dark"] .theme-toggle { background: #252923; }
 html[data-theme="dark"] .theme-toggle[aria-pressed="true"] { background: #333831; border-color: #575e53; color: #fff7d1; }
 html[data-theme="dark"] .language-control { background: #242822; }
@@ -291,7 +294,8 @@ html[data-theme="dark"] .compare figure { background: #171916; }
 html[data-theme="dark"] .compare figcaption { background: #20231f; }
 html[data-theme="dark"] .checker,
 html[data-theme="dark"] .image-item img { background-color: #252924; background-image: linear-gradient(45deg,#353a33 25%,transparent 25%),linear-gradient(-45deg,#353a33 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#353a33 75%),linear-gradient(-45deg,transparent 75%,#353a33 75%); }
-html[data-theme="dark"] .zoom-controls { border-color: rgba(255,255,255,.13); background: rgba(27,30,26,.92); }
+html[data-theme="dark"] :is(.zoom-controls, .preview-mode-toggle) { border-color: rgba(255,255,255,.13); background: rgba(27,30,26,.92); }
+html[data-theme="dark"] .preview-mode-toggle button[aria-pressed="true"] { color: white; background: var(--orange-dark); }
 html[data-theme="dark"] .preview-processing { border-color: rgba(255,255,255,.14); background: rgba(28,31,27,.96); }
 html[data-theme="dark"] .preview-processing.is-error { color: #ffc0ac; border-color: #8b4d3e; background: rgba(55,31,25,.97); }
 html[data-theme="dark"] .empty-glyph { background: #39241d; border-color: #653628; }

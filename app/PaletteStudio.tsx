@@ -77,15 +77,17 @@ function CanvasPreview({ item, result, onPick, language }: { item: ImageItem; re
   const ref = useRef<HTMLCanvasElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const displayedPixels = useRef<Uint8ClampedArray | null>(null);
+  const adjustedPreview = useRef<{ settings: Settings; pixels: Uint8ClampedArray } | null>(null);
   const drag = useRef<{ pointerId: number; startX: number; startY: number; originX: number; originY: number } | null>(null);
   const moved = useRef(false);
   const [view, setView] = useState({ zoom: 1, x: 0, y: 0 });
   const [isFitView, setIsFitView] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
+  const [showAdjusted, setShowAdjusted] = useState(true);
   const [previewStatus, setPreviewStatus] = useState<{ settings: Settings; state: "ready" | "error" } | null>(null);
   const tr = (source: string, values: Record<string, string | number> = {}) => translate(language, source, values);
-  const isPreparing = !result && previewStatus?.settings !== item.settings;
-  const previewFailed = !result && previewStatus?.settings === item.settings && previewStatus.state === "error";
+  const isPreparing = !result && showAdjusted && previewStatus?.settings !== item.settings;
+  const previewFailed = !result && showAdjusted && previewStatus?.settings === item.settings && previewStatus.state === "error";
   useEffect(() => {
     const canvas = ref.current;
     if (!canvas) return;
@@ -101,6 +103,15 @@ function CanvasPreview({ item, result, onPick, language }: { item: ImageItem; re
       if (item.result) draw(item.result);
       return;
     }
+    if (!showAdjusted) {
+      draw(item.original);
+      return;
+    }
+    const cached = adjustedPreview.current;
+    if (cached?.settings === item.settings) {
+      draw(cached.pixels);
+      return;
+    }
 
     displayedPixels.current = null;
     const worker = new QuantizeWorker();
@@ -112,7 +123,10 @@ function CanvasPreview({ item, result, onPick, language }: { item: ImageItem; re
       const delay = Math.max(0, 220 - (performance.now() - startedAt));
       finishTimer = window.setTimeout(() => {
         if (disposed) return;
-        if (state === "ready" && pixels) draw(pixels);
+        if (state === "ready" && pixels) {
+          adjustedPreview.current = { settings: item.settings, pixels };
+          draw(pixels);
+        }
         setPreviewStatus({ settings: item.settings, state });
       }, delay);
     };
@@ -125,7 +139,7 @@ function CanvasPreview({ item, result, onPick, language }: { item: ImageItem; re
     worker.onerror = () => { worker.terminate(); if (!disposed) finish("error"); };
     worker.postMessage({ operation: "prepare", pixels: copy.buffer, width: item.width, height: item.height, settings: item.settings }, [copy.buffer]);
     return () => { disposed = true; worker.terminate(); if (finishTimer !== null) window.clearTimeout(finishTimer); };
-  }, [item.height, item.original, item.result, item.settings, item.width, result]);
+  }, [item.height, item.original, item.result, item.settings, item.width, result, showAdjusted]);
 
   const click = (event: MouseEvent<HTMLCanvasElement>) => {
     if (moved.current) { moved.current = false; return; }
@@ -206,10 +220,13 @@ function CanvasPreview({ item, result, onPick, language }: { item: ImageItem; re
     else { setIsFitView(true); setView({ zoom: calculateFitZoom(), x: 0, y: 0 }); }
   };
   return <div ref={viewportRef} className={`pan-zoom-viewport ${isDragging ? "is-dragging" : ""} ${isPreparing ? "is-processing" : ""}`} aria-busy={isPreparing} onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={stopDrag} onPointerCancel={stopDrag} onDoubleClick={showActualSize}>
-    <canvas ref={ref} onClick={click} draggable={false} style={{ width: `${item.width}px`, height: `${item.height}px`, transform: `translate(calc(-50% + ${view.x}px), calc(-50% + ${view.y}px)) scale(${view.zoom})` }} aria-label={tr(result ? "변환 결과 이미지" : "색 보정이 적용된 원본 이미지")} />
+    <canvas ref={ref} onClick={click} draggable={false} style={{ width: `${item.width}px`, height: `${item.height}px`, transform: `translate(calc(-50% + ${view.x}px), calc(-50% + ${view.y}px)) scale(${view.zoom})` }} aria-label={tr(result ? "변환 결과 이미지" : showAdjusted ? "색 보정이 적용된 원본 이미지" : "원본 이미지")} />
     {isPreparing && <div className="preview-processing" role="status" aria-live="polite"><i /><span><strong>{tr("미리보기 계산 중…")}</strong><small>{tr("색 보정과 픽셀화를 적용하고 있습니다.")}</small></span></div>}
     {previewFailed && <div className="preview-processing is-error" role="alert"><span><strong>{tr("미리보기를 계산하지 못했습니다.")}</strong><small>{tr("설정을 다시 변경하거나 이미지를 다시 불러와주세요.")}</small></span></div>}
-    <div className="zoom-controls"><span>{Math.round(view.zoom * 100)}%</span><button type="button" onClick={toggleFitView}>{tr(isFitView ? "화면 맞춤" : "100%로 보기")}</button></div>
+    <div className="preview-control-bar">
+      {!result && <div className="preview-mode-toggle" role="group" aria-label={tr("원본과 보정 미리보기 전환")}><button type="button" aria-pressed={!showAdjusted} onClick={() => setShowAdjusted(false)}>{tr("원본")}</button><button type="button" aria-pressed={showAdjusted} onClick={() => setShowAdjusted(true)}>{tr("보정")}</button></div>}
+      <div className="zoom-controls"><span>{Math.round(view.zoom * 100)}%</span><button type="button" onClick={toggleFitView}>{tr(isFitView ? "화면 맞춤" : "100%로 보기")}</button></div>
+    </div>
   </div>;
 }
 

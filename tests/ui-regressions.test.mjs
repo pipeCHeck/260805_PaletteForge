@@ -96,6 +96,21 @@ test("보정 미리보기와 이미지 스포이드는 실제 전처리 픽셀�
   assert.match(worker, /prepareImage\(pixels/);
 });
 
+test("원본 미리보기는 우하단에서 원본과 보정 화면을 즉시 전환한다", async () => {
+  const [component, css, translations] = await Promise.all([
+    readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    readFile(new URL("../app/i18n.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(component, /const \[showAdjusted, setShowAdjusted\] = useState\(true\)/);
+  assert.match(component, /if \(!showAdjusted\) \{\s*draw\(item\.original\)/);
+  assert.match(component, /className="preview-mode-toggle" role="group"/);
+  assert.match(component, /setShowAdjusted\(false\).*setShowAdjusted\(true\)/s);
+  assert.match(css, /\.preview-control-bar \{[^}]*right: 8px;[^}]*bottom: 8px;/);
+  assert.match(css, /\.preview-mode-toggle button\[aria-pressed="true"\]/);
+  assert.match(translations, /"원본과 보정 미리보기 전환": "Switch between original and adjusted previews"/);
+});
+
 test("미리보기 Worker 처리 중 진행 상태를 화면에 표시한다", async () => {
   const [component, css] = await Promise.all([
     readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
