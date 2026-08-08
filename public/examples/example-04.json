@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "includedSections": [
+    "adjust",
+    "palette"
+  ],
+  "export": {
+    "format": "png",
+    "fileName": "ComfyUI_10077_-converted",
+    "preserveAlpha": true,
+    "quality": 0.92,
+    "background": "#FFFFFF",
+    "keepOriginalSize": true
+  },
+  "dithering": false,
+  "adjustments": {
+    "brightness": -5,
+    "contrast": 70,
+    "saturation": 0,
+    "hue": 0
+  },
+  "pixelation": {
+    "enabled": false,
+    "size": 8,
+    "alphaMode": "smooth"
+  },
+  "colorCount": 5,
+  "slots": [
+    {
+      "fixed": true,
+      "color": [
+        17,
+        19,
+        23
+      ],
+      "weight": 1.2,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        75,
+        78,
+        74
+      ],
+      "weight": 1.35,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        133,
+        137,
+        131
+      ],
+      "weight": 1.35,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        197,
+        200,
+        192
+      ],
+      "weight": 1.35,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        244,
+        244,
+        239
+      ],
+      "weight": 1.35,
+      "weightMode": "auto"
+    }
+  ],
+  "paletteDiversity": 50,
+  "surfaceCleanup": 100
+}

@@ -1,0 +1,182 @@
+{
+  "version": 1,
+  "includedSections": [
+    "adjust",
+    "palette"
+  ],
+  "export": {
+    "format": "png",
+    "fileName": "09_후보1_-converted",
+    "preserveAlpha": true,
+    "quality": 0.92,
+    "background": "#FFFFFF",
+    "keepOriginalSize": true
+  },
+  "dithering": false,
+  "adjustments": {
+    "brightness": 0,
+    "contrast": 40,
+    "saturation": 100,
+    "hue": -5
+  },
+  "pixelation": {
+    "enabled": true,
+    "size": 7,
+    "alphaMode": "smooth"
+  },
+  "colorCount": 15,
+  "slots": [
+    {
+      "fixed": true,
+      "color": [
+        254,
+        179,
+        24
+      ],
+      "weight": 0.99,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        3,
+        1,
+        1
+      ],
+      "weight": 0.94,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        131,
+        50,
+        9
+      ],
+      "weight": 0.99,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        20,
+        243,
+        253
+      ],
+      "weight": 0.99,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        254,
+        12,
+        84
+      ],
+      "weight": 0.99,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        38,
+        103,
+        126
+      ],
+      "weight": 0.86,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        43,
+        28,
+        21
+      ],
+      "weight": 1.04,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        228,
+        101,
+        18
+      ],
+      "weight": 1,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        65,
+        174,
+        187
+      ],
+      "weight": 0.8,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        245,
+        238,
+        230
+      ],
+      "weight": 1.02,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        86,
+        33,
+        5
+      ],
+      "weight": 0.98,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        170,
+        82,
+        17
+      ],
+      "weight": 0.98,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        226,
+        146,
+        33
+      ],
+      "weight": 0.99,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        183,
+        12,
+        53
+      ],
+      "weight": 1,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        19,
+        69,
+        87
+      ],
+      "weight": 0.88,
+      "weightMode": "auto"
+    }
+  ],
+  "paletteDiversity": 50,
+  "surfaceCleanup": 50
+}

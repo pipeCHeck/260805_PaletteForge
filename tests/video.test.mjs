@@ -8,6 +8,7 @@ import {
   createFramePaletteSettings,
   compareFrameSignatures,
   estimatePaletteUsage,
+  estimateVideoWorkload,
   FRAME_SCENE_COOLDOWN,
   formatVideoElapsedTime,
   isSupportedVideoFile,
@@ -33,6 +34,18 @@ test("video input validation accepts MP4 and WebM only", () => {
   assert.equal(isSupportedVideoFile({ name: "clip.mp4", type: "video/mp4" }), true);
   assert.equal(isSupportedVideoFile({ name: "clip.webm", type: "" }), true);
   assert.equal(isSupportedVideoFile({ name: "clip.avi", type: "video/x-msvideo" }), false);
+});
+
+test("video workload estimation separates smooth, caution, and risk without imposing a hard limit", () => {
+  const megabyte = 1024 * 1024;
+  assert.equal(estimateVideoWorkload({ width: 1920, height: 1080, duration: 60, fileSize: 80 * megabyte, deviceMemory: 8 }).level, "smooth");
+  const caution = estimateVideoWorkload({ width: 3840, height: 2160, duration: 30, fileSize: 120 * megabyte, deviceMemory: 8 });
+  assert.equal(caution.level, "caution");
+  assert.ok(caution.factors.includes("고해상도"));
+  const risk = estimateVideoWorkload({ width: 3840, height: 2160, duration: 600, fileSize: 800 * megabyte, deviceMemory: 4 });
+  assert.equal(risk.level, "risk");
+  assert.ok(risk.factors.includes("큰 파일"));
+  assert.ok(risk.factors.includes("제한적인 기기 메모리"));
 });
 
 test("analysis timestamps cover the complete duration deterministically", () => {

@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "includedSections": [
+    "adjust",
+    "palette"
+  ],
+  "export": {
+    "format": "png",
+    "fileName": "09_후보3_-converted",
+    "preserveAlpha": true,
+    "quality": 0.92,
+    "background": "#FFFFFF",
+    "keepOriginalSize": true
+  },
+  "dithering": false,
+  "adjustments": {
+    "brightness": -4,
+    "contrast": 20,
+    "saturation": 0,
+    "hue": 0
+  },
+  "pixelation": {
+    "enabled": true,
+    "size": 7,
+    "alphaMode": "smooth"
+  },
+  "colorCount": 5,
+  "slots": [
+    {
+      "fixed": true,
+      "color": [
+        37,
+        37,
+        37
+      ],
+      "weight": 1.35,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        15,
+        56,
+        15
+      ],
+      "weight": 0.8,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        48,
+        98,
+        48
+      ],
+      "weight": 0.8,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        139,
+        172,
+        15
+      ],
+      "weight": 0.84,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        155,
+        188,
+        15
+      ],
+      "weight": 0.84,
+      "weightMode": "auto"
+    }
+  ],
+  "paletteDiversity": 50,
+  "surfaceCleanup": 75
+}

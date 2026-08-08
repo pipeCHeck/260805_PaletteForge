@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 
 const ADSENSE_CLIENT = "ca-pub-2402421786391581";
+const ADVERTISING_ENABLED = false;
 
 type AdSenseWindow = Window & { adsbygoogle?: Record<string, unknown>[] };
 
@@ -10,7 +11,7 @@ export default function AdPlacement({ placement, slot, label, pendingText }: { p
   const initialized = useRef(false);
 
   useEffect(() => {
-    if (!slot || initialized.current) return;
+    if (!ADVERTISING_ENABLED || !slot || initialized.current) return;
     try {
       const queue = window as AdSenseWindow;
       queue.adsbygoogle = queue.adsbygoogle ?? [];
@@ -20,6 +21,8 @@ export default function AdPlacement({ placement, slot, label, pendingText }: { p
       initialized.current = false;
     }
   }, [slot]);
+
+  if (!ADVERTISING_ENABLED) return null;
 
   return (
     <aside className={"ad-placement ad-placement-" + placement + (slot ? " is-live" : " is-pending")} aria-label={label}>

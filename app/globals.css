@@ -392,14 +392,25 @@ html[data-theme="dark"] .ad-pending strong { color:#b2b7ad; background:#282c26; 
 .video-dialog-head h2 { margin: 3px 0 4px; font: 700 23px/1.2 Georgia, serif; }
 .video-dialog-head p { margin: 0; color: var(--muted); font-size: 11px; }
 .video-dialog-body { min-height: 0; padding: 16px 20px; overflow: auto; }
-.video-source-card { display: grid; grid-template-columns: minmax(220px, 320px) 1fr; gap: 12px; align-items: stretch; }
+.video-source-card { display: grid; grid-template-columns: minmax(220px, 320px) 1fr; gap: 12px; align-items: start; }
 .video-drop-button { min-height: 72px; padding: 12px 16px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 4px; border: 1px dashed #bfc2b8; border-radius: 11px; color: var(--ink); background: #f6f6f1; cursor: pointer; }
 .video-drop-button:hover:not(:disabled) { border-color: var(--orange); background: #fff8f4; }
 .video-drop-button strong { font-size: 13px; }
 .video-drop-button small { color: var(--muted); font-size: 10px; }
-.video-meta { min-width: 0; padding: 12px 15px; display: grid; grid-template-columns: minmax(140px, 1fr) auto auto auto; align-items: center; gap: 12px; border: 1px solid var(--line); border-radius: 11px; background: #f3f4ee; font-size: 11px; }
+.video-source-info { min-width: 0; display: grid; gap: 8px; }
+.video-meta { min-width: 0; padding: 12px 15px; display: grid; grid-template-columns: minmax(140px, 1fr) auto auto auto auto; align-items: center; gap: 12px; border: 1px solid var(--line); border-radius: 11px; background: #f3f4ee; font-size: 11px; }
 .video-meta strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .video-meta span { color: var(--muted); white-space: nowrap; }
+.video-workload { padding: 9px 12px; border: 1px solid #b9d8c0; border-radius: 10px; background: #edf7ef; }
+.video-workload > div { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 10px; font-weight: 800; }
+.video-workload > div strong { padding: 3px 7px; border-radius: 999px; color: #276538; background: #d3ecd8; font-size: 9px; }
+.video-workload p { margin: 4px 0 0; color: var(--ink); font-size: 10px; line-height: 1.45; }
+.video-workload small { display: block; margin-top: 3px; color: var(--muted); font-size: 8px; line-height: 1.45; }
+.video-workload small b { color: inherit; }
+.video-workload.is-caution { border-color: #e2c27b; background: #fff7df; }
+.video-workload.is-caution > div strong { color: #765008; background: #f4dfab; }
+.video-workload.is-risk { border-color: #e5a08e; background: #fff0ea; }
+.video-workload.is-risk > div strong { color: #8f321d; background: #f3c6b9; }
 .video-preview-grid { margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .video-preview-grid figure { min-width: 0; margin: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: #111; }
 .video-preview-grid figcaption { padding: 8px 11px; color: var(--ink); background: var(--panel); font-size: 11px; font-weight: 800; }
@@ -467,6 +478,12 @@ html[data-theme="dark"] .ad-pending strong { color:#b2b7ad; background:#282c26; 
 
 html[data-theme="dark"] :is(.video-drop-button,.video-setting-card,.video-result-palette) { background: #20231e; }
 html[data-theme="dark"] .video-meta { background: #242720; }
+html[data-theme="dark"] .video-workload { border-color: #365540; background: #203126; }
+html[data-theme="dark"] .video-workload > div strong { color: #bde7c6; background: #2c5035; }
+html[data-theme="dark"] .video-workload.is-caution { border-color: #66572d; background: #332e1d; }
+html[data-theme="dark"] .video-workload.is-caution > div strong { color: #f0d58e; background: #594b25; }
+html[data-theme="dark"] .video-workload.is-risk { border-color: #744033; background: #39231d; }
+html[data-theme="dark"] .video-workload.is-risk > div strong { color: #f0b4a4; background: #603226; }
 html[data-theme="dark"] .video-drop-button:hover:not(:disabled), html[data-theme="dark"] .video-mode-option.is-selected { background: #38241d; }
 html[data-theme="dark"] .video-mode-option { background: #191c18; }
 html[data-theme="dark"] :is(.video-pixel-size input,.video-setting-heading input,.video-weight,.video-color-control > input[type="color"]) { color: var(--ink); background: #252923; }

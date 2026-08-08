@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "includedSections": [
+    "adjust",
+    "palette"
+  ],
+  "export": {
+    "format": "png",
+    "fileName": "02_창문",
+    "preserveAlpha": true,
+    "quality": 0.92,
+    "background": "#FFFFFF",
+    "keepOriginalSize": true
+  },
+  "dithering": false,
+  "adjustments": {
+    "brightness": 0,
+    "contrast": 40,
+    "saturation": 15,
+    "hue": 0
+  },
+  "pixelation": {
+    "enabled": false,
+    "size": 3,
+    "alphaMode": "smooth"
+  },
+  "colorCount": 7,
+  "slots": [
+    {
+      "fixed": true,
+      "color": [
+        255,
+        255,
+        255
+      ],
+      "weight": 1.18,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        17,
+        0,
+        0
+      ],
+      "weight": 0.8,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        216,
+        125,
+        41
+      ],
+      "weight": 0.91,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        196,
+        221,
+        66
+      ],
+      "weight": 0.86,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        47,
+        126,
+        9
+      ],
+      "weight": 0.77,
+      "weightMode": "manual"
+    },
+    {
+      "fixed": true,
+      "color": [
+        77,
+        24,
+        0
+      ],
+      "weight": 0.89,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        173,
+        174,
+        178
+      ],
+      "weight": 1.35,
+      "weightMode": "auto"
+    }
+  ],
+  "paletteDiversity": 50,
+  "surfaceCleanup": 100
+}

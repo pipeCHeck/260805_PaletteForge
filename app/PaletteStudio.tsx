@@ -40,6 +40,17 @@ const AD_SLOTS = {
   banner: "",
 } as const;
 
+const EXAMPLE_ASSETS = [
+  { id: "example-01", name: "별빛을 품은 마녀" },
+  { id: "example-02", name: "햇살 머문 창가" },
+  { id: "example-03", name: "도심의 기념비" },
+  { id: "example-04", name: "은빛 검의 기사" },
+  { id: "example-05", name: "노른자 카르보나라" },
+  { id: "example-06", name: "산호빛 기하학" },
+  { id: "example-07", name: "상자 요새 부대" },
+  { id: "example-08", name: "큐브 레인저" },
+] as const;
+
 type PalettePreset = { id: string; name: string; colors: string[] };
 
 const PALETTE_PRESETS: PalettePreset[] = [
@@ -65,7 +76,14 @@ type ImageItem = {
   settings: Settings;
   thumbnail: string;
   hasAlpha: boolean;
+  isExample?: boolean;
+  exampleTitle?: string;
 };
+
+function getImageDisplayName(item: ImageItem, language: Language) {
+  if (!item.isExample || !item.exampleTitle) return item.name;
+  return translate(language, "예시 · {name}", { name: translate(language, item.exampleTitle) });
+}
 
 function getPaletteSlotColor(item: ImageItem, index: number): RGB {
   return item.settings.slots[index]?.color ?? item.palette[index] ?? DEFAULT_SLOT_COLOR;
@@ -83,7 +101,7 @@ function CanvasPreview({ item, result, onPick, language }: { item: ImageItem; re
   const [view, setView] = useState({ zoom: 1, x: 0, y: 0 });
   const [isFitView, setIsFitView] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
-  const [showAdjusted, setShowAdjusted] = useState(true);
+  const [showAdjusted, setShowAdjusted] = useState(() => result || !item.isExample);
   const [previewStatus, setPreviewStatus] = useState<{ settings: Settings; state: "ready" | "error" } | null>(null);
   const tr = (source: string, values: Record<string, string | number> = {}) => translate(language, source, values);
   const isPreparing = !result && showAdjusted && previewStatus?.settings !== item.settings;
@@ -329,10 +347,13 @@ export default function PaletteStudio() {
   const [surfaceCleanupDrafts, setSurfaceCleanupDrafts] = useState<Record<string, string>>({});
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [language, setLanguage] = useState<Language>("ko");
+  const [languageReady, setLanguageReady] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const settingsInput = useRef<HTMLInputElement>(null);
   const noticeRef = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
+  const exampleStarted = useRef(false);
+  const exampleIdRef = useRef<string | null>(null);
   const current = images.find((image) => image.id === selectedId) ?? null;
   const sampling = samplingSlot !== null;
   const tr = (source: string, values: Record<string, string | number> = {}) => translate(language, source, values);
@@ -362,6 +383,7 @@ export default function PaletteStudio() {
     document.documentElement.lang = nextLanguage;
     const timer = window.setTimeout(() => {
       setLanguage(nextLanguage);
+      setLanguageReady(true);
       setMessage(translate(nextLanguage, "이미지를 불러오면 모든 처리가 이 브라우저 안에서 진행됩니다."));
     }, 0);
     return () => window.clearTimeout(timer);
@@ -444,8 +466,10 @@ export default function PaletteStudio() {
       } catch { errors.push(translate(language, "{name}: 파일이 손상되었거나 디코딩할 수 없습니다.", { name: displayName })); }
     }
     if (loaded.length) {
-      setImages((items) => [...items, ...loaded]);
-      setSelectedId((id) => id ?? loaded[0].id);
+      const exampleId = exampleIdRef.current;
+      setImages((items) => [...items.filter((item) => item.id !== exampleId), ...loaded]);
+      setSelectedId((id) => !id || id === exampleId ? loaded[0].id : id);
+      exampleIdRef.current = null;
     }
     setBusy(false);
     if (errors.length) notify(errors.join(" "), "error");
@@ -548,12 +572,67 @@ export default function PaletteStudio() {
     catch { notify(tr("화면 스포이드 선택을 취소했습니다.")); }
   };
 
-  const convertOne = async (item: ImageItem) => {
+  const convertOne = useCallback(async (item: ImageItem) => {
     const converted = await processInWorker(item, language);
     const settings = cloneSettings(item.settings);
     settings.slots = settings.slots.map((slot: Slot, index: number) => ({ ...slot, color: slot.fixed ? slot.color : converted.palette[index], weight: converted.weights[index] }));
     return { ...item, result: converted.result, palette: converted.palette, settings };
-  };
+  }, [language]);
+
+  useEffect(() => {
+    if (!languageReady || exampleStarted.current) return;
+    exampleStarted.current = true;
+    const randomValue = crypto.getRandomValues(new Uint32Array(1))[0];
+    const example = EXAMPLE_ASSETS[randomValue % EXAMPLE_ASSETS.length];
+    setBusy(true);
+    notify(translate(language, "예시 이미지를 불러와 자동으로 변환하고 있습니다…"));
+    void (async () => {
+      try {
+        const [imageResponse, settingsResponse] = await Promise.all([
+          fetch(`/examples/${example.id}.png`),
+          fetch(`/examples/${example.id}.json`),
+        ]);
+        if (!imageResponse.ok || !settingsResponse.ok) throw new Error("example-fetch-failed");
+        const [imageBlob, settingsText] = await Promise.all([imageResponse.blob(), settingsResponse.text()]);
+        const bitmap = await createImageBitmap(imageBlob);
+        const canvas = document.createElement("canvas");
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
+        const context = canvas.getContext("2d", { willReadFrequently: true });
+        if (!context) throw new Error("example-canvas-failed");
+        context.drawImage(bitmap, 0, 0);
+        bitmap.close();
+        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+        const settings = deserializeSettingsDocument(settingsText, defaultSettings()).settings;
+        settings.export.fileName = `${example.id}-converted`;
+        const id = crypto.randomUUID();
+        const hasAlpha = containsTransparency(imageData.data);
+        const source: ImageItem = {
+          id,
+          name: `${example.id}.png`,
+          width: canvas.width,
+          height: canvas.height,
+          original: imageData.data,
+          result: null,
+          palette: [],
+          settings,
+          thumbnail: createThumbnail(canvas, hasAlpha),
+          hasAlpha,
+          isExample: true,
+          exampleTitle: example.name,
+        };
+        const converted = await convertOne(source);
+        exampleIdRef.current = id;
+        setImages([converted]);
+        setSelectedId(id);
+        notify(translate(language, "{name} 예시와 설정을 자동으로 불러와 변환했습니다. 내 이미지를 추가하면 예시는 교체됩니다.", { name: translate(language, example.name) }), "success");
+      } catch {
+        notify(translate(language, "예시 이미지를 불러오지 못했습니다. 직접 이미지를 추가해주세요."), "error");
+      } finally {
+        setBusy(false);
+      }
+    })();
+  }, [convertOne, language, languageReady, notify]);
 
   const convertCurrent = async () => {
     if (!current || busy) return;
@@ -742,7 +821,7 @@ export default function PaletteStudio() {
             {images.map((image, index) => <button key={image.id} className={`image-item ${selectedId === image.id ? "selected" : ""}`} onClick={() => { setSelectedId(image.id); setActiveSlot(null); setSamplingSlot(null); }}>
               {/* Object URL이 아닌 메모리 내 썸네일이므로 Next Image 최적화 대상이 아닙니다. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={image.thumbnail} alt="" /><span className="image-copy"><strong>{image.name}</strong><small>{image.width} × {image.height}px · #{index + 1}</small></span><i className={image.result ? "done" : "pending"}>{tr(image.result ? "완료" : "대기")}</i>
+              <img src={image.thumbnail} alt="" /><span className="image-copy"><strong>{getImageDisplayName(image, language)}</strong><small>{image.width} × {image.height}px · #{index + 1}</small></span><i className={image.result ? "done" : "pending"}>{tr(image.result ? "완료" : "대기")}</i>
             </button>)}
             {!images.length && <p className="empty-list">{tr("불러온 이미지가 없습니다.")}</p>}
           </div>
@@ -754,7 +833,7 @@ export default function PaletteStudio() {
         </aside>
 
         <section className="preview-panel panel">
-          <div className="panel-title"><div><span className="eyebrow">PREVIEW</span><h2>{current?.name ?? tr("미리보기")}</h2></div>{current && <span className="dimension">{current.width} × {current.height}px</span>}</div>
+          <div className="panel-title"><div><span className="eyebrow">PREVIEW</span><h2>{current ? getImageDisplayName(current, language) : tr("미리보기")}</h2></div>{current && <span className="dimension">{current.width} × {current.height}px</span>}</div>
           {current ? <div className={`compare ${sampling ? "sampling" : ""}`}>
             <figure><figcaption><span>{tr("원본 + 보정 미리보기")}</span><small>{tr("휠 확대 · 드래그 이동 · 클릭 색상 추출")}</small></figcaption><div className="canvas-wrap checker"><CanvasPreview key={`${current.id}-original`} item={current} result={false} onPick={pick} language={language} /></div></figure>
             <figure><figcaption><span>{tr("변환 결과")}</span><small>{current.result ? tr("{count}색 · 휠 확대 · 드래그 이동", { count: current.palette.length }) : tr("변환 전")}</small></figcaption><div className="canvas-wrap checker">{current.result ? <CanvasPreview key={`${current.id}-result`} item={current} result onPick={pick} language={language} /> : <div className="result-placeholder"><span>◇</span><p>{tr("변환 실행 후 결과가 표시됩니다.")}</p></div>}</div></figure>

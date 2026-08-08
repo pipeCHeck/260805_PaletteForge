@@ -1,0 +1,162 @@
+{
+  "version": 1,
+  "includedSections": [
+    "adjust",
+    "palette"
+  ],
+  "export": {
+    "format": "png",
+    "fileName": "ComfyUI_10061_-converted",
+    "preserveAlpha": true,
+    "quality": 0.92,
+    "background": "#FFFFFF",
+    "keepOriginalSize": true
+  },
+  "dithering": false,
+  "adjustments": {
+    "brightness": 0,
+    "contrast": 0,
+    "saturation": 0,
+    "hue": 0
+  },
+  "pixelation": {
+    "enabled": false,
+    "size": 8,
+    "alphaMode": "smooth"
+  },
+  "colorCount": 13,
+  "slots": [
+    {
+      "fixed": true,
+      "color": [
+        255,
+        255,
+        255
+      ],
+      "weight": 1.35,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        3,
+        5,
+        60
+      ],
+      "weight": 0.7,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        22,
+        2,
+        82
+      ],
+      "weight": 0.7,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        48,
+        4,
+        103
+      ],
+      "weight": 0.7,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        47,
+        51,
+        163
+      ],
+      "weight": 0.7,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        96,
+        169,
+        206
+      ],
+      "weight": 0.8,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        5,
+        201,
+        252
+      ],
+      "weight": 0.79,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        186,
+        238,
+        104
+      ],
+      "weight": 1,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        254,
+        224,
+        57
+      ],
+      "weight": 0.94,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        249,
+        167,
+        122
+      ],
+      "weight": 0.91,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        244,
+        103,
+        149
+      ],
+      "weight": 0.74,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        207,
+        59,
+        150
+      ],
+      "weight": 0.7,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        125,
+        14,
+        147
+      ],
+      "weight": 0.7,
+      "weightMode": "auto"
+    }
+  ],
+  "paletteDiversity": 50,
+  "surfaceCleanup": 50
+}

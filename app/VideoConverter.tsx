@@ -22,6 +22,7 @@ import {
   createAnalysisTimestamps,
   createCommonPaletteSettings,
   createFramePaletteSettings,
+  estimateVideoWorkload,
   formatVideoElapsedTime,
   isSupportedVideoFile,
   stagedVideoProgress,
@@ -91,6 +92,17 @@ function baseName(name: string) {
   return name.replace(/\.[^.]+$/, "") || "palette-forge-video";
 }
 
+function fileSizeLabel(bytes: number) {
+  const megabytes = Math.max(0, bytes) / (1024 * 1024);
+  return megabytes >= 1024 ? `${(megabytes / 1024).toFixed(1)} GB` : `${megabytes.toFixed(megabytes >= 100 ? 0 : 1)} MB`;
+}
+
+function browserDeviceMemory() {
+  if (typeof navigator === "undefined") return null;
+  const value = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : null;
+}
+
 function drawLivePreviewFrame(source: HTMLCanvasElement, canvas: HTMLCanvasElement, lastRenderedAt: number, force: boolean, smooth: boolean) {
   const now = performance.now();
   if (!force && now - lastRenderedAt < 250) return null;
@@ -149,6 +161,13 @@ export default function VideoConverter({
   const tr = (source: string, values: Record<string, string | number> = {}) => translate(language, source, values);
   const busy = loadingFile || status === "analysis" || status === "conversion" || status === "finalizing";
   const outputSpec = useMemo(() => video ? videoOutputSpec(video.file) : null, [video]);
+  const workload = useMemo(() => video ? estimateVideoWorkload({
+    width: video.width,
+    height: video.height,
+    duration: video.duration,
+    fileSize: video.file.size,
+    deviceMemory: browserDeviceMemory(),
+  }) : null, [video]);
 
 
   useEffect(() => () => {
@@ -376,6 +395,7 @@ export default function VideoConverter({
 
   const convertVideo = async () => {
     if (!video || !outputSpec || busy) return;
+    if (workload?.level === "risk" && !window.confirm(tr("이 영상은 브라우저 메모리 부담이 매우 클 것으로 예상됩니다. 탭이 중단될 수 있습니다. 그래도 변환할까요?"))) return;
     cancelRequested.current = false;
     clearResult();
     workStartedAtRef.current = currentWorkTime();
@@ -520,7 +540,14 @@ export default function VideoConverter({
             <strong>{loadingFile ? tr("영상을 확인하고 있습니다…") : video ? tr("다른 영상 선택") : tr("MP4 · WebM 영상 선택")}</strong>
             <small>{tr("한 번에 한 개의 영상을 처리합니다.")}</small>
           </button>
-          {video && <div className="video-meta"><strong title={video.file.name}>{video.file.name}</strong><span>{video.width} × {video.height}</span><span>{secondsLabel(video.duration)}</span><span>{video.videoCodec}{video.audioCodec ? ` · ${video.audioCodec}` : ` · ${tr("오디오 없음")}`}</span></div>}
+          {video && <div className="video-source-info">
+            <div className="video-meta"><strong title={video.file.name}>{video.file.name}</strong><span>{fileSizeLabel(video.file.size)}</span><span>{video.width} × {video.height}</span><span>{secondsLabel(video.duration)}</span><span>{video.videoCodec}{video.audioCodec ? ` · ${video.audioCodec}` : ` · ${tr("오디오 없음")}`}</span></div>
+            {workload && <div className={`video-workload is-${workload.level}`}>
+              <div><span>{tr("예상 처리 부담")}</span><strong>{tr(workload.level === "smooth" ? "원활" : workload.level === "caution" ? "주의" : "위험")}</strong></div>
+              <p>{tr(workload.level === "smooth" ? "현재 영상 정보 기준으로 비교적 원활한 처리가 예상됩니다." : workload.level === "caution" ? "처리가 오래 걸리거나 메모리 사용량이 커질 수 있습니다. 다른 탭을 닫는 것을 권장합니다." : "브라우저 탭이 중단될 가능성이 있습니다. 영상을 짧게 자르거나 해상도를 낮추는 것을 권장합니다.")}</p>
+              <small>{workload.factors.length > 0 && <b>{workload.factors.map((factor) => tr(factor)).join(" · ")} · </b>}{tr("브라우저가 제공하는 정보로 계산한 추정치이며 실제 여유 메모리와 다를 수 있습니다.")}</small>
+            </div>}
+          </div>}
         </section>
 
         <div className="video-preview-grid">

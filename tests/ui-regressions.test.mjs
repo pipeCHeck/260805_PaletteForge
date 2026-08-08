@@ -102,7 +102,8 @@ test("원본 미리보기는 우하단에서 원본과 보정 화면을 즉시 �
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../app/i18n.ts", import.meta.url), "utf8"),
   ]);
-  assert.match(component, /const \[showAdjusted, setShowAdjusted\] = useState\(true\)/);
+  assert.match(component, /const \[showAdjusted, setShowAdjusted\] = useState\(\(\) => result \|\| !item\.isExample\)/);
+  assert.match(component, /isExample\?: boolean/);
   assert.match(component, /if \(!showAdjusted\) \{\s*draw\(item\.original\)/);
   assert.match(component, /className="preview-mode-toggle" role="group"/);
   assert.match(component, /setShowAdjusted\(false\).*setShowAdjusted\(true\)/s);
@@ -203,6 +204,40 @@ test("clipboard image paste uses the existing image loading flow without hijacki
   assert.match(translations, /클립보드에서 \{count\}개 이미지를 불러왔습니다/);
 });
 
+test("opening the editor loads one random bundled example with its settings and converts it", async () => {
+  const [component, translations] = await Promise.all([
+    readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/i18n.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(component, /const EXAMPLE_ASSETS = \[/);
+  assert.equal((component.match(/id: "example-\d{2}"/g) ?? []).length, 8);
+  assert.match(component, /crypto\.getRandomValues\(new Uint32Array\(1\)\)/);
+  assert.match(component, /fetch\(`\/examples\/\$\{example\.id\}\.png`\)/);
+  assert.match(component, /fetch\(`\/examples\/\$\{example\.id\}\.json`\)/);
+  assert.match(component, /deserializeSettingsDocument\(settingsText, defaultSettings\(\)\)/);
+  assert.match(component, /isExample: true/);
+  assert.match(component, /exampleTitle: example\.name/);
+  assert.match(component, /getImageDisplayName\(image, language\)/);
+  assert.match(component, /getImageDisplayName\(current, language\)/);
+  assert.match(translations, /"별빛을 품은 마녀": "星を抱く魔女"/);
+  assert.match(translations, /"별빛을 품은 마녀": "Witch of Starlight"/);
+  assert.match(translations, /"예시 · \{name\}": "Example · \{name\}"/);
+  assert.match(component, /const converted = await convertOne\(source\)/);
+  assert.match(component, /setImages\(\[converted\]\)/);
+  assert.match(component, /items\.filter\(\(item\) => item\.id !== exampleId\)/);
+  const exampleFiles = await Promise.all(Array.from({ length: 8 }, (_, index) => {
+    const number = String(index + 1).padStart(2, "0");
+    return Promise.all([
+      readFile(new URL(`../public/examples/example-${number}.png`, import.meta.url)),
+      readFile(new URL(`../public/examples/example-${number}.json`, import.meta.url), "utf8"),
+    ]);
+  }));
+  for (const [image, settings] of exampleFiles) {
+    assert.ok(image.length > 1000);
+    assert.equal(JSON.parse(settings).version, 1);
+  }
+});
+
 test("service guide and legal pages provide clear navigation, local-processing disclosure, and contact", async () => {
   const [component, studio, guideRoute, privacyRoute, termsRoute, css] = await Promise.all([
     readFile(new URL("../app/InfoPage.tsx", import.meta.url), "utf8"),
@@ -264,7 +299,7 @@ test("Korean information typography keeps words intact and balances prominent he
   assert.match(css, /\.local-promise h2 \{ max-width: 820px;/);
 });
 
-test("ad placements reserve policy-aware responsive slots before approval", async () => {
+test("ad infrastructure remains available but renders no boxes or ad requests before approval", async () => {
   const [studio, placement, css] = await Promise.all([
     readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/AdPlacement.tsx", import.meta.url), "utf8"),
@@ -277,6 +312,9 @@ test("ad placements reserve policy-aware responsive slots before approval", asyn
   assert.match(placement, /data-ad-slot=\{slot\}/);
   assert.match(placement, /data-ad-format=\{placement === "rail" \? "rectangle" : "horizontal"\}/);
   assert.match(placement, /data-full-width-responsive="true"/);
+  assert.match(placement, /const ADVERTISING_ENABLED = false/);
+  assert.match(placement, /if \(!ADVERTISING_ENABLED \|\| !slot \|\| initialized\.current\) return/);
+  assert.match(placement, /if \(!ADVERTISING_ENABLED\) return null/);
   assert.match(css, /\.ad-placement-rail/);
   assert.match(css, /\.ad-placement-banner/);
   assert.match(css, /\.ad-placement-banner \{[^}]*display:none;/);

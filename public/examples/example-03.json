@@ -1,0 +1,112 @@
+{
+  "version": 1,
+  "includedSections": [
+    "adjust",
+    "palette"
+  ],
+  "export": {
+    "format": "png",
+    "fileName": "clipboard-1786182067367-converted",
+    "preserveAlpha": true,
+    "quality": 0.92,
+    "background": "#FFFFFF",
+    "keepOriginalSize": true
+  },
+  "dithering": false,
+  "adjustments": {
+    "brightness": -10,
+    "contrast": 15,
+    "saturation": 0,
+    "hue": 0
+  },
+  "pixelation": {
+    "enabled": true,
+    "size": 3,
+    "alphaMode": "smooth"
+  },
+  "colorCount": 8,
+  "slots": [
+    {
+      "fixed": true,
+      "color": [
+        7,
+        29,
+        43
+      ],
+      "weight": 0.77,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        11,
+        60,
+        93
+      ],
+      "weight": 0.7,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        14,
+        94,
+        120
+      ],
+      "weight": 0.7,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        22,
+        125,
+        154
+      ],
+      "weight": 0.7,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        69,
+        184,
+        172
+      ],
+      "weight": 0.7,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        112,
+        207,
+        190
+      ],
+      "weight": 0.7,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        168,
+        230,
+        207
+      ],
+      "weight": 0.71,
+      "weightMode": "auto"
+    },
+    {
+      "fixed": true,
+      "color": [
+        234,
+        249,
+        243
+      ],
+      "weight": 0.9,
+      "weightMode": "auto"
+    }
+  ],
+  "paletteDiversity": 50,
+  "surfaceCleanup": 100
+}
