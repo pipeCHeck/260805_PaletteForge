@@ -4,6 +4,7 @@ import { defaultSettings, mapPixels, mapPixelsWithTemporalHysteresis } from "../
 import {
   createAnalysisTimestamps,
   createCommonPaletteSettings,
+  createDefaultVideoSettings,
   createFrameSignature,
   createFramePaletteSettings,
   compareFrameSignatures,
@@ -18,6 +19,18 @@ import {
   videoOutputSpec,
   videoPaletteSummaryColor,
 } from "../lib/video.mjs";
+
+test("video settings start independently with a 16-color palette", () => {
+  const imageSettings = defaultSettings();
+  imageSettings.colorCount = 3;
+  imageSettings.adjustments.brightness = 42;
+
+  const videoSettings = createDefaultVideoSettings();
+  assert.equal(videoSettings.colorCount, 16);
+  assert.equal(videoSettings.slots.length, 16);
+  assert.equal(videoSettings.adjustments.brightness, 0);
+  assert.notStrictEqual(videoSettings, imageSettings);
+});
 
 function solidFrame(width, height, color, alpha = 255) {
   const pixels = new Uint8ClampedArray(width * height * 4);

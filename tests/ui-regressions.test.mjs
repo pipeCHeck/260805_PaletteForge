@@ -2,6 +2,16 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
+test("video converter does not inherit the selected image settings", async () => {
+  const [studio, converter] = await Promise.all([
+    readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/VideoConverter.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.doesNotMatch(studio, /seedSettings=/);
+  assert.doesNotMatch(converter, /seedSettings/);
+  assert.match(converter, /useState<Settings>\(\(\) => createDefaultVideoSettings\(\)\)/);
+});
+
 test("고정 팔레트 행은 Tailwind의 fixed 위치 유틸리티와 충돌하지 않는다", async () => {
   const [component, css] = await Promise.all([
     readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),

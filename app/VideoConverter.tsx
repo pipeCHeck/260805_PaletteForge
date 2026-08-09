@@ -17,10 +17,11 @@ import {
   WebMOutputFormat,
   type VideoCodec,
 } from "mediabunny";
-import { applyPalettePreset, cloneSettings, cyclePaletteSlotMode, defaultSettings, fixPaletteSlot, fixPaletteSlotWeight, hexToRgb, normalizeSlotCount, paletteSlotMode, removePaletteSlot, resetPaletteSettings, rgbToHex } from "../lib/palette.mjs";
+import { applyPalettePreset, cloneSettings, cyclePaletteSlotMode, defaultSettings, fixPaletteSlot, fixPaletteSlotWeight, hexToRgb, normalizeSlotCount, paletteSlotMode, removePaletteSlot, rgbToHex } from "../lib/palette.mjs";
 import {
   createAnalysisTimestamps,
   createCommonPaletteSettings,
+  createDefaultVideoSettings,
   createFramePaletteSettings,
   estimateVideoWorkload,
   formatVideoElapsedTime,
@@ -126,16 +127,14 @@ function currentWorkTime() {
 export default function VideoConverter({
   open,
   language,
-  seedSettings,
   onClose,
 }: {
   open: boolean;
   language: Language;
-  seedSettings: Settings | null;
   onClose: () => void;
 }) {
   const [video, setVideo] = useState<VideoInfo | null>(null);
-  const [settings, setSettings] = useState<Settings>(() => normalizeSlotCount(cloneSettings(seedSettings ?? defaultSettings())));
+  const [settings, setSettings] = useState<Settings>(() => createDefaultVideoSettings());
   const [paletteMode, setPaletteMode] = useState<PaletteMode>("common");
   const [presetOpen, setPresetOpen] = useState(false);
   const [status, setStatus] = useState<"idle" | "analysis" | "conversion" | "finalizing" | "done" | "error" | "canceled">("idle");
@@ -287,8 +286,20 @@ export default function VideoConverter({
   };
 
   const resetVideoPalette = () => {
-    setNumericDrafts((drafts) => { const next = { ...drafts }; delete next.paletteTendency; return next; });
-    setSettings((current) => resetPaletteSettings(current));
+    const defaults = createDefaultVideoSettings();
+    setNumericDrafts((drafts) => {
+      const next = { ...drafts };
+      delete next.paletteTendency;
+      delete next.surfaceCleanup;
+      return next;
+    });
+    setSettings((current) => normalizeSlotCount({
+      ...cloneSettings(current),
+      colorCount: defaults.colorCount,
+      slots: defaults.slots,
+      paletteDiversity: defaults.paletteDiversity,
+      surfaceCleanup: defaults.surfaceCleanup,
+    }));
     setPresetOpen(false);
     clearResult();
     setMessage(tr("영상 팔레트의 고정 색상과 가중치를 초기화했습니다."));
