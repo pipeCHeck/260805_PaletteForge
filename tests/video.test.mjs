@@ -9,6 +9,7 @@ import {
   createFramePaletteSettings,
   compareFrameSignatures,
   estimatePaletteUsage,
+  estimateVideoRemainingTime,
   estimateVideoWorkload,
   FRAME_SCENE_COOLDOWN,
   formatVideoElapsedTime,
@@ -302,14 +303,27 @@ test("video output preserves the source container family", () => {
   assert.deepEqual(videoOutputSpec({ name: "movie.webm", type: "video/webm" }), { extension: "webm", mime: "video/webm", codec: "vp9", format: "webm" });
 });
 
-test("staged progress remains monotonic and reserves finalization", () => {
-  assert.equal(stagedVideoProgress("analysis", 0.5), 10);
-  assert.equal(stagedVideoProgress("conversion", 0), 20);
-  assert.equal(stagedVideoProgress("conversion", 0, false), 0);
-  assert.equal(stagedVideoProgress("conversion", 0.5, false), 49);
-  assert.equal(stagedVideoProgress("conversion", 1), 98);
+test("analysis and conversion each use an independent progress range", () => {
+  assert.equal(stagedVideoProgress("analysis", 0), 0);
+  assert.equal(stagedVideoProgress("analysis", 0.5), 50);
+  assert.equal(stagedVideoProgress("analysis", 1), 100);
+  assert.equal(stagedVideoProgress("conversion", 0), 0);
+  assert.equal(stagedVideoProgress("conversion", 0.5), 50);
+  assert.equal(stagedVideoProgress("conversion", 1), 99);
   assert.equal(stagedVideoProgress("finalizing", 1), 99);
   assert.equal(stagedVideoProgress("done", 1), 100);
+});
+
+test("video remaining time uses recent phase progress and avoids unstable edge ranges", () => {
+  const samples = [
+    { time: 0, progress: 0 },
+    { time: 5_000, progress: 10 },
+    { time: 10_000, progress: 20 },
+  ];
+  assert.equal(estimateVideoRemainingTime(samples, 20), 40);
+  assert.equal(estimateVideoRemainingTime([{ time: 0, progress: 0 }, { time: 5_000, progress: 0.5 }], 0.5), 995);
+  assert.equal(estimateVideoRemainingTime([{ time: 0, progress: 10 }, { time: 5_000, progress: 10 }], 10), null);
+  assert.equal(estimateVideoRemainingTime(samples, 99), null);
 });
 
 test("video elapsed time uses a stable clock format", () => {

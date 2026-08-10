@@ -103,10 +103,20 @@ function CanvasPreview({ item, result, onPick, language }: { item: ImageItem; re
   const [isFitView, setIsFitView] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
   const [showAdjusted, setShowAdjusted] = useState(() => result || !item.isExample);
+  const [previewModeLocked, setPreviewModeLocked] = useState(false);
   const [previewStatus, setPreviewStatus] = useState<{ settings: Settings; state: "ready" | "error" } | null>(null);
+  const adjustmentPreviewSignature = JSON.stringify({ adjustments: item.settings.adjustments, pixelation: item.settings.pixelation });
+  const previousAdjustmentPreviewSignature = useRef(adjustmentPreviewSignature);
   const tr = (source: string, values: Record<string, string | number> = {}) => translate(language, source, values);
   const isPreparing = !result && showAdjusted && previewStatus?.settings !== item.settings;
   const previewFailed = !result && showAdjusted && previewStatus?.settings === item.settings && previewStatus.state === "error";
+  useEffect(() => {
+    if (result || previousAdjustmentPreviewSignature.current === adjustmentPreviewSignature) return;
+    previousAdjustmentPreviewSignature.current = adjustmentPreviewSignature;
+    if (previewModeLocked) return;
+    const frame = window.requestAnimationFrame(() => setShowAdjusted(true));
+    return () => window.cancelAnimationFrame(frame);
+  }, [adjustmentPreviewSignature, previewModeLocked, result]);
   useEffect(() => {
     const canvas = ref.current;
     if (!canvas) return;
@@ -248,7 +258,7 @@ function CanvasPreview({ item, result, onPick, language }: { item: ImageItem; re
     {isPreparing && <div className="preview-processing" role="status" aria-live="polite"><i /><span><strong>{tr("미리보기 계산 중…")}</strong><small>{tr("색 보정과 픽셀화를 적용하고 있습니다.")}</small></span></div>}
     {previewFailed && <div className="preview-processing is-error" role="alert"><span><strong>{tr("미리보기를 계산하지 못했습니다.")}</strong><small>{tr("설정을 다시 변경하거나 이미지를 다시 불러와주세요.")}</small></span></div>}
     <div className="preview-control-bar">
-      {!result && <div className="preview-mode-toggle" role="group" aria-label={tr("원본과 보정 미리보기 전환")}><button type="button" aria-pressed={!showAdjusted} onClick={() => setShowAdjusted(false)}>{tr("원본")}</button><button type="button" aria-pressed={showAdjusted} onClick={() => setShowAdjusted(true)}>{tr("보정")}</button></div>}
+      {!result && <div className="preview-mode-toggle" role="group" aria-label={tr("원본과 보정 미리보기 전환")}><div className="preview-mode-choice"><button type="button" aria-pressed={!showAdjusted} onClick={() => setShowAdjusted(false)}>{tr("원본")}</button><button type="button" aria-pressed={showAdjusted} onClick={() => setShowAdjusted(true)}>{tr("보정")}</button></div><span className="preview-mode-divider" aria-hidden="true" /><button type="button" className="preview-mode-lock" aria-pressed={previewModeLocked} aria-label={tr(previewModeLocked ? "미리보기 자동 전환 잠금 해제" : "미리보기 자동 전환 잠금")} title={tr(previewModeLocked ? "미리보기 자동 전환 잠금 해제" : "미리보기 자동 전환 잠금")} onClick={() => setPreviewModeLocked((locked) => !locked)}><span className="preview-lock-glyph" aria-hidden="true" /></button></div>}
       <div className="zoom-controls"><span>{Math.round(view.zoom * 100)}%</span><button type="button" onClick={toggleFitView}>{tr(isFitView ? "화면 맞춤" : "100%로 보기")}</button></div>
     </div>
   </div>;

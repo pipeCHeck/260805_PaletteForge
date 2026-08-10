@@ -23,6 +23,7 @@ import {
   createCommonPaletteSettings,
   createDefaultVideoSettings,
   createFramePaletteSettings,
+  estimateVideoRemainingTime,
   estimateVideoWorkload,
   formatVideoElapsedTime,
   isSupportedVideoFile,
@@ -140,6 +141,7 @@ export default function VideoConverter({
   const [status, setStatus] = useState<"idle" | "analysis" | "conversion" | "finalizing" | "done" | "error" | "canceled">("idle");
   const [progress, setProgress] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [estimatedRemainingSeconds, setEstimatedRemainingSeconds] = useState<number | null>(null);
   const [hasWorkTime, setHasWorkTime] = useState(false);
   const [message, setMessage] = useState("");
   const [resultUrl, setResultUrl] = useState<string | null>(null);
@@ -156,6 +158,10 @@ export default function VideoConverter({
   const sourceUrlRef = useRef<string | null>(null);
   const resultUrlRef = useRef<string | null>(null);
   const workStartedAtRef = useRef<number | null>(null);
+  const phaseStartedAtRef = useRef<number | null>(null);
+  const phaseProgressRef = useRef(0);
+  const phaseProgressSamplesRef = useRef<Array<{ time: number; progress: number }>>([]);
+  const smoothedRemainingRef = useRef<number | null>(null);
   const cancelRequested = useRef(false);
   const tr = (source: string, values: Record<string, string | number> = {}) => translate(language, source, values);
   const busy = loadingFile || status === "analysis" || status === "conversion" || status === "finalizing";
@@ -167,6 +173,31 @@ export default function VideoConverter({
     fileSize: video.file.size,
     deviceMemory: browserDeviceMemory(),
   }) : null, [video]);
+  const measuring = status === "analysis" || status === "conversion" || status === "finalizing";
+  const remainingTimeLabel = status === "finalizing"
+    ? tr("파일 마무리 중")
+    : estimatedRemainingSeconds === null
+      ? tr("예상 시간 계산 중")
+      : tr("약 {time} 남음", { time: formatVideoElapsedTime(estimatedRemainingSeconds) });
+  const remainingTimeValue = status === "finalizing"
+    ? tr("마무리 중")
+    : estimatedRemainingSeconds === null
+      ? tr("계산 중")
+      : formatVideoElapsedTime(estimatedRemainingSeconds);
+
+  const startProgressPhase = (startedAt = currentWorkTime()) => {
+    phaseStartedAtRef.current = startedAt;
+    phaseProgressRef.current = 0;
+    phaseProgressSamplesRef.current = [{ time: startedAt, progress: 0 }];
+    smoothedRemainingRef.current = null;
+    setProgress(0);
+    setEstimatedRemainingSeconds(null);
+  };
+
+  const updatePhaseProgress = (value: number) => {
+    phaseProgressRef.current = value;
+    setProgress(value);
+  };
 
 
   useEffect(() => () => {
@@ -175,17 +206,34 @@ export default function VideoConverter({
   }, []);
 
   useEffect(() => {
-    const measuring = status === "analysis" || status === "conversion" || status === "finalizing";
     if (!measuring || workStartedAtRef.current === null) return;
     const updateElapsed = () => {
+      const now = currentWorkTime();
       if (workStartedAtRef.current !== null) {
-        setElapsedSeconds(Math.floor((currentWorkTime() - workStartedAtRef.current) / 1000));
+        setElapsedSeconds(Math.floor((now - workStartedAtRef.current) / 1000));
+      }
+      if (phaseStartedAtRef.current !== null) {
+        const samples = phaseProgressSamplesRef.current.filter((sample) => sample.time >= now - 15_000);
+        const lastSample = samples.at(-1);
+        if (!lastSample || now - lastSample.time >= 1_000) samples.push({ time: now, progress: phaseProgressRef.current });
+        phaseProgressSamplesRef.current = samples;
+        const rawRemaining = estimateVideoRemainingTime(samples, phaseProgressRef.current);
+        if (rawRemaining === null) {
+          smoothedRemainingRef.current = null;
+          setEstimatedRemainingSeconds(null);
+        } else {
+          const smoothed = smoothedRemainingRef.current === null
+            ? rawRemaining
+            : smoothedRemainingRef.current * 0.75 + rawRemaining * 0.25;
+          smoothedRemainingRef.current = smoothed;
+          setEstimatedRemainingSeconds(Math.round(smoothed));
+        }
       }
     };
     updateElapsed();
     const timer = window.setInterval(updateElapsed, 250);
     return () => window.clearInterval(timer);
-  }, [status]);
+  }, [measuring]);
 
   const resetLivePreview = () => {
     livePreviewReadyRef.current = false;
@@ -210,8 +258,11 @@ export default function VideoConverter({
 
   const stopWorkTimer = () => {
     if (workStartedAtRef.current === null) return;
-    setElapsedSeconds(Math.floor((currentWorkTime() - workStartedAtRef.current) / 1000));
+    const now = currentWorkTime();
+    setElapsedSeconds(Math.floor((now - workStartedAtRef.current) / 1000));
     workStartedAtRef.current = null;
+    phaseStartedAtRef.current = null;
+    setEstimatedRemainingSeconds(null);
   };
 
   const clearResult = () => {
@@ -221,8 +272,12 @@ export default function VideoConverter({
     setResultBlob(null);
     setResultPalette([]);
     resetLivePreview();
+    phaseProgressRef.current = 0;
+    phaseProgressSamplesRef.current = [];
+    smoothedRemainingRef.current = null;
     setProgress(0);
     setElapsedSeconds(0);
+    setEstimatedRemainingSeconds(null);
     setHasWorkTime(false);
     workStartedAtRef.current = null;
     setStatus("idle");
@@ -395,7 +450,7 @@ export default function VideoConverter({
         sample.close();
       }
       index += 1;
-      setProgress(stagedVideoProgress("analysis", index / timestamps.length));
+      updatePhaseProgress(stagedVideoProgress("analysis", index / timestamps.length));
       await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
     }
     if (!frames.length) throw new Error(tr("영상에서 분석할 프레임을 찾지 못했습니다."));
@@ -409,7 +464,9 @@ export default function VideoConverter({
     if (workload?.level === "risk" && !window.confirm(tr("이 영상은 브라우저 메모리 부담이 매우 클 것으로 예상됩니다. 탭이 중단될 수 있습니다. 그래도 변환할까요?"))) return;
     cancelRequested.current = false;
     clearResult();
-    workStartedAtRef.current = currentWorkTime();
+    const startedAt = currentWorkTime();
+    workStartedAtRef.current = startedAt;
+    startProgressPhase(startedAt);
     setElapsedSeconds(0);
     setHasWorkTime(true);
     setStatus(paletteMode === "common" ? "analysis" : "conversion");
@@ -424,8 +481,9 @@ export default function VideoConverter({
         setResultPalette(analyzed.palette);
       }
       if (cancelRequested.current) throw new ConversionCanceledError();
+      startProgressPhase();
       setStatus("conversion");
-      setProgress(stagedVideoProgress("conversion", 0, paletteMode === "common"));
+      updatePhaseProgress(stagedVideoProgress("conversion", 0));
       setMessage(tr("영상 프레임을 변환하고 있습니다."));
       const target = new BufferTarget();
       const format = outputSpec.format === "webm" ? new WebMOutputFormat() : new Mp4OutputFormat({ fastStart: "in-memory" });
@@ -481,11 +539,11 @@ export default function VideoConverter({
       const discardedAudio = conversion.discardedTracks.find(({ track }) => track.isAudioTrack());
       if (!conversion.isValid) throw new Error(tr("이 브라우저에서 선택한 영상 형식으로 인코딩할 수 없습니다."));
       if (video.audioCodec && discardedAudio) throw new Error(tr("원본 오디오를 그대로 유지할 수 없는 파일입니다."));
-      conversion.onProgress = (value) => setProgress(stagedVideoProgress("conversion", value, paletteMode === "common"));
+      conversion.onProgress = (value) => updatePhaseProgress(stagedVideoProgress("conversion", value));
       await conversion.execute();
       updateLivePreview(frameCanvas, true, !conversionSettings.pixelation.enabled);
       setStatus("finalizing");
-      setProgress(stagedVideoProgress("finalizing", 1));
+      updatePhaseProgress(stagedVideoProgress("finalizing", 1));
       setMessage(tr("영상 파일을 마무리하고 있습니다."));
       if (!target.buffer) throw new Error(tr("변환된 영상 파일을 만들지 못했습니다."));
       const blob = new Blob([target.buffer], { type: outputSpec.mime });
@@ -499,7 +557,7 @@ export default function VideoConverter({
       setResultUrl(url);
       stopWorkTimer();
       setStatus("done");
-      setProgress(stagedVideoProgress("done", 1));
+      updatePhaseProgress(stagedVideoProgress("done", 1));
       setMessage(tr(video.audioCodec ? "영상 변환이 완료되었습니다. 원본 오디오는 재압축하지 않고 유지했습니다." : "영상 변환이 완료되었습니다."));
     } catch (error) {
       stopWorkTimer();
@@ -566,7 +624,7 @@ export default function VideoConverter({
           <figure><figcaption>{tr("변환 결과")}</figcaption>{resultUrl ? <video src={resultUrl} controls playsInline /> : busy ? <div className={`video-live-preview-shell ${livePreviewReady ? "is-ready" : ""}`}>
             <canvas ref={livePreviewRef} className="video-live-preview" role="img" aria-label={tr("변환 중인 마지막 프레임 미리보기")} />
             {!livePreviewReady && <div className="video-live-placeholder">{tr(status === "analysis" ? "팔레트 분석이 끝나면 변환 프레임이 표시됩니다." : "첫 번째 변환 프레임을 준비하고 있습니다.")}</div>}
-            <span className="video-live-status">{tr(status === "analysis" ? "팔레트 분석 중" : status === "finalizing" ? "영상 마무리 중" : livePreviewReady ? "마지막 완료 프레임" : "프레임 변환 중")} · {progress}%{hasWorkTime && <> · {tr("작업 시간")} {formatVideoElapsedTime(elapsedSeconds)}</>}</span>
+            <span className="video-live-status">{tr(status === "analysis" ? "팔레트 분석 중" : status === "finalizing" ? "영상 마무리 중" : livePreviewReady ? "마지막 완료 프레임" : "프레임 변환 중")} · {progress}%{hasWorkTime && <> · {tr("경과 시간")} {formatVideoElapsedTime(elapsedSeconds)}</>}{measuring && <> · {remainingTimeLabel}</>}</span>
           </div> : <div className="video-empty">{tr("변환이 끝나면 결과를 확인할 수 있습니다.")}</div>}</figure>
         </div>
 
@@ -615,7 +673,7 @@ export default function VideoConverter({
         </div>
 
         {(busy || progress > 0 || message) && <section className={`video-progress-card ${status === "error" ? "is-error" : ""}`} aria-live="polite">
-          <div><strong>{message || tr("영상 변환 준비")}</strong><span className="video-progress-meta">{hasWorkTime && <span>{tr("작업 시간")} <time>{formatVideoElapsedTime(elapsedSeconds)}</time></span>}<output>{progress}%</output></span></div>
+          <div><strong>{message || tr("영상 변환 준비")}</strong><span className="video-progress-meta">{hasWorkTime && <span>{tr("경과 시간")} <time>{formatVideoElapsedTime(elapsedSeconds)}</time></span>}{measuring && <span>{tr("남은 예상 시간")} <strong className="video-progress-value">{remainingTimeValue}</strong></span>}<output>{progress}%</output></span></div>
           <progress max="100" value={progress}>{progress}%</progress>
           {busy && <small>{tr("브라우저에서 처리 중입니다. 이 탭을 닫지 마세요.")}</small>}
         </section>}

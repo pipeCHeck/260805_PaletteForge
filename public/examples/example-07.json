@@ -21,7 +21,7 @@
   },
   "pixelation": {
     "enabled": true,
-    "size": 7,
+    "size": 5,
     "alphaMode": "smooth"
   },
   "colorCount": 5,

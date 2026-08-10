@@ -121,8 +121,25 @@ test("원본 미리보기는 우하단에서 원본과 보정 화면을 즉시 �
   assert.match(component, /if \(!showAdjusted\) \{\s*draw\(item\.original\)/);
   assert.match(component, /className="preview-mode-toggle" role="group"/);
   assert.match(component, /setShowAdjusted\(false\).*setShowAdjusted\(true\)/s);
+  assert.match(component, /const adjustmentPreviewSignature = JSON\.stringify/);
+  assert.match(component, /previousAdjustmentPreviewSignature\.current === adjustmentPreviewSignature/);
+  assert.match(component, /if \(previewModeLocked\) return;/);
+  assert.match(component, /requestAnimationFrame\(\(\) => setShowAdjusted\(true\)\)/);
+  assert.match(component, /const \[previewModeLocked, setPreviewModeLocked\] = useState\(false\)/);
+  assert.match(component, /className="preview-mode-lock"/);
+  assert.match(component, /className="preview-mode-choice"/);
+  assert.match(component, /className="preview-mode-divider"/);
+  assert.match(component, /className="preview-lock-glyph"/);
+  assert.doesNotMatch(component, /🔒|🔓/);
+  assert.match(component, /setPreviewModeLocked\(\(locked\) => !locked\)/);
+  assert.match(css, /\.preview-mode-toggle \.preview-mode-lock/);
+  assert.match(css, /\.preview-lock-glyph::before/);
+  assert.match(css, /\.preview-mode-lock\[aria-pressed="false"\] \.preview-lock-glyph::before/);
+  assert.match(css, /\.preview-mode-lock\[aria-pressed="false"\] \.preview-lock-glyph::before \{[^}]*left: 5px;[^}]*border-radius: 0 4px 0 0;[^}]*transform: none;/);
+  assert.match(css, /\.preview-mode-choice button\[aria-pressed="true"\]/);
+  assert.match(css, /\.preview-mode-toggle \.preview-mode-lock\[aria-pressed="true"\]/);
   assert.match(css, /\.preview-control-bar \{[^}]*right: 8px;[^}]*bottom: 8px;/);
-  assert.match(css, /\.preview-mode-toggle button\[aria-pressed="true"\]/);
+  assert.doesNotMatch(css, /\.preview-mode-toggle button\[aria-pressed="true"\] \{/);
   assert.match(translations, /"원본과 보정 미리보기 전환": "Switch between original and adjusted previews"/);
 });
 
@@ -260,6 +277,7 @@ test("opening the editor loads one random bundled example with its settings and 
     assert.ok(image.length > 1000);
     assert.equal(JSON.parse(settings).version, 1);
   }
+  assert.equal(JSON.parse(exampleFiles[6][1]).pixelation.size, 5);
 });
 
 test("service guide and legal pages provide clear navigation, local-processing disclosure, and contact", async () => {
@@ -506,8 +524,17 @@ test("video palette presets are available and frame mode starts progress at zero
   assert.match(component, /className="video-slot-mode slot-tag"/);
   assert.match(component, /cyclePaletteSlotMode\(current, index, color\)/);
   assert.match(component, /fixPaletteSlotWeight\(current, index, color, value\)/);
-  assert.match(component, /stagedVideoProgress\("conversion", 0, paletteMode === "common"\)/);
-  assert.match(component, /stagedVideoProgress\("conversion", value, paletteMode === "common"\)/);
+  assert.match(component, /stagedVideoProgress\("conversion", 0\)/);
+  assert.match(component, /stagedVideoProgress\("conversion", value\)/);
+  assert.match(component, /estimateVideoRemainingTime\(samples, phaseProgressRef\.current\)/);
+  assert.match(component, /smoothedRemainingRef\.current \* 0\.75 \+ rawRemaining \* 0\.25/);
+  assert.match(component, /tr\("경과 시간"\)/);
+  assert.doesNotMatch(component, /tr\("단계 경과"\)/);
+  assert.match(component, /tr\("남은 예상 시간"\)/);
+  assert.match(component, /className="video-progress-value"/);
+  assert.match(css, /\.video-progress-meta time, \.video-progress-value \{[^}]*color: var\(--ink\);[^}]*font-weight: 850;/);
+  assert.match(component, /remainingTimeLabel/);
+  assert.match(translations, /"미리보기 자동 전환 잠금": "Lock automatic preview switching"/);
   assert.match(component, /now - lastRenderedAt < 250/);
   assert.match(component, /context\.drawImage\(source, 0, 0, width, height\)/);
   assert.match(component, /updateLivePreview\(frameCanvas, false/);
