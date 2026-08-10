@@ -396,7 +396,7 @@ export default function PaletteStudio() {
   useEffect(() => {
     let savedLanguage: string | null = null;
     try { savedLanguage = window.localStorage.getItem("palette-forge-language"); } catch { /* 저장소가 막힌 환경에서는 브라우저 언어를 사용합니다. */ }
-    const nextLanguage = savedLanguage === "ko" || savedLanguage === "ja" || savedLanguage === "en" ? savedLanguage : detectLanguage(window.navigator.language);
+    const nextLanguage = savedLanguage === "ko" || savedLanguage === "ja" || savedLanguage === "en" || savedLanguage === "es" ? savedLanguage : detectLanguage(window.navigator.language);
     document.documentElement.lang = nextLanguage;
     const timer = window.setTimeout(() => {
       setLanguage(nextLanguage);

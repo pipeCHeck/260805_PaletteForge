@@ -1,9 +1,12 @@
-export type Language = "ko" | "ja" | "en";
+import { ES_BY_ENGLISH } from "./es";
+
+export type Language = "ko" | "ja" | "en" | "es";
 
 export const LANGUAGE_OPTIONS: { value: Language; label: string; shortLabel: string }[] = [
   { value: "ko", label: "한국어", shortLabel: "KO" },
   { value: "ja", label: "日本語", shortLabel: "JA" },
   { value: "en", label: "English", shortLabel: "EN" },
+  { value: "es", label: "Español", shortLabel: "ES" },
 ];
 
 const ja: Record<string, string> = {
@@ -305,12 +308,17 @@ const en: Record<string, string> = {
   "영상의 색을 한 가지 기준으로 유지할지, 장면에 따라 계속 바꿀지 선택하는 곳입니다.": "Choose whether the video keeps one color standard or changes its palette with each scene.", "영상 전체를 먼저 분석한 뒤 끝까지 같은 색 목록을 사용합니다. 색 깜빡임이 적어 기본값으로 권장합니다.": "Analyzes the whole video first and uses the same color list throughout. Recommended by default because it reduces flicker.", "장면마다 어울리는 색을 다시 고릅니다. 장면 색은 잘 살아나지만 일부 영상에서는 색 변화가 보일 수 있습니다.": "Chooses colors again for each scene. Scene colors are represented better, but visible color shifts may appear in some videos.", "영상의 모든 프레임에 같은 색 보정과 픽셀 모양을 적용합니다.": "Applies the same color adjustments and pixel shape to every frame.", "영상 전체의 밝기와 밝고 어두운 부분의 차이를 조절합니다.": "Adjusts overall video brightness and the difference between light and dark areas.", "색의 선명함과 전체적인 색 계열을 조절합니다.": "Adjusts color intensity and the overall color family.", "변환 전에 영상을 정사각형 블록으로 묶습니다. 블록이 클수록 픽셀이 굵어집니다.": "Groups the video into square blocks before conversion. Larger blocks create coarser pixels.", "변환된 영상에 실제로 사용할 색의 수와 선택 기준을 정하는 곳입니다.": "Sets the color count and selection rules actually used in the converted video.", "공통 팔레트일 때": "With a common palette", "프리셋과 고정 색상, 가중치가 영상의 모든 프레임에 똑같이 적용됩니다.": "Presets, fixed colors, and weights apply equally to every frame.", "프레임별 팔레트일 때": "With per-frame palettes", "각 프레임이 색을 자동으로 다시 고르므로 아래 고정 색상과 가중치는 사용하지 않습니다.": "Each frame chooses colors again automatically, so the fixed colors and weights below are ignored.", "높일수록 작은 색 얼룩을 줄이고 넓은 색 면을 깔끔하게 만듭니다.": "Higher values reduce small color speckles and produce cleaner broad color areas.",
   "예상 처리 부담": "Estimated workload", "원활": "Smooth", "주의": "Caution", "위험": "Risk", "고해상도": "High resolution", "긴 재생시간": "Long duration", "큰 파일": "Large file", "제한적인 기기 메모리": "Limited device memory", "현재 영상 정보 기준으로 비교적 원활한 처리가 예상됩니다.": "This video is expected to process relatively smoothly based on its current information.", "처리가 오래 걸리거나 메모리 사용량이 커질 수 있습니다. 다른 탭을 닫는 것을 권장합니다.": "Processing may take longer or use substantial memory. Closing other tabs is recommended.", "브라우저 탭이 중단될 가능성이 있습니다. 영상을 짧게 자르거나 해상도를 낮추는 것을 권장합니다.": "The browser tab may stop responding. Shorten the video or lower its resolution before converting.", "브라우저가 제공하는 정보로 계산한 추정치이며 실제 여유 메모리와 다를 수 있습니다.": "This estimate uses information exposed by the browser and may differ from the memory actually available.", "이 영상은 브라우저 메모리 부담이 매우 클 것으로 예상됩니다. 탭이 중단될 수 있습니다. 그래도 변환할까요?": "This video is expected to place a very high load on browser memory and the tab may stop. Convert it anyway?",};
 
-const translations: Record<Exclude<Language, "ko">, Record<string, string>> = { ja, en };
+const es: Record<string, string> = Object.fromEntries(
+  Object.entries(en).map(([source, english]) => [source, ES_BY_ENGLISH[english] ?? english]),
+);
+
+const translations: Record<Exclude<Language, "ko">, Record<string, string>> = { ja, en, es };
 
 export function detectLanguage(value: string): Language {
   const normalized = value.toLowerCase();
   if (normalized.startsWith("ja")) return "ja";
   if (normalized.startsWith("ko")) return "ko";
+  if (normalized.startsWith("es")) return "es";
   return "en";
 }
 
@@ -323,10 +331,10 @@ export function localizeError(language: Language, message: string) {
   const direct = translate(language, message);
   if (direct !== message || language === "ko") return direct;
   const version = message.match(/^지원하지 않는 설정 버전입니다: (.+)$/);
-  if (version) return language === "ja" ? `対応していない設定バージョンです: ${version[1]}` : `Unsupported settings version: ${version[1]}`;
+  if (version) return language === "ja" ? `対応していない設定バージョンです: ${version[1]}` : language === "es" ? `Versión de ajustes no compatible: ${version[1]}` : `Unsupported settings version: ${version[1]}`;
   const colorCount = message.match(/^최종 색상 수는 1~(\d+)의 정수여야 합니다\.$/);
-  if (colorCount) return language === "ja" ? `最終色数は1～${colorCount[1]}の整数である必要があります。` : `The final color count must be an integer from 1 to ${colorCount[1]}.`;
+  if (colorCount) return language === "ja" ? `最終色数は1～${colorCount[1]}の整数である必要があります。` : language === "es" ? `El número final de colores debe ser un entero entre 1 y ${colorCount[1]}.` : `The final color count must be an integer from 1 to ${colorCount[1]}.`;
   const slot = message.match(/^(\d+)번 슬롯(.*)$/);
-  if (slot) return language === "ja" ? `${slot[1]}番スロットが正しくありません。` : `Slot ${slot[1]} is invalid.`;
+  if (slot) return language === "ja" ? `${slot[1]}番スロットが正しくありません。` : language === "es" ? `La ranura ${slot[1]} no es válida.` : `Slot ${slot[1]} is invalid.`;
   return message;
 }

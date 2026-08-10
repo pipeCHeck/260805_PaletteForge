@@ -206,10 +206,11 @@ test("theme toggle switches and persists light and dark modes", async () => {
   assert.match(css, /\.theme-toggle/);
 });
 
-test("language selector switches and persists Korean, Japanese, and English", async () => {
-  const [component, translations, css] = await Promise.all([
+test("language selector switches and persists Korean, Japanese, English, and Spanish", async () => {
+  const [component, translations, spanish, css] = await Promise.all([
     readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/i18n.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/es.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ]);
   assert.match(component, /palette-forge-language/);
@@ -219,6 +220,12 @@ test("language selector switches and persists Korean, Japanese, and English", as
   assert.match(translations, /value: "ko", label: "한국어"/);
   assert.match(translations, /value: "ja", label: "日本語"/);
   assert.match(translations, /value: "en", label: "English"/);
+  assert.match(translations, /value: "es", label: "Español"/);
+  assert.match(translations, /normalized\.startsWith\("es"\)/);
+  assert.match(component, /savedLanguage === "es"/);
+  assert.match(translations, /ES_BY_ENGLISH/);
+  assert.match(spanish, /"Final palette": "Paleta final"/);
+  assert.match(spanish, /"Video palette conversion": "Conversión de paleta de vídeo"/);
   assert.match(css, /\.language-control/);
 });
 
@@ -295,9 +302,11 @@ test("service guide and legal pages provide clear navigation, local-processing d
   assert.match(component, /이미지와 영상의 색을 원하는 스타일로 다시 설계하세요/);
   assert.match(component, /画像と動画の色を、思いどおりのスタイルへ/);
   assert.match(component, /Reshape the colors of images and videos/);
+  assert.match(component, /Rediseña los colores de tus imágenes y vídeos/);
   assert.match(component, /공통 팔레트/);
   assert.match(component, /フレーム別モード/);
   assert.match(component, /Per-frame mode/);
+  assert.match(component, /modo por fotograma/);
   assert.match(component, /github\.com\/pipeCHeck\/260805_PaletteForge\/issues/);
   assert.match(component, /Google AdSense와 광고 쿠키/);
   assert.match(component, /미디어와 권리/);
