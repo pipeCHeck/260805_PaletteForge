@@ -38,7 +38,6 @@ export const ES_BY_ENGLISH: Record<string, string> = {
   "Example": "Ejemplo",
   "Example · {name}": "Ejemplo · {name}",
   "Witch of Starlight": "Bruja de luz estelar",
-  "Sunlit Window": "Ventana soleada",
   "City Monument": "Monumento urbano",
   "Knight of the Silver Blade": "Caballero de la espada de plata",
   "Golden Carbonara": "Carbonara dorada",

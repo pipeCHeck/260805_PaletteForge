@@ -249,7 +249,9 @@ test("opening the editor loads one random bundled example with its settings and 
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ]);
   assert.match(component, /const EXAMPLE_ASSETS = \[/);
-  assert.equal((component.match(/id: "example-\d{2}"/g) ?? []).length, 8);
+  const exampleIds = [...component.matchAll(/id: "(example-\d{2})"/g)].map((match) => match[1]);
+  assert.equal(exampleIds.length, 7);
+  assert.ok(!exampleIds.includes("example-02"));
   assert.match(component, /crypto\.getRandomValues\(new Uint32Array\(1\)\)/);
   assert.match(component, /fetch\(`\/examples\/\$\{example\.id\}\.png`\)/);
   assert.match(component, /fetch\(`\/examples\/\$\{example\.id\}\.json`\)/);
@@ -273,18 +275,17 @@ test("opening the editor loads one random bundled example with its settings and 
   assert.match(component, /setImages\(\(items\) => \[\.\.\.items, \.\.\.loaded\]\)/);
   assert.match(component, /setSelectedId\(loaded\[0\]\.id\)/);
   assert.doesNotMatch(component, /items\.filter\(\(item\) => item\.id !== exampleId\)/);
-  const exampleFiles = await Promise.all(Array.from({ length: 8 }, (_, index) => {
-    const number = String(index + 1).padStart(2, "0");
+  const exampleFiles = await Promise.all(exampleIds.map((id) => {
     return Promise.all([
-      readFile(new URL(`../public/examples/example-${number}.png`, import.meta.url)),
-      readFile(new URL(`../public/examples/example-${number}.json`, import.meta.url), "utf8"),
+      readFile(new URL(`../public/examples/${id}.png`, import.meta.url)),
+      readFile(new URL(`../public/examples/${id}.json`, import.meta.url), "utf8"),
     ]);
   }));
   for (const [image, settings] of exampleFiles) {
     assert.ok(image.length > 1000);
     assert.equal(JSON.parse(settings).version, 1);
   }
-  assert.equal(JSON.parse(exampleFiles[6][1]).pixelation.size, 5);
+  assert.equal(JSON.parse(exampleFiles[exampleIds.indexOf("example-07")][1]).pixelation.size, 5);
 });
 
 test("service guide and legal pages provide clear navigation, local-processing disclosure, and contact", async () => {

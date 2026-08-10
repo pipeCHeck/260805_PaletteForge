@@ -43,7 +43,6 @@ const AD_SLOTS = {
 
 const EXAMPLE_ASSETS = [
   { id: "example-01", name: "별빛을 품은 마녀" },
-  { id: "example-02", name: "햇살 머문 창가" },
   { id: "example-03", name: "도심의 기념비" },
   { id: "example-04", name: "은빛 검의 기사" },
   { id: "example-05", name: "황금빛 카르보나라" },
