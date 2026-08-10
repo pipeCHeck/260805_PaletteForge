@@ -365,9 +365,10 @@ export default function VideoConverter({
     setNumericDrafts((drafts) => { const next = { ...drafts }; delete next.brightness; delete next.contrast; delete next.saturation; delete next.hue; return next; });
     updateSettings((draft) => {
       draft.adjustments = cloneSettings(defaults.adjustments);
+      draft.colorize = cloneSettings(defaults.colorize);
       draft.pixelation = cloneSettings(defaults.pixelation);
     });
-    setMessage(tr("색 보정과 픽셀화 설정을 초기화했습니다."));
+    setMessage(tr("색 보정, 단일 색상화와 픽셀화 설정을 초기화했습니다."));
   };
 
   const resetVideoPalette = () => {
@@ -750,12 +751,15 @@ export default function VideoConverter({
           </section>
 
           <section className="video-setting-card video-adjustments">
-            <div className="video-setting-heading"><div className="video-section-title"><h3>{tr("색 보정")}</h3><SectionHelp label={tr("영상 색 보정 도움말 열기")} title={tr("색 보정")} summary={tr("영상의 모든 프레임에 같은 색 보정과 픽셀화를 적용할 수 있습니다.")}><ul><li><strong>{tr("밝기·대비")}</strong>{tr("영상 전체의 밝기와 밝고 어두운 부분의 차이를 조절합니다.")}</li><li><strong>{tr("채도·색조")}</strong>{tr("색의 선명함과 영상 전체의 색 계열을 바꿉니다.")}</li><li><strong>{tr("픽셀화")}</strong>{tr("픽셀화를 켜면 영상을 사각형 블록으로 표현하며, 블록 크기가 클수록 픽셀이 굵어집니다.")}</li></ul></SectionHelp></div><button type="button" className="text-button" disabled={busy} onClick={resetVideoAdjustments}>{tr("초기화")}</button></div>
+            <div className="video-setting-heading"><div className="video-section-title"><h3>{tr("색 보정")}</h3><SectionHelp label={tr("영상 색 보정 도움말 열기")} title={tr("색 보정")} summary={tr("영상의 모든 프레임에 같은 색 보정과 픽셀화를 적용할 수 있습니다.")}><ul><li><strong>{tr("밝기·대비")}</strong>{tr("영상 전체의 밝기와 밝고 어두운 부분의 차이를 조절합니다.")}</li><li><strong>{tr("채도·색조")}</strong>{tr("색의 선명함과 영상 전체의 색 계열을 바꿉니다.")}</li><li><strong>{tr("단일 색상화")}</strong>{tr("각 프레임의 밝기와 색 농도를 유지하면서 주요 색상 계열로 통일하며, 색조로 계열을 바꿉니다.")}</li><li><strong>{tr("픽셀화")}</strong>{tr("픽셀화를 켜면 영상을 사각형 블록으로 표현하며, 블록 크기가 클수록 픽셀이 굵어집니다.")}</li></ul></SectionHelp></div><button type="button" className="text-button" disabled={busy} onClick={resetVideoAdjustments}>{tr("초기화")}</button></div>
             {([ ["brightness", "밝기"], ["contrast", "대비"], ["saturation", "채도"], ["hue", "색조"] ] as const).map(([key, label]) => {
               const min = key === "hue" ? -180 : -100;
               const max = key === "hue" ? 180 : 100;
               return <label key={key}><span>{tr(label)}<input className="video-parameter-number compact-number-input" type="number" inputMode="numeric" min={min} max={max} step="1" aria-label={`${tr(label)} ${tr("숫자 직접 입력")}`} value={numericDrafts[key] ?? String(settings.adjustments[key])} disabled={busy} onChange={(event) => setNumericDrafts((drafts) => ({ ...drafts, [key]: event.target.value }))} onBlur={() => commitVideoNumber(key, label, min, max)} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} /></span><input type="range" min={min} max={max} value={settings.adjustments[key]} disabled={busy} onChange={(event) => updateVideoSlider(key, Number(event.target.value))} /></label>;
             })}
+            <div className={`video-colorize ${settings.colorize.enabled ? "is-enabled" : ""}`}>
+              <label><span><strong>{tr("단일 색상화")}</strong><small>{tr("주요 색상 계열로 통일 · 색조로 계열 변경")}</small></span><input type="checkbox" aria-label={tr("단일 색상화 사용")} checked={settings.colorize.enabled} disabled={busy} onChange={(event) => updateSettings((draft) => { draft.colorize.enabled = event.target.checked; })} /></label>
+            </div>
             <label className="video-pixel-toggle"><span>{tr("픽셀화")}</span><input type="checkbox" checked={settings.pixelation.enabled} disabled={busy} onChange={(event) => updateSettings((draft) => { draft.pixelation.enabled = event.target.checked; })} /></label>
             <label className="video-pixel-size"><span>{tr("블록 크기")}</span><input type="number" min="2" max="64" value={settings.pixelation.size} disabled={busy || !settings.pixelation.enabled} onChange={(event) => { const value = Number(event.target.value); if (value >= 2 && value <= 64) updateSettings((draft) => { draft.pixelation.size = value; }); }} /></label>
           </section>

@@ -201,6 +201,13 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .sliders .adjustment-number:focus { border-color: var(--orange); background: white; outline: 2px solid color-mix(in srgb, var(--orange) 18%, transparent); }
 input[type="range"] { width: 100%; height: 3px; margin: 8px 0 0; accent-color: var(--orange); }
 .pixelation-setting { margin: 0 17px 16px; padding: 10px 11px; border: 1px solid var(--line); border-radius: 9px; background: #f6f6f1; }
+.colorize-setting { margin: 0 17px 10px; padding: 10px 11px; border: 1px solid var(--line); border-radius: 9px; background: #f6f6f1; }
+.colorize-setting.is-enabled { border-color: #f4b19a; background: #fff7f2; }
+.colorize-toggle { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.colorize-toggle strong, .colorize-toggle small { display: block; }
+.colorize-toggle strong { font-size: 12px; }
+.colorize-toggle small { margin-top: 3px; color: var(--muted); font-size: 10px; }
+.colorize-toggle > input { width: 34px; height: 18px; accent-color: var(--orange); }
 .pixelation-setting.is-enabled { border-color: #f4b19a; background: #fff7f2; }
 .pixelation-toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .pixelation-toggle strong, .pixelation-toggle small { display: block; }
@@ -345,6 +352,8 @@ html[data-theme="dark"] .empty-glyph { background: #39241d; border-color: #65362
 html[data-theme="dark"] .sliders output { color: #d1d5cb; background: #2b3029; }
 html[data-theme="dark"] .pixelation-setting { background: #20231f; }
 html[data-theme="dark"] .pixelation-setting.is-enabled { border-color: #8b503d; background: #32231e; }
+html[data-theme="dark"] .colorize-setting { background: #20231f; }
+html[data-theme="dark"] .colorize-setting.is-enabled { border-color: #8b503d; background: #32231e; }
 html[data-theme="dark"] .pixelation-size { border-color: #3a3f38; }
 html[data-theme="dark"] .count-field,
 html[data-theme="dark"] .settings-dialog-note { color: #c4c8be; background: #242821; }
@@ -490,6 +499,12 @@ html[data-theme="dark"] .ad-pending strong { color:#b2b7ad; background:#282c26; 
 .video-parameter-number.compact-number-input { width: 52px; min-height: 26px; padding-block: 2px; font-size: 11px; }
 .video-adjustments input[type="range"], .video-diversity input[type="range"], .video-surface-cleanup input[type="range"] { width: 100%; margin: 6px 0 0; accent-color: var(--orange); }
 .video-pixel-toggle, .video-pixel-size { margin-top: 11px; padding-top: 10px; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--line); font-size: 10px; font-weight: 750; }
+.video-colorize { margin-top: 11px; padding: 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+.video-colorize.is-enabled { border-color: #f4b19a; background: #fff4ee; }
+.video-colorize > label { display: flex; align-items: center; justify-content: space-between; gap: 9px; font-size: 10px; }
+.video-colorize strong, .video-colorize small { display: block; }
+.video-colorize small { margin-top: 2px; color: var(--muted); font-size: 8px; font-weight: 500; }
+.video-colorize > label:first-child > input { width: 17px; height: 17px; accent-color: var(--orange); }
 .video-pixel-toggle input { width: 17px; height: 17px; accent-color: var(--orange); }
 .video-pixel-size input, .video-setting-heading input, .video-weight { width: 62px; min-height: 30px; padding: 4px 7px; border: 1px solid var(--line); border-radius: 7px; color: var(--ink); background: white; text-align: right; font-size: 11px; }
 .video-setting-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
@@ -543,6 +558,8 @@ html[data-theme="dark"] .video-workload.is-risk { border-color: #744033; backgro
 html[data-theme="dark"] .video-workload.is-risk > div strong { color: #f0b4a4; background: #603226; }
 html[data-theme="dark"] .video-drop-button:hover:not(:disabled), html[data-theme="dark"] .video-mode-option.is-selected { background: #38241d; }
 html[data-theme="dark"] .video-mode-option { background: #191c18; }
+html[data-theme="dark"] .video-colorize { background: #191c18; }
+html[data-theme="dark"] .video-colorize.is-enabled { border-color: #8b503d; background: #38241d; }
 html[data-theme="dark"] .video-acceleration select { color: var(--ink); background: #252923; }
 html[data-theme="dark"] .video-acceleration-notice { color: #b9e1c3; background: #203126; }
 html[data-theme="dark"] .video-acceleration-notice.is-fallback { color: #f2bc94; background: #39291f; }

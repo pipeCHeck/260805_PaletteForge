@@ -71,10 +71,21 @@ test("팔레트 슬롯 창은 위치 제어가 가능한 내장 색상 선택기
   assert.match(css, /\.color-picker-area \{[^}]*border:\s*0;[^}]*outline:\s*0;/);
 });
 
-test("색 보정 패널은 픽셀화 온오프, 블록 크기, 알파 방식을 제공한다", async () => {
-  const component = await readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8");
+test("색 보정 패널은 단일 색상화와 픽셀화 설정을 제공한다", async () => {
+  const [component, video] = await Promise.all([
+    readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/VideoConverter.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.match(component, /className="colorize-toggle"/);
+  assert.match(component, /settings\.colorize\.enabled/);
+  assert.match(component, /주요 색상 계열로 통일 · 색조로 계열 변경/);
+  assert.doesNotMatch(component, /settings\.colorize\.color/);
+  assert.doesNotMatch(video, /settings\.colorize\.color/);
+  assert.doesNotMatch(component, /단일 색상화 기준 색상/);
+  assert.doesNotMatch(video, /단일 색상화 기준 색상/);
   assert.match(component, /className="pixelation-toggle"/);
   assert.match(component, /settings\.pixelation\.enabled/);
+  assert.match(component, /current\?\.settings\.pixelation\.enabled && <div id="image-pixelation-details" className="pixelation-details">/);
   assert.match(component, /settings\.pixelation\.size/);
   assert.match(component, /settings\.pixelation\.alphaMode/);
   assert.match(component, /value="binary"/);

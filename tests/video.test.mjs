@@ -31,6 +31,7 @@ test("video settings start independently with a 16-color palette", () => {
   assert.equal(videoSettings.colorCount, 16);
   assert.equal(videoSettings.slots.length, 16);
   assert.equal(videoSettings.adjustments.brightness, 0);
+  assert.equal(videoSettings.surfaceCleanup, 0);
   assert.notStrictEqual(videoSettings, imageSettings);
 });
 

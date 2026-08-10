@@ -41,6 +41,37 @@ test("면 정리 기본값은 균형인 50이다", () => {
   assert.equal(defaultSettings().surfaceCleanup, 50);
 });
 
+test("단일 색상화는 주된 색상 계열로 통일되고 기존 보정과 알파를 그대로 반영한다", () => {
+  const source = pixels([[80, 190, 90], [75, 180, 85], [70, 170, 80], [0, 195, 255], [255, 0, 166], [20, 40, 60, 0]]);
+  const settings = defaultSettings();
+  settings.colorize = { enabled: true };
+  const { adjusted } = prepareImage(source, settings, 6, 1);
+  const firstLab = rgbToOklab(Array.from(adjusted.slice(0, 3)));
+  const targetHue = Math.atan2(firstLab[2], firstLab[1]);
+  for (let index = 0; index < 5; index += 1) {
+    const originalLab = rgbToOklab(Array.from(source.slice(index * 4, index * 4 + 3)));
+    const resultLab = rgbToOklab(Array.from(adjusted.slice(index * 4, index * 4 + 3)));
+    const resultHue = Math.atan2(resultLab[2], resultLab[1]);
+    const hueDifference = Math.abs(Math.atan2(Math.sin(resultHue - targetHue), Math.cos(resultHue - targetHue)));
+    assert.ok(hueDifference < 0.12);
+    assert.ok(Math.abs(originalLab[0] - resultLab[0]) < 0.035);
+  }
+  assert.deepEqual(Array.from(adjusted.slice(20, 24)), [20, 40, 60, 0]);
+
+  const hueShiftedSettings = cloneSettings(settings);
+  hueShiftedSettings.adjustments.hue = 90;
+  const shifted = prepareImage(source, hueShiftedSettings, 6, 1).adjusted;
+  const shiftedLab = rgbToOklab(Array.from(shifted.slice(0, 3)));
+  const shiftedHue = Math.atan2(shiftedLab[2], shiftedLab[1]);
+  const hueMovement = Math.abs(Math.atan2(Math.sin(shiftedHue - targetHue), Math.cos(shiftedHue - targetHue)));
+  assert.ok(hueMovement > 0.8);
+
+  const brighterSettings = cloneSettings(settings);
+  brighterSettings.adjustments.brightness = 25;
+  const brighter = prepareImage(source, brighterSettings, 6, 1).adjusted;
+  assert.ok(rgbToOklab(Array.from(brighter.slice(0, 3)))[0] > firstLab[0]);
+});
+
 test("팔레트 프리셋은 보정 설정을 유지하고 색상 고정·가중치 자동 상태로 적용한다", () => {
   const settings = configured(5);
   settings.adjustments.hue = 34;
@@ -322,6 +353,7 @@ test("설정 저장 후 불러오면 동일하게 복원된다", () => {
   const settings = configured(2);
   settings.slots[0] = { fixed: true, color: [240, 20, 0], weight: 1.7, weightMode: "manual" };
   settings.adjustments.hue = 25;
+  settings.colorize = { enabled: true };
   settings.pixelation = { enabled: true, size: 12, alphaMode: "binary" };
   settings.export.keepOriginalSize = false;
   assert.deepEqual(deserializeSettings(serializeSettings(settings)), settings);
@@ -330,6 +362,7 @@ test("설정 저장 후 불러오면 동일하게 복원된다", () => {
 test("ADJUST 전용 설정은 현재 팔레트를 유지하면서 보정과 픽셀화를 적용한다", () => {
   const saved = configured(2);
   saved.adjustments = { brightness: 21, contrast: -14, saturation: 37, hue: 48 };
+  saved.colorize = { enabled: true };
   saved.pixelation = { enabled: true, size: 9, alphaMode: "binary" };
   saved.export.fileName = "adjust-preset";
   const current = configured(4);
@@ -342,6 +375,7 @@ test("ADJUST 전용 설정은 현재 팔레트를 유지하면서 보정과 픽�
   const loaded = deserializeSettingsDocument(serialized, current);
   assert.deepEqual(loaded.includedSections, ["adjust"]);
   assert.deepEqual(loaded.settings.adjustments, saved.adjustments);
+  assert.deepEqual(loaded.settings.colorize, saved.colorize);
   assert.deepEqual(loaded.settings.pixelation, saved.pixelation);
   assert.equal(loaded.settings.colorCount, current.colorCount);
   assert.deepEqual(loaded.settings.slots, current.slots);
