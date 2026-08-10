@@ -251,7 +251,11 @@ test("image rail accepts files and supported web images by drag and drop", async
   assert.match(component, /className=\{`studio-shell[\s\S]*?onDragEnter=\{dragImagesIn\}[\s\S]*?onDrop=\{dropImages\}/);
   assert.match(component, /global-image-drop[\s\S]*?사이트 어디든 놓아서 이미지 추가/);
   assert.match(component, /Array\.from\(event\.dataTransfer\.files\)/);
-  assert.match(component, /droppedImageUrl\(event\.dataTransfer\)/);
+  assert.match(component, /droppedImageUrls\(event\.dataTransfer\)/);
+  assert.match(component, /getData\("DownloadURL"\)/);
+  assert.match(component, /data-iurl[\s\S]+data-original[\s\S]+data-src/);
+  assert.match(component, /querySelectorAll\("a\[href\]"\)/);
+  assert.match(component, /for \(const source of sources\)/);
   assert.match(component, /fetch\(url\.href\)/);
   assert.match(component, /void loadImageFiles\(files\)/);
   assert.match(translations, /파일 또는 웹 이미지를 여기로 드래그/);

@@ -198,7 +198,7 @@ export default function VideoConverter({
 
   const updatePhaseProgress = (value: number) => {
     phaseProgressRef.current = value;
-    setProgress(value);
+    setProgress(Math.round(value));
   };
 
 
@@ -215,10 +215,10 @@ export default function VideoConverter({
         setElapsedSeconds(Math.floor((now - workStartedAtRef.current) / 1000));
       }
       if (phaseStartedAtRef.current !== null) {
-        const samples = phaseProgressSamplesRef.current.filter((sample) => sample.time >= now - 15_000);
+        const samples = phaseProgressSamplesRef.current;
         const lastSample = samples.at(-1);
         if (!lastSample || now - lastSample.time >= 1_000) samples.push({ time: now, progress: phaseProgressRef.current });
-        phaseProgressSamplesRef.current = samples;
+        phaseProgressSamplesRef.current = samples.length > 1_800 ? [samples[0], ...samples.slice(-1_799)] : samples;
         const rawRemaining = estimateVideoRemainingTime(samples, phaseProgressRef.current);
         const smoothed = smoothVideoRemainingTime(smoothedRemainingRef.current, rawRemaining);
         if (smoothed !== null) {

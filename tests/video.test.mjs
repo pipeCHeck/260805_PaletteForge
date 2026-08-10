@@ -309,13 +309,13 @@ test("analysis and conversion each use an independent progress range", () => {
   assert.equal(stagedVideoProgress("analysis", 0.5), 50);
   assert.equal(stagedVideoProgress("analysis", 1), 100);
   assert.equal(stagedVideoProgress("conversion", 0), 0);
-  assert.equal(stagedVideoProgress("conversion", 0.5), 50);
+  assert.equal(stagedVideoProgress("conversion", 0.5), 49.5);
   assert.equal(stagedVideoProgress("conversion", 1), 99);
   assert.equal(stagedVideoProgress("finalizing", 1), 99);
   assert.equal(stagedVideoProgress("done", 1), 100);
 });
 
-test("video remaining time uses recent phase progress and avoids unstable edge ranges", () => {
+test("video remaining time uses full phase progress and avoids unstable edge ranges", () => {
   const samples = [
     { time: 0, progress: 0 },
     { time: 5_000, progress: 10 },
@@ -327,11 +327,28 @@ test("video remaining time uses recent phase progress and avoids unstable edge r
   assert.equal(estimateVideoRemainingTime(samples, 99), null);
 });
 
+test("video remaining time stays anchored to the full phase instead of a short fast burst", () => {
+  const hourLongPhase = [
+    { time: 0, progress: 0 },
+    { time: 3_600_000, progress: 50 },
+    { time: 3_615_000, progress: 52 },
+  ];
+  const remaining = estimateVideoRemainingTime(hourLongPhase, 52);
+  assert.ok(remaining > 2_700 && remaining < 3_600);
+
+  const slowStart = [
+    { time: 0, progress: 0 },
+    { time: 300_000, progress: 1 },
+  ];
+  assert.equal(estimateVideoRemainingTime(slowStart, 1), 29_700);
+});
+
 test("video remaining time keeps the last stable estimate during temporary stalls", () => {
   assert.equal(smoothVideoRemainingTime(null, null), null);
   assert.equal(smoothVideoRemainingTime(null, 120), 120);
   assert.equal(smoothVideoRemainingTime(120, null), 120);
-  assert.equal(smoothVideoRemainingTime(120, 80), 110);
+  assert.ok(Math.abs(smoothVideoRemainingTime(120, 80) - 111.2) < 0.001);
+  assert.equal(smoothVideoRemainingTime(80, 120), 99.5);
 });
 
 test("video elapsed time uses a stable clock format", () => {

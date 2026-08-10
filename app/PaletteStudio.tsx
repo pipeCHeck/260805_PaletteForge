@@ -301,16 +301,51 @@ function imageTypeFromName(name: string) {
   return null;
 }
 
-function droppedImageUrl(dataTransfer: DataTransfer) {
+function droppedImageUrls(dataTransfer: DataTransfer) {
+  const sources: string[] = [];
+  const seen = new Set<string>();
+  const addSource = (value: string | null | undefined) => {
+    const source = value?.trim();
+    if (!source || !/^(https?:|data:image\/|blob:|\/\/)/i.test(source)) return;
+    let resolved = source;
+    try {
+      const url = new URL(source, window.location.href);
+      resolved = url.href;
+      if (seen.has(resolved)) return;
+      seen.add(resolved);
+      for (const key of ["imgurl", "mediaurl", "image_url"]) {
+        const nested = url.searchParams.get(key)?.trim();
+        if (nested && /^(https?:|data:image\/|blob:|\/\/)/i.test(nested)) addSource(nested);
+      }
+    } catch {
+      if (seen.has(resolved)) return;
+      seen.add(resolved);
+    }
+    if (!sources.includes(resolved)) sources.push(resolved);
+  };
+
+  const downloadUrl = dataTransfer.getData("DownloadURL");
+  if (downloadUrl) addSource(downloadUrl.match(/^[^:]+:[^:]*:(.+)$/s)?.[1]);
+
   const html = dataTransfer.getData("text/html");
   if (html) {
-    const source = new DOMParser().parseFromString(html, "text/html").querySelector("img")?.getAttribute("src")?.trim();
-    if (source) return source;
+    const document = new DOMParser().parseFromString(html, "text/html");
+    document.querySelectorAll("img").forEach((image) => {
+      ["data-iurl", "data-original", "data-full", "data-src", "src"].forEach((attribute) => addSource(image.getAttribute(attribute)));
+      const srcset = image.getAttribute("srcset");
+      if (srcset && !srcset.trim().startsWith("data:")) {
+        srcset.split(",").map((entry) => entry.trim().split(/\s+/)[0]).reverse().forEach(addSource);
+      }
+    });
+    document.querySelectorAll("a[href]").forEach((anchor) => addSource(anchor.getAttribute("href")));
+    for (const match of html.matchAll(/background-image\s*:\s*url\((['"]?)(.*?)\1\)/gi)) addSource(match[2]);
   }
-  const uri = dataTransfer.getData("text/uri-list").split(/\r?\n/).find((value) => value && !value.startsWith("#"));
-  if (uri) return uri.trim();
-  const plain = dataTransfer.getData("text/plain").trim();
-  return /^(https?:|data:image\/|blob:)/i.test(plain) ? plain : null;
+
+  dataTransfer.getData("text/uri-list").split(/\r?\n/).filter((value) => value && !value.startsWith("#")).forEach(addSource);
+  const firefoxUrl = dataTransfer.getData("text/x-moz-url") || dataTransfer.getData("application/x-moz-file-promise-url");
+  firefoxUrl.split(/\r?\n/).filter((_, index) => index % 2 === 0).forEach(addSource);
+  addSource(dataTransfer.getData("text/plain"));
+  return sources;
 }
 
 async function imageFileFromUrl(source: string) {
@@ -319,7 +354,7 @@ async function imageFileFromUrl(source: string) {
   const response = await fetch(url.href);
   if (!response.ok) throw new Error("fetch-failed");
   const blob = await response.blob();
-  const type = SUPPORTED_TYPES.has(blob.type) ? blob.type : imageTypeFromName(url.pathname);
+  const type = SUPPORTED_TYPES.has(blob.type) ? blob.type : (!blob.type || blob.type === "application/octet-stream" ? imageTypeFromName(url.pathname) : null);
   if (!type) throw new Error("unsupported-image");
   const extension = type === "image/jpeg" ? "jpg" : type.slice("image/".length);
   let name = "web-image";
@@ -768,7 +803,10 @@ export default function PaletteStudio() {
     notify(tr("{name} 프리셋을 적용했습니다. 변환 실행을 누르면 결과에 반영됩니다.", { name: tr(preset.name) }), "success");
   };
 
-  const acceptsImageDrop = (dataTransfer: DataTransfer) => Array.from(dataTransfer.types).some((type) => type === "Files" || type === "text/html" || type === "text/uri-list" || type === "text/plain");
+  const acceptsImageDrop = (dataTransfer: DataTransfer) => Array.from(dataTransfer.types).some((type) => {
+    const normalized = type.toLowerCase();
+    return normalized === "files" || normalized === "text/html" || normalized === "text/uri-list" || normalized === "text/plain" || normalized === "downloadurl" || normalized.includes("moz-url") || normalized.includes("file-promise-url");
+  });
   const dragImagesIn = (event: ReactDragEvent<HTMLElement>) => {
     if (!acceptsImageDrop(event.dataTransfer)) return;
     event.preventDefault();
@@ -790,13 +828,17 @@ export default function PaletteStudio() {
     event.preventDefault();
     imageDragDepth.current = 0;
     setImageDragActive(false);
-    const files = Array.from(event.dataTransfer.files);
+    const files = Array.from(event.dataTransfer.files).filter((file) => SUPPORTED_TYPES.has(file.type) || Boolean(imageTypeFromName(file.name)));
     if (files.length) { void loadImageFiles(files); return; }
-    const source = droppedImageUrl(event.dataTransfer);
-    if (!source) { notify(tr("드래그한 항목에서 이미지 파일이나 주소를 찾지 못했습니다."), "error"); return; }
-    void imageFileFromUrl(source)
-      .then((file) => loadImageFiles([file]))
-      .catch(() => notify(tr("웹사이트가 이미지 가져오기를 허용하지 않습니다. 이미지를 저장한 뒤 파일로 드래그해주세요."), "error"));
+    const sources = droppedImageUrls(event.dataTransfer);
+    if (!sources.length) { notify(tr("드래그한 항목에서 이미지 파일이나 주소를 찾지 못했습니다."), "error"); return; }
+    void (async () => {
+      for (const source of sources) {
+        try { await loadImageFiles([await imageFileFromUrl(source)]); return; }
+        catch { /* 접근할 수 없는 미리보기 주소는 건너뛰고 다음 후보를 시도합니다. */ }
+      }
+      notify(tr("웹사이트가 이미지 가져오기를 허용하지 않습니다. 이미지를 저장한 뒤 파일로 드래그해주세요."), "error");
+    })();
   };
   const deletePaletteSlot = (index: number) => {
     if (!current) return;
