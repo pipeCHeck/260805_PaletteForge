@@ -27,6 +27,7 @@ import {
   estimateVideoWorkload,
   formatVideoElapsedTime,
   isSupportedVideoFile,
+  smoothVideoRemainingTime,
   stagedVideoProgress,
   videoOutputDimensions,
   videoOutputSpec,
@@ -219,13 +220,8 @@ export default function VideoConverter({
         if (!lastSample || now - lastSample.time >= 1_000) samples.push({ time: now, progress: phaseProgressRef.current });
         phaseProgressSamplesRef.current = samples;
         const rawRemaining = estimateVideoRemainingTime(samples, phaseProgressRef.current);
-        if (rawRemaining === null) {
-          smoothedRemainingRef.current = null;
-          setEstimatedRemainingSeconds(null);
-        } else {
-          const smoothed = smoothedRemainingRef.current === null
-            ? rawRemaining
-            : smoothedRemainingRef.current * 0.75 + rawRemaining * 0.25;
+        const smoothed = smoothVideoRemainingTime(smoothedRemainingRef.current, rawRemaining);
+        if (smoothed !== null) {
           smoothedRemainingRef.current = smoothed;
           setEstimatedRemainingSeconds(Math.round(smoothed));
         }
@@ -631,13 +627,13 @@ export default function VideoConverter({
 
         <div className="video-settings-grid">
           <section className="video-setting-card">
-            <div className="video-setting-heading"><div className="video-section-title"><h3>{tr("팔레트 생성 방식")}</h3><SectionHelp label={tr("팔레트 생성 방식 도움말 열기")} title={tr("영상 팔레트 생성 방식")} summary={tr("영상의 색을 한 가지 기준으로 유지할지, 장면에 따라 계속 바꿀지 선택하는 곳입니다.")}><ul><li><strong>{tr("전체 영상 공통 팔레트")}</strong>{tr("영상 전체를 먼저 분석한 뒤 끝까지 같은 색 목록을 사용합니다. 색 깜빡임이 적어 기본값으로 권장합니다.")}</li><li><strong>{tr("프레임별 자동 팔레트")}</strong>{tr("장면마다 어울리는 색을 다시 고릅니다. 장면 색은 잘 살아나지만 일부 영상에서는 색 변화가 보일 수 있습니다.")}</li></ul></SectionHelp></div></div>
+            <div className="video-setting-heading"><div className="video-section-title"><h3>{tr("팔레트 생성 방식")}</h3><SectionHelp label={tr("팔레트 생성 방식 도움말 열기")} title={tr("영상 팔레트 생성 방식")} summary={tr("영상 전체 구간에서 공통 팔레트를 만들지, 프레임마다 자동으로 조정할지 선택할 수 있습니다.")}><ul><li><strong>{tr("전체 영상 공통 팔레트")}</strong>{tr("영상 전체 구간의 대표 장면을 분석해 같은 팔레트를 끝까지 사용합니다. 색상 깜빡임이 적어 처음 사용할 때 권장합니다.")}</li><li><strong>{tr("프레임별 자동 팔레트")}</strong>{tr("각 프레임에 맞는 팔레트를 만들고 최근 프레임과 자연스럽게 연결합니다. 장면 전환은 빠르게 반영하지만 일부 영상에서는 색 변화가 보일 수 있습니다.")}</li></ul></SectionHelp></div></div>
             <label aria-label={tr("전체 영상 공통 팔레트")} className={`video-mode-option ${paletteMode === "common" ? "is-selected" : ""}`}><input type="radio" name="video-palette-mode" value="common" checked={paletteMode === "common"} disabled={busy} onChange={() => { setPaletteMode("common"); clearResult(); }} /><span><strong>{tr("전체 영상 공통 팔레트")}</strong><small>{tr("영상 전체를 분석해 같은 팔레트를 사용합니다. 색상 깜빡임이 적어 기본값으로 권장합니다.")}</small></span></label>
             <label aria-label={tr("프레임별 자동 팔레트")} className={`video-mode-option ${paletteMode === "frame" ? "is-selected" : ""}`}><input type="radio" name="video-palette-mode" value="frame" checked={paletteMode === "frame"} disabled={busy} onChange={() => { setPaletteMode("frame"); setPresetOpen(false); clearResult(); }} /><span><strong>{tr("프레임별 자동 팔레트")}</strong><small>{tr("각 프레임의 팔레트를 최근 프레임과 자연스럽게 연결하고, 장면 전환은 즉시 반영합니다.")}</small></span></label>
           </section>
 
           <section className="video-setting-card video-adjustments">
-            <div className="video-setting-heading"><div className="video-section-title"><h3>{tr("색 보정")}</h3><SectionHelp label={tr("영상 색 보정 도움말 열기")} title={tr("색 보정")} summary={tr("영상의 모든 프레임에 같은 색 보정과 픽셀 모양을 적용합니다.")}><ul><li><strong>{tr("밝기·대비")}</strong>{tr("영상 전체의 밝기와 밝고 어두운 부분의 차이를 조절합니다.")}</li><li><strong>{tr("채도·색조")}</strong>{tr("색의 선명함과 전체적인 색 계열을 조절합니다.")}</li><li><strong>{tr("픽셀화")}</strong>{tr("변환 전에 영상을 정사각형 블록으로 묶습니다. 블록이 클수록 픽셀이 굵어집니다.")}</li></ul></SectionHelp></div><button type="button" className="text-button" disabled={busy} onClick={resetVideoAdjustments}>{tr("초기화")}</button></div>
+            <div className="video-setting-heading"><div className="video-section-title"><h3>{tr("색 보정")}</h3><SectionHelp label={tr("영상 색 보정 도움말 열기")} title={tr("색 보정")} summary={tr("영상의 모든 프레임에 같은 색 보정과 픽셀화를 적용할 수 있습니다.")}><ul><li><strong>{tr("밝기·대비")}</strong>{tr("영상 전체의 밝기와 밝고 어두운 부분의 차이를 조절합니다.")}</li><li><strong>{tr("채도·색조")}</strong>{tr("색의 선명함과 영상 전체의 색 계열을 바꿉니다.")}</li><li><strong>{tr("픽셀화")}</strong>{tr("픽셀화를 켜면 영상을 사각형 블록으로 표현하며, 블록 크기가 클수록 픽셀이 굵어집니다.")}</li></ul></SectionHelp></div><button type="button" className="text-button" disabled={busy} onClick={resetVideoAdjustments}>{tr("초기화")}</button></div>
             {([ ["brightness", "밝기"], ["contrast", "대비"], ["saturation", "채도"], ["hue", "색조"] ] as const).map(([key, label]) => {
               const min = key === "hue" ? -180 : -100;
               const max = key === "hue" ? 180 : 100;
@@ -648,7 +644,7 @@ export default function VideoConverter({
           </section>
 
           <section className="video-setting-card video-palette-settings">
-            <div className="video-setting-heading"><div className="video-section-title"><h3>{tr("영상 팔레트")}</h3><SectionHelp label={tr("영상 팔레트 도움말 열기")} title={tr("영상 팔레트")} summary={tr("변환된 영상에 실제로 사용할 색의 수와 선택 기준을 정하는 곳입니다.")}><ul><li><strong>{tr("공통 팔레트일 때")}</strong>{tr("프리셋과 고정 색상, 가중치가 영상의 모든 프레임에 똑같이 적용됩니다.")}</li><li><strong>{tr("프레임별 팔레트일 때")}</strong>{tr("각 프레임이 색을 자동으로 다시 고르므로 아래 고정 색상과 가중치는 사용하지 않습니다.")}</li><li><strong>{tr("면 정리 강도")}</strong>{tr("높일수록 작은 색 얼룩을 줄이고 넓은 색 면을 깔끔하게 만듭니다.")}</li></ul></SectionHelp></div><div className="video-palette-heading-actions"><button type="button" className="text-button" disabled={busy || paletteMode === "frame"} aria-expanded={presetOpen} onClick={() => setPresetOpen((value) => !value)}>{tr("프리셋")}</button><button type="button" className="text-button" disabled={busy} onClick={resetVideoPalette}>{tr("초기화")}</button><label><span>{tr("색상 수")}</span><input type="number" min="1" max="32" value={settings.colorCount} disabled={busy} onChange={(event) => { const count = Number(event.target.value); if (count >= 1 && count <= 32) updateSettings((draft) => { draft.colorCount = count; }); }} /></label></div></div>
+            <div className="video-setting-heading"><div className="video-section-title"><h3>{tr("영상 팔레트")}</h3><SectionHelp label={tr("영상 팔레트 도움말 열기")} title={tr("영상 팔레트")} summary={tr("변환된 영상에 사용할 색상 수와 팔레트 설정을 정할 수 있습니다.")}><ul><li><strong>{tr("공통 팔레트일 때")}</strong>{tr("프리셋, 고정 색상과 가중치가 영상의 모든 프레임에 적용됩니다.")}</li><li><strong>{tr("프레임별 팔레트일 때")}</strong>{tr("고정 색상과 가중치는 사용하지 않지만 색상 수, 팔레트 성향과 면 정리는 계속 적용됩니다.")}</li><li><strong>{tr("자동 팔레트 성향")}</strong>{tr("왼쪽은 많이 쓰인 주조색을 우선하고, 가운데는 원본 균형을 유지하며, 오른쪽은 서로 다른 색을 다양하게 선택합니다.")}</li><li><strong>{tr("면 정리 강도")}</strong>{tr("낮추면 작은 색 디테일을 유지하고, 높이면 자잘한 색 얼룩을 줄여 넓은 면을 깔끔하게 만듭니다.")}</li></ul></SectionHelp></div><div className="video-palette-heading-actions"><button type="button" className="text-button" disabled={busy || paletteMode === "frame"} aria-expanded={presetOpen} onClick={() => setPresetOpen((value) => !value)}>{tr("프리셋")}</button><button type="button" className="text-button" disabled={busy} onClick={resetVideoPalette}>{tr("초기화")}</button><label><span>{tr("색상 수")}</span><input type="number" min="1" max="32" value={settings.colorCount} disabled={busy} onChange={(event) => { const count = Number(event.target.value); if (count >= 1 && count <= 32) updateSettings((draft) => { draft.colorCount = count; }); }} /></label></div></div>
             {presetOpen && <div className="video-preset-panel" aria-label={tr("영상 팔레트 프리셋")}>
               {VIDEO_PALETTE_PRESETS.map((preset) => <button type="button" key={preset.id} onClick={() => applyVideoPreset(preset)}>
                 <span aria-hidden="true">{preset.colors.map((color) => <i key={color} style={{ background: color }} />)}</span>

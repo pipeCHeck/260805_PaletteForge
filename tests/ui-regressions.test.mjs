@@ -242,6 +242,22 @@ test("clipboard image paste uses the existing image loading flow without hijacki
   assert.match(translations, /클립보드에서 \{count\}개 이미지를 불러왔습니다/);
 });
 
+test("image rail accepts files and supported web images by drag and drop", async () => {
+  const [component, translations, css] = await Promise.all([
+    readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/i18n.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(component, /className=\{`studio-shell[\s\S]*?onDragEnter=\{dragImagesIn\}[\s\S]*?onDrop=\{dropImages\}/);
+  assert.match(component, /global-image-drop[\s\S]*?사이트 어디든 놓아서 이미지 추가/);
+  assert.match(component, /Array\.from\(event\.dataTransfer\.files\)/);
+  assert.match(component, /droppedImageUrl\(event\.dataTransfer\)/);
+  assert.match(component, /fetch\(url\.href\)/);
+  assert.match(component, /void loadImageFiles\(files\)/);
+  assert.match(translations, /파일 또는 웹 이미지를 여기로 드래그/);
+  assert.match(css, /\.image-rail\.drag-active/);
+});
+
 test("opening the editor loads one random bundled example with its settings and converts it", async () => {
   const [component, translations, css] = await Promise.all([
     readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
@@ -414,7 +430,7 @@ test("wide desktop editor fits its primary regions into one viewport", async () 
     readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ]);
-  assert.match(studio, /<main className="studio-shell">/);
+  assert.match(studio, /<main className=\{`studio-shell/);
   assert.match(css, /@media \(min-width:1600px\) and \(min-height:900px\)/);
   assert.match(css, /\.studio-shell \{[^}]*height:100dvh;[^}]*grid-template-rows:78px 38px minmax\(0,1fr\) 48px;[^}]*overflow:hidden;/);
   assert.match(css, /\.studio-shell \.control-panel \{[^}]*grid-template-columns:repeat\(2,minmax\(0,1fr\)\);/);
@@ -537,7 +553,7 @@ test("video palette presets are available and frame mode starts progress at zero
   assert.match(component, /stagedVideoProgress\("conversion", 0\)/);
   assert.match(component, /stagedVideoProgress\("conversion", value\)/);
   assert.match(component, /estimateVideoRemainingTime\(samples, phaseProgressRef\.current\)/);
-  assert.match(component, /smoothedRemainingRef\.current \* 0\.75 \+ rawRemaining \* 0\.25/);
+  assert.match(component, /smoothVideoRemainingTime\(smoothedRemainingRef\.current, rawRemaining\)/);
   assert.match(component, /tr\("경과 시간"\)/);
   assert.doesNotMatch(component, /tr\("단계 경과"\)/);
   assert.match(component, /tr\("남은 예상 시간"\)/);
@@ -625,17 +641,34 @@ test("section help stays at panel headings and supports accessible popovers", as
     readFile(new URL("../app/SectionHelp.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ]);
+  assert.match(studio, /section-kicker[^\n]+SOURCE[^\n]+SectionHelp/);
   assert.match(studio, /section-kicker[^\n]+PREVIEW[^\n]+SectionHelp/);
   assert.match(studio, /section-kicker[^\n]+ADJUST[^\n]+SectionHelp/);
   assert.match(studio, /section-kicker[^\n]+PALETTE[^\n]+SectionHelp/);
   assert.match(studio, /section-kicker[^\n]+EXPORT[^\n]+SectionHelp/);
-  assert.match(studio, /부드러운 알파[^\n]+반투명 정도를 그대로 유지/);
-  assert.match(studio, /0 · 1 알파[^\n]+완전 투명 또는 완전 불투명/);
+  assert.match(studio, /투명도 방식[^\n]+부드러운 알파는 반투명 픽셀을 유지[^\n]+0·1 알파는 픽셀을 완전 투명/);
+  assert.match(studio, /이미지 목록 도움말 열기[^\n]+컴퓨터의 원본 파일은 삭제하지 않습니다/);
+  assert.doesNotMatch(studio, /처음 표시되는 예시는 기능을 바로 확인하기 위한 것/);
+  assert.match(studio, /스포이드로 색 가져오기[^\n]+이미지 스포이드를 선택하면/);
+  assert.doesNotMatch(studio, /이미지 스포이드를 선택한 경우에만/);
+  assert.doesNotMatch(studio, /이미지를 클릭하면 해당 픽셀의 색상을 팔레트에 가져올 수 있습니다/);
+  assert.match(studio, /색상 수 정하기[^\n]+슬롯의 ×를 누르면 색상 수가 하나 줄어듭니다/);
+  assert.match(studio, /색 직접 정하기[^\n]+슬롯 왼쪽 색상 상자를 눌러/);
+  assert.match(studio, /프리셋·가중치[^\n]+색 고정·가중치 자동/);
+  assert.match(studio, /사이트 어디든 끌어오세요/);
+  assert.match(studio, /색 보정과 팔레트 중 필요한 항목을 골라/);
   assert.equal((video.match(/<SectionHelp/g) ?? []).length, 3);
+  assert.match(video, /대표 장면을 분석해 같은 팔레트를 끝까지 사용/);
+  assert.match(video, /최근 프레임과 자연스럽게 연결/);
+  assert.match(video, /색상 수, 팔레트 성향과 면 정리는 계속 적용/);
   assert.match(help, /aria-expanded=\{open\}/);
   assert.match(help, /event\.key !== "Escape"/);
   assert.match(help, /createPortal/);
+  assert.match(help, />×<\/button>/);
+  assert.doesNotMatch(help, /횞/);
   assert.match(css, /\.section-help-popover \{[^}]*position: fixed;/);
+  assert.match(css, /\.section-help-popover \{[^}]*max-height: none;[^}]*overflow: visible;/);
+  assert.doesNotMatch(css, /\.section-help-popover \{[^}]*overflow-y: auto;/);
   assert.match(css, /\.section-help-popover li > strong \{[^}]*display: block;/);
   assert.match(css, /@media \(max-width: 640px\)[\s\S]*\.section-help-popover/);
 });

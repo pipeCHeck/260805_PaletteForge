@@ -14,6 +14,7 @@ import {
   FRAME_SCENE_COOLDOWN,
   formatVideoElapsedTime,
   isSupportedVideoFile,
+  smoothVideoRemainingTime,
   stabilizeFramePalette,
   stagedVideoProgress,
   videoOutputDimensions,
@@ -324,6 +325,13 @@ test("video remaining time uses recent phase progress and avoids unstable edge r
   assert.equal(estimateVideoRemainingTime([{ time: 0, progress: 0 }, { time: 5_000, progress: 0.5 }], 0.5), 995);
   assert.equal(estimateVideoRemainingTime([{ time: 0, progress: 10 }, { time: 5_000, progress: 10 }], 10), null);
   assert.equal(estimateVideoRemainingTime(samples, 99), null);
+});
+
+test("video remaining time keeps the last stable estimate during temporary stalls", () => {
+  assert.equal(smoothVideoRemainingTime(null, null), null);
+  assert.equal(smoothVideoRemainingTime(null, 120), 120);
+  assert.equal(smoothVideoRemainingTime(120, null), 120);
+  assert.equal(smoothVideoRemainingTime(120, 80), 110);
 });
 
 test("video elapsed time uses a stable clock format", () => {
