@@ -73,6 +73,19 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .panel-title.compact { padding: 16px 17px 11px; border-bottom: 0; }
 .panel-title h2 { margin: 2px 0 0; font-family: Georgia, serif; font-size: 17px; letter-spacing: -.025em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .panel-title h2 b { font-family: inherit; color: var(--orange); font-size: 13px; margin-left: 4px; }
+.section-kicker { min-height: 18px; display: flex; align-items: center; gap: 5px; }
+.section-help-button { width: 17px; height: 17px; padding: 0; display: inline-grid; place-items: center; flex: 0 0 auto; border: 1px solid var(--line); border-radius: 50%; color: var(--muted); background: transparent; font: 800 10px/1 Arial, sans-serif; cursor: pointer; }
+.section-help-button:hover, .section-help-button[aria-expanded="true"] { color: white; border-color: var(--orange); background: var(--orange); }
+.section-help-popover { position: fixed; z-index: 160; width: min(292px, calc(100vw - 24px)); max-height: min(420px, calc(100vh - 24px)); overflow-y: auto; padding: 14px; border: 1px solid var(--line); border-radius: 12px; color: var(--ink); background: var(--panel); box-shadow: 0 16px 48px rgba(20,22,18,.2); }
+.section-help-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.section-help-head > strong { font: 750 15px/1.3 Georgia, serif; }
+.section-help-head > button { width: 24px; height: 24px; padding: 0; display: grid; place-items: center; flex: 0 0 auto; border: 0; border-radius: 6px; color: var(--muted); background: transparent; font-size: 18px; cursor: pointer; }
+.section-help-head > button:hover { color: var(--ink); background: color-mix(in srgb, var(--line) 55%, transparent); }
+.section-help-popover > p { margin: 9px 0 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.section-help-popover ul { margin: 11px 0 0; padding: 10px 0 0; border-top: 1px solid var(--line); list-style: none; }
+.section-help-popover li { color: var(--muted); font-size: 11px; line-height: 1.55; }
+.section-help-popover li + li { margin-top: 9px; }
+.section-help-popover li > strong { display: block; margin-bottom: 1px; color: var(--ink); font-size: 11px; line-height: 1.4; }
 .palette-title-actions { display: flex; align-items: center; gap: 9px; }
 .palette-title-actions .text-button:disabled { opacity: .4; cursor: not-allowed; }
 .eyebrow { color: var(--orange-dark); font-weight: 900; font-size: 10px; letter-spacing: .14em; }
@@ -462,6 +475,7 @@ html[data-theme="dark"] .ad-pending strong { color:#b2b7ad; background:#282c26; 
 .video-pixel-size input, .video-setting-heading input, .video-weight { width: 62px; min-height: 30px; padding: 4px 7px; border: 1px solid var(--line); border-radius: 7px; color: var(--ink); background: white; text-align: right; font-size: 11px; }
 .video-setting-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .video-setting-heading h3 { margin: 0; }
+.video-section-title { min-width: 0; display: flex; align-items: center; gap: 6px; }
 .video-setting-heading > .text-button, .video-palette-heading-actions > .text-button { color: var(--orange-dark); }
 .video-setting-heading .text-button:disabled { opacity: .4; cursor: not-allowed; }
 .video-setting-heading label { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 10px; font-weight: 750; }
@@ -513,6 +527,7 @@ html[data-theme="dark"] :is(.delete-slot,.video-delete-slot):hover:not(:disabled
 html[data-theme="dark"] .video-progress-card { border-color: #365540; background: #203126; }
 html[data-theme="dark"] .video-progress-card.is-error { border-color: #744033; background: #39231d; }
 html[data-theme="dark"] .video-frame-palette-note { border-color: #3d465f; color: #bdc8e5; background: #202636; }
+html[data-theme="dark"] .section-help-popover { box-shadow: 0 18px 54px rgba(0,0,0,.5); }
 
 @media (max-width: 900px) {
   .video-modal-backdrop { padding: 0; }
@@ -544,4 +559,8 @@ html[data-theme="dark"] .video-frame-palette-note { border-color: #3d465f; color
 .video-preset-panel small { color:var(--muted); font-size:8px; white-space:nowrap; }
 html[data-theme="dark"] .video-preset-panel > button { background:#20231e; }
 html[data-theme="dark"] .video-preset-panel > button:hover { background:#38241d; }
+
+@media (max-width: 640px) {
+  .section-help-popover { left: 12px !important; right: 12px; top: auto !important; bottom: 12px; width: auto; max-height: min(62vh, 420px); border-radius: 14px; }
+}
 @media (max-width:420px) { .video-preset-panel { grid-template-columns:1fr; } }

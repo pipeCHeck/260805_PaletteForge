@@ -26,6 +26,7 @@ import {
 import QuantizeWorker from "./quantize.worker?worker";
 import { LANGUAGE_OPTIONS, Language, detectLanguage, localizeError, translate } from "./i18n";
 import AdPlacement from "./AdPlacement";
+import SectionHelp from "./SectionHelp";
 
 const VideoConverter = lazy(() => import("./VideoConverter"));
 
@@ -45,7 +46,7 @@ const EXAMPLE_ASSETS = [
   { id: "example-02", name: "햇살 머문 창가" },
   { id: "example-03", name: "도심의 기념비" },
   { id: "example-04", name: "은빛 검의 기사" },
-  { id: "example-05", name: "노른자 카르보나라" },
+  { id: "example-05", name: "황금빛 카르보나라" },
   { id: "example-06", name: "산호빛 기하학" },
   { id: "example-07", name: "상자 요새 부대" },
   { id: "example-08", name: "큐브 레인저" },
@@ -847,7 +848,7 @@ export default function PaletteStudio() {
         </aside>
 
         <section className="preview-panel panel">
-          <div className="panel-title"><div><span className="eyebrow">PREVIEW</span><h2>{current ? getImageDisplayName(current, language) : tr(exampleLoading ? "예시 이미지 준비 중" : "미리보기")}</h2></div>{current && <span className="dimension">{current.width} × {current.height}px</span>}</div>
+          <div className="panel-title"><div><div className="section-kicker"><span className="eyebrow">PREVIEW</span><SectionHelp label={tr("미리보기 도움말 열기")} title={tr("미리보기")} summary={tr("먼저 위쪽에서 원본과 보정 상태를 확인한 뒤, 아래쪽에서 변환 결과를 비교하세요.")}><ul><li><strong>{tr("확대·이동")}</strong>{tr("마우스 휠로 확대하고 드래그해 이동할 수 있습니다.")}</li><li><strong>{tr("색 가져오기")}</strong>{tr("이미지를 클릭하면 해당 픽셀의 색상을 팔레트에 가져올 수 있습니다.")}</li><li><strong>{tr("표시 전환")}</strong>{tr("원본·보정 전환과 잠금, 화면 맞춤을 우하단에서 조절합니다.")}</li></ul></SectionHelp></div><h2>{current ? getImageDisplayName(current, language) : tr(exampleLoading ? "예시 이미지 준비 중" : "미리보기")}</h2></div>{current && <span className="dimension">{current.width} × {current.height}px</span>}</div>
           {current ? <div className={`compare ${sampling ? "sampling" : ""}`}>
             <figure><figcaption><span>{tr("원본 + 보정 미리보기")}</span><small>{tr("휠 확대 · 드래그 이동 · 클릭 색상 추출")}</small></figcaption><div className="canvas-wrap checker"><CanvasPreview key={`${current.id}-original`} item={current} result={false} onPick={pick} language={language} /></div></figure>
             <figure><figcaption><span>{tr("변환 결과")}</span><small>{current.result ? tr("{count}색 · 휠 확대 · 드래그 이동", { count: current.palette.length }) : tr("변환 전")}</small></figcaption><div className="canvas-wrap checker">{current.result ? <CanvasPreview key={`${current.id}-result`} item={current} result onPick={pick} language={language} /> : <div className="result-placeholder"><span>◇</span><p>{tr("변환 실행 후 결과가 표시됩니다.")}</p></div>}</div></figure>
@@ -860,7 +861,7 @@ export default function PaletteStudio() {
 
         <aside className="control-panel">
           <section className="panel control-section">
-            <div className="panel-title compact"><div><span className="eyebrow">ADJUST</span><h2>{tr("색 보정")}</h2></div>{current && <button className="text-button" onClick={() => updateSettings((settings) => { settings.adjustments = defaultSettings().adjustments; return settings; })}>{tr("초기화")}</button>}</div>
+            <div className="panel-title compact"><div><div className="section-kicker"><span className="eyebrow">ADJUST</span><SectionHelp label={tr("색 보정 도움말 열기")} title={tr("색 보정")} summary={tr("색을 줄이기 전에 이미지의 밝기와 색감, 픽셀 모양을 바꾸는 곳입니다. 모든 변경은 원본에서 다시 계산됩니다.")}><ul><li><strong>{tr("밝기·대비")}</strong>{tr("밝기는 이미지 전체를 밝거나 어둡게 하고, 대비는 밝은 곳과 어두운 곳의 차이를 조절합니다.")}</li><li><strong>{tr("채도·색조")}</strong>{tr("채도는 색의 선명함을 조절하고, 색조는 전체 색상을 다른 계열로 이동시킵니다.")}</li><li><strong>{tr("픽셀화")}</strong>{tr("이미지를 정사각형 블록으로 묶습니다. 블록 크기가 클수록 픽셀이 더 굵어집니다.")}</li><li><strong>{tr("부드러운 알파")}</strong>{tr("반투명 정도를 그대로 유지해 가장자리와 그림자가 부드럽게 보입니다.")}</li><li><strong>{tr("0 · 1 알파")}</strong>{tr("각 블록을 완전 투명 또는 완전 불투명으로 나눠 또렷한 픽셀 가장자리를 만듭니다.")}</li></ul></SectionHelp></div><h2>{tr("색 보정")}</h2></div>{current && <button className="text-button" onClick={() => updateSettings((settings) => { settings.adjustments = defaultSettings().adjustments; return settings; })}>{tr("초기화")}</button>}</div>
             <p className="section-note">{tr("원본에서 다시 계산되며 보정값이 누적되지 않습니다.")}</p>
             <div className="sliders">{adjustmentFields.map(([key, label, min, max]) => {
               const draftKey = current ? adjustmentKey(current.id, key) : key;
@@ -875,7 +876,7 @@ export default function PaletteStudio() {
           </section>
 
           <section className="panel control-section">
-            <div className="panel-title compact"><div><span className="eyebrow">PALETTE</span><h2>{tr("최종 팔레트")}</h2></div><div className="palette-title-actions"><span className="fixed-count">{tr("고정 {count}", { count: fixedCount })}</span><button className="text-button" disabled={!current} onClick={() => setPresetDialogOpen(true)}>{tr("프리셋")}</button><button className="text-button" disabled={!current} title={tr("모든 고정 색상과 가중치 초기화")} onClick={resetPaletteSlots}>{tr("초기화")}</button></div></div>
+            <div className="panel-title compact"><div><div className="section-kicker"><span className="eyebrow">PALETTE</span><SectionHelp label={tr("최종 팔레트 도움말 열기")} title={tr("최종 팔레트")} summary={tr("변환 결과에 실제로 사용할 색을 결정하는 곳입니다. 먼저 색상 수를 정하고 필요하면 특정 색을 고정하세요.")}><ul><li><strong>{tr("자동·색 고정·고정")}</strong>{tr("자동은 색과 가중치를 계산하고, 색 고정은 선택한 색만 유지하며, 고정은 색과 가중치를 모두 유지합니다.")}</li><li><strong>{tr("가중치")}</strong>{tr("값을 높이면 그 색과 비슷한 픽셀이 더 많이 해당 색으로 변환됩니다.")}</li><li><strong>{tr("자동 팔레트 성향")}</strong>{tr("왼쪽은 이미지에서 많이 쓰인 색을 우선하고, 오른쪽은 서로 다른 색을 다양하게 선택합니다.")}</li><li><strong>{tr("면 정리 강도")}</strong>{tr("낮으면 작은 색 디테일을 살리고, 높으면 자잘한 색 얼룩을 줄여 넓은 면을 깔끔하게 만듭니다.")}</li></ul></SectionHelp></div><h2>{tr("최종 팔레트")}</h2></div><div className="palette-title-actions"><span className="fixed-count">{tr("고정 {count}", { count: fixedCount })}</span><button className="text-button" disabled={!current} onClick={() => setPresetDialogOpen(true)}>{tr("프리셋")}</button><button className="text-button" disabled={!current} title={tr("모든 고정 색상과 가중치 초기화")} onClick={resetPaletteSlots}>{tr("초기화")}</button></div></div>
             <label className="count-field"><span>{tr("최종 색상 수")}<small>{tr("최대 {max}", { max: MAX_COLORS })}</small></span><input type="number" min="1" max={MAX_COLORS} value={current?.settings.colorCount ?? 5} disabled={!current} onChange={(event) => changeCount(event.target.value)} /></label>
             <div className="palette-tuning">
               <label><span><strong>{tr("자동 팔레트 성향")}</strong><input className="palette-tendency-number compact-number-input" type="number" inputMode="numeric" aria-label={tr("자동 팔레트 성향 숫자")} min="-50" max="50" step="1" disabled={!current} value={current ? (paletteTendencyDrafts[current.id] ?? String(current.settings.paletteDiversity - 50)) : "0"} onChange={(event) => { if (!current) return; setPaletteTendencyDrafts((values) => ({ ...values, [current.id]: event.target.value })); }} onBlur={commitPaletteTendency} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} /></span><input type="range" aria-label={tr("자동 팔레트 성향")} min="-50" max="50" step="1" disabled={!current} value={(current?.settings.paletteDiversity ?? 50) - 50} onChange={(event) => { if (current) setPaletteTendencyDrafts((values) => { const next = { ...values }; delete next[current.id]; return next; }); updateSettings((settings) => { settings.paletteDiversity = Number(event.target.value) + 50; return settings; }); }} /><small><b>{tr("주조색 우선")}</b><b>{tr("원본 균형")}</b><b>{tr("색상 다양성")}</b></small></label>
@@ -898,7 +899,7 @@ export default function PaletteStudio() {
           </section>
 
           <section className="panel control-section">
-            <div className="panel-title compact"><div><span className="eyebrow">EXPORT</span><h2>{tr("저장 및 내보내기")}</h2></div></div>
+            <div className="panel-title compact"><div><div className="section-kicker"><span className="eyebrow">EXPORT</span><SectionHelp label={tr("저장 및 내보내기 도움말 열기")} title={tr("저장 및 내보내기")} summary={tr("현재 작업을 나중에 이어서 쓸 설정 파일로 저장하거나, 완성된 이미지를 내려받는 곳입니다.")}><ul><li><strong>{tr("설정 저장")}</strong>{tr("색 보정과 팔레트 값을 JSON 파일로 저장합니다. 원본 이미지는 포함되지 않습니다.")}</li><li><strong>{tr("투명도")}</strong>{tr("PNG와 WebP는 투명도를 유지할 수 있고, JPEG는 선택한 배경색으로 채웁니다.")}</li><li><strong>{tr("픽셀화 해상도")}</strong>{tr("원본 크기를 유지하거나, 블록 하나를 픽셀 하나로 줄인 작은 해상도로 저장할 수 있습니다.")}</li><li><strong>{tr("여러 장 내보내기")}</strong>{tr("현재 이미지만 저장하거나 목록의 모든 이미지를 각각 저장할 수 있습니다.")}</li></ul></SectionHelp></div><h2>{tr("저장 및 내보내기")}</h2></div></div>
             <div className="settings-actions"><button className="button ghost" disabled={!current} onClick={() => setSaveDialogOpen(true)}>{tr("설정 저장")}</button><button className="button ghost" disabled={!current} onClick={() => settingsInput.current?.click()}>{tr("설정 불러오기")}</button><input ref={settingsInput} hidden type="file" accept="application/json,.json" onChange={loadSettings} /></div>
             <div className="export-grid">
               <label><span>{tr("형식")}</span><select disabled={!current} value={current?.settings.export.format ?? "png"} onChange={(event) => updateSettings((settings) => { settings.export.format = event.target.value; if (event.target.value === "jpeg") settings.export.preserveAlpha = false; return settings; }, false)}><option value="png">PNG</option><option value="jpeg">JPEG</option><option value="webp">WebP</option></select></label>

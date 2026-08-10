@@ -607,3 +607,25 @@ test("the editor header and information footer display the package version from 
   assert.match(studio, /className="brand-version"[^>]*>v\{APP_VERSION\}/);
   assert.match(info, /className="app-version"[^>]*>v\{APP_VERSION\}/);
 });
+
+test("section help stays at panel headings and supports accessible popovers", async () => {
+  const [studio, video, help, css] = await Promise.all([
+    readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/VideoConverter.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/SectionHelp.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(studio, /section-kicker[^\n]+PREVIEW[^\n]+SectionHelp/);
+  assert.match(studio, /section-kicker[^\n]+ADJUST[^\n]+SectionHelp/);
+  assert.match(studio, /section-kicker[^\n]+PALETTE[^\n]+SectionHelp/);
+  assert.match(studio, /section-kicker[^\n]+EXPORT[^\n]+SectionHelp/);
+  assert.match(studio, /부드러운 알파[^\n]+반투명 정도를 그대로 유지/);
+  assert.match(studio, /0 · 1 알파[^\n]+완전 투명 또는 완전 불투명/);
+  assert.equal((video.match(/<SectionHelp/g) ?? []).length, 3);
+  assert.match(help, /aria-expanded=\{open\}/);
+  assert.match(help, /event\.key !== "Escape"/);
+  assert.match(help, /createPortal/);
+  assert.match(css, /\.section-help-popover \{[^}]*position: fixed;/);
+  assert.match(css, /\.section-help-popover li > strong \{[^}]*display: block;/);
+  assert.match(css, /@media \(max-width: 640px\)[\s\S]*\.section-help-popover/);
+});
