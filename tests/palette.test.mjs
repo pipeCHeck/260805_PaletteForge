@@ -104,6 +104,37 @@ test("높은 가중치는 해당 색상의 픽셀 비중을 증가시킨다", ()
   assert.ok(whiteCount(weighted) > whiteCount(neutral));
 });
 
+test("정확 색상 캐시와 제자리 매핑은 기존 공통 팔레트 결과를 그대로 유지한다", () => {
+  const source = pixels([
+    [12, 34, 56], [127, 128, 129], [240, 20, 80], [12, 34, 56],
+    [80, 170, 210], [127, 128, 129], [250, 240, 20], [240, 20, 80],
+  ]);
+  const palette = [[5, 10, 20], [220, 30, 75], [40, 180, 220], [245, 230, 35]];
+  const weights = [1, 1.4, 0.8, 1.1];
+  const expected = mapPixels(source, palette, weights, { width: 4, height: 2, surfaceCleanup: 100 });
+  const cache = new Uint8Array(2 ** 24);
+  cache.fill(255);
+  const optimizedSource = new Uint8ClampedArray(source);
+  const actual = mapPixels(optimizedSource, palette, weights, {
+    width: 4,
+    height: 2,
+    surfaceCleanup: 100,
+    exactColorCache: cache,
+    inPlace: true,
+  });
+  assert.strictEqual(actual, optimizedSource);
+  assert.deepEqual(actual, expected);
+
+  const repeated = mapPixels(new Uint8ClampedArray(source), palette, weights, {
+    width: 4,
+    height: 2,
+    surfaceCleanup: 100,
+    exactColorCache: cache,
+    inPlace: true,
+  });
+  assert.deepEqual(repeated, expected);
+});
+
 test("가중치 입력은 편집 중간 상태와 유효한 소수를 구분한다", () => {
   assert.equal(parsePaletteWeight(""), null);
   assert.equal(parsePaletteWeight("0."), null);

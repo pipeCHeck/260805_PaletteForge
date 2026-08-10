@@ -7,6 +7,28 @@ let temporalPaletteState: TemporalPaletteState | null = null;
 let temporalAssignments: Uint8Array | null = null;
 let temporalSourceLuma: Uint8Array | null = null;
 let temporalPaletteSize = 0;
+let commonPaletteCacheKey = "";
+let commonPaletteCache: Uint8Array | null = null;
+
+function fixedPaletteFromSettings(settings: unknown) {
+  if (!settings || typeof settings !== "object" || !("slots" in settings) || !Array.isArray(settings.slots)) return null;
+  const slots = settings.slots as Array<{ fixed?: boolean; color?: RGB | null; weight?: number; weightMode?: string }>;
+  if (!slots.length || slots.some((slot) => !slot.fixed || !Array.isArray(slot.color) || slot.color.length !== 3 || slot.weightMode !== "manual")) return null;
+  return {
+    palette: slots.map((slot) => [...slot.color!] as RGB),
+    weights: slots.map((slot) => slot.weight ?? 1),
+  };
+}
+
+function exactCommonPaletteCache(palette: RGB[], weights: number[]) {
+  const key = `${palette.map((color) => color.join(",")).join(";")}|${weights.join(",")}`;
+  if (!commonPaletteCache || commonPaletteCacheKey !== key) {
+    commonPaletteCache = new Uint8Array(2 ** 24);
+    commonPaletteCache.fill(255);
+    commonPaletteCacheKey = key;
+  }
+  return commonPaletteCache;
+}
 
 self.onmessage = (event: MessageEvent<{ operation?: "prepare" | "quantize"; pixels: ArrayBuffer; width: number; height: number; settings: unknown; temporalPaletteEnabled?: boolean }>) => {
   try {
@@ -16,7 +38,10 @@ self.onmessage = (event: MessageEvent<{ operation?: "prepare" | "quantize"; pixe
       self.postMessage({ result: prepared.buffer }, { transfer: [prepared.buffer] });
       return;
     }
-    const output = createQuantization(pixels, event.data.settings, event.data.width, event.data.height);
+    const fixedPalette = event.data.temporalPaletteEnabled ? null : fixedPaletteFromSettings(event.data.settings);
+    const output = fixedPalette
+      ? { ...prepareImage(pixels, event.data.settings, event.data.width, event.data.height), ...fixedPalette }
+      : createQuantization(pixels, event.data.settings, event.data.width, event.data.height);
     const stabilized = event.data.temporalPaletteEnabled
       ? stabilizeFramePalette(
         output.palette,
@@ -53,6 +78,8 @@ self.onmessage = (event: MessageEvent<{ operation?: "prepare" | "quantize"; pixe
         width: event.data.width,
         height: event.data.height,
         surfaceCleanup: output.settings.surfaceCleanup,
+        exactColorCache: fixedPalette ? exactCommonPaletteCache(stabilized.palette, stabilized.weights) : undefined,
+        inPlace: Boolean(fixedPalette),
       });
     }
     self.postMessage(

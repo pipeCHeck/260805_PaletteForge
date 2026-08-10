@@ -443,7 +443,7 @@ export default function VideoConverter({
       if (sample) {
         context.clearRect(0, 0, sampleWidth, sampleHeight);
         sample.draw(context, 0, 0, sampleWidth, sampleHeight);
-        frames.push(new Uint8ClampedArray(context.getImageData(0, 0, sampleWidth, sampleHeight).data));
+        frames.push(context.getImageData(0, 0, sampleWidth, sampleHeight).data);
         sample.close();
       }
       index += 1;
@@ -509,7 +509,7 @@ export default function VideoConverter({
             if (cancelRequested.current) throw new ConversionCanceledError();
             context.clearRect(0, 0, outputDimensions.width, outputDimensions.height);
             sample.draw(context, 0, 0, outputDimensions.width, outputDimensions.height);
-            const source = new Uint8ClampedArray(context.getImageData(0, 0, outputDimensions.width, outputDimensions.height).data);
+            const source = context.getImageData(0, 0, outputDimensions.width, outputDimensions.height).data;
             const converted = await quantizeWithWorker(
               worker,
               source,
