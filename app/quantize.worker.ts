@@ -40,7 +40,7 @@ self.onmessage = (event: MessageEvent<{ operation?: "prepare" | "quantize"; pixe
     }
     const fixedPalette = event.data.temporalPaletteEnabled ? null : fixedPaletteFromSettings(event.data.settings);
     const output = fixedPalette
-      ? { ...prepareImage(pixels, event.data.settings, event.data.width, event.data.height), ...fixedPalette }
+      ? { ...prepareImage(pixels, event.data.settings, event.data.width, event.data.height, { inPlace: true }), ...fixedPalette }
       : createQuantization(pixels, event.data.settings, event.data.width, event.data.height);
     const stabilized = event.data.temporalPaletteEnabled
       ? stabilizeFramePalette(

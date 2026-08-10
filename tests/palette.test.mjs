@@ -2,6 +2,7 @@
 import test from "node:test";
 import {
   applyPalettePreset,
+  adjustPixels,
   cloneSettings,
   countUniqueOpaqueColors,
   cyclePaletteSlotMode,
@@ -133,6 +134,21 @@ test("정확 색상 캐시와 제자리 매핑은 기존 공통 팔레트 결과
     inPlace: true,
   });
   assert.deepEqual(repeated, expected);
+});
+
+test("제자리 색 보정과 기본값 빠른 경로는 기존 픽셀 결과를 그대로 유지한다", () => {
+  const source = pixels([[12, 34, 56], [127, 128, 129], [240, 20, 80, 120], [250, 240, 20]]);
+  const adjustedSettings = { brightness: 17, contrast: -23, saturation: 31, hue: 42 };
+  const expected = adjustPixels(source, adjustedSettings);
+  const inPlaceSource = new Uint8ClampedArray(source);
+  const actual = adjustPixels(inPlaceSource, adjustedSettings, { inPlace: true });
+  assert.strictEqual(actual, inPlaceSource);
+  assert.deepEqual(actual, expected);
+
+  const neutralSource = new Uint8ClampedArray(source);
+  const neutral = adjustPixels(neutralSource, { brightness: 0, contrast: 0, saturation: 0, hue: 0 }, { inPlace: true });
+  assert.strictEqual(neutral, neutralSource);
+  assert.deepEqual(neutral, source);
 });
 
 test("가중치 입력은 편집 중간 상태와 유효한 소수를 구분한다", () => {
