@@ -34,6 +34,7 @@ import {
   videoPaletteSummaryColor,
 } from "../lib/video.mjs";
 import QuantizeWorker from "./quantize.worker?worker";
+import { createGpuPaletteMapper, detectGpuCapability, pixelBuffersEqual, type GpuCapability, type GpuPaletteMapper } from "./gpu-palette";
 import { Language, translate } from "./i18n";
 import SectionHelp from "./SectionHelp";
 
@@ -42,6 +43,7 @@ type Settings = ReturnType<typeof defaultSettings>;
 type AdjustmentKey = keyof Settings["adjustments"];
 type VideoNumericField = AdjustmentKey | "paletteTendency" | "surfaceCleanup";
 type PaletteMode = "common" | "frame";
+type AccelerationMode = "auto" | "cpu" | "gpu";
 type VideoPalettePreset = { id: string; name: string; colors: string[] };
 const VIDEO_PALETTE_PRESETS: VideoPalettePreset[] = [
   { id: "gameboy", name: "게임보이", colors: ["#252525", "#0F380F", "#306230", "#8BAC0F", "#9BBC0F"] },
@@ -67,7 +69,7 @@ type VideoInfo = {
 };
 type WorkerResult = { result: Uint8ClampedArray; palette: RGB[]; weights: number[]; sceneCut: boolean; difference: number; frameDifference: number; sceneScore: number };
 
-function quantizeWithWorker(worker: Worker, pixels: Uint8ClampedArray, width: number, height: number, settings: Settings, temporalPaletteEnabled = false) {
+function runPaletteWorker(worker: Worker, operation: "prepare" | "map-fixed" | "quantize", pixels: Uint8ClampedArray, width: number, height: number, settings: Settings, temporalPaletteEnabled = false) {
   return new Promise<WorkerResult>((resolve, reject) => {
     worker.onmessage = (event: MessageEvent<{ error?: string; result?: ArrayBuffer; palette?: RGB[]; weights?: number[]; sceneCut?: boolean; difference?: number; frameDifference?: number; sceneScore?: number }>) => {
       if (event.data.error || !event.data.result) { reject(new Error(event.data.error || "영상 프레임 변환에 실패했습니다.")); return; }
@@ -82,8 +84,20 @@ function quantizeWithWorker(worker: Worker, pixels: Uint8ClampedArray, width: nu
       });
     };
     worker.onerror = () => reject(new Error("영상 프레임 작업자를 실행하지 못했습니다."));
-    worker.postMessage({ operation: "quantize", pixels: pixels.buffer, width, height, settings, temporalPaletteEnabled }, [pixels.buffer]);
+    worker.postMessage({ operation, pixels: pixels.buffer, width, height, settings, temporalPaletteEnabled }, [pixels.buffer]);
   });
+}
+
+function quantizeWithWorker(worker: Worker, pixels: Uint8ClampedArray, width: number, height: number, settings: Settings, temporalPaletteEnabled = false) {
+  return runPaletteWorker(worker, "quantize", pixels, width, height, settings, temporalPaletteEnabled);
+}
+
+async function prepareWithWorker(worker: Worker, pixels: Uint8ClampedArray, width: number, height: number, settings: Settings) {
+  return (await runPaletteWorker(worker, "prepare", pixels, width, height, settings)).result;
+}
+
+function mapFixedWithWorker(worker: Worker, pixels: Uint8ClampedArray, width: number, height: number, settings: Settings) {
+  return runPaletteWorker(worker, "map-fixed", pixels, width, height, settings);
 }
 
 function secondsLabel(seconds: number) {
@@ -139,6 +153,11 @@ export default function VideoConverter({
   const [video, setVideo] = useState<VideoInfo | null>(null);
   const [settings, setSettings] = useState<Settings>(() => createDefaultVideoSettings());
   const [paletteMode, setPaletteMode] = useState<PaletteMode>("common");
+  const [accelerationMode, setAccelerationMode] = useState<AccelerationMode>("auto");
+  const [gpuCapability, setGpuCapability] = useState<GpuCapability>({ available: false, label: "GPU 확인 중" });
+  const [gpuChecking, setGpuChecking] = useState(true);
+  const [accelerationNotice, setAccelerationNotice] = useState("");
+  const [activeAcceleration, setActiveAcceleration] = useState<"cpu" | "gpu" | null>(null);
   const [presetOpen, setPresetOpen] = useState(false);
   const [status, setStatus] = useState<"idle" | "analysis" | "conversion" | "finalizing" | "done" | "error" | "canceled">("idle");
   const [progress, setProgress] = useState(0);
@@ -175,6 +194,7 @@ export default function VideoConverter({
     fileSize: video.file.size,
     deviceMemory: browserDeviceMemory(),
   }) : null, [video]);
+  const gpuEligible = paletteMode === "common" && settings.surfaceCleanup === 0;
   const measuring = status === "analysis" || status === "conversion" || status === "finalizing";
   const remainingTimeLabel = status === "finalizing"
     ? tr("파일 마무리 중")
@@ -206,6 +226,17 @@ export default function VideoConverter({
     if (sourceUrlRef.current) URL.revokeObjectURL(sourceUrlRef.current);
     if (resultUrlRef.current) URL.revokeObjectURL(resultUrlRef.current);
   }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+    void detectGpuCapability().then((capability) => {
+      if (!active) return;
+      setGpuCapability(capability);
+      setGpuChecking(false);
+    });
+    return () => { active = false; };
+  }, [open]);
 
   useEffect(() => {
     if (!measuring || workStartedAtRef.current === null) return;
@@ -279,6 +310,8 @@ export default function VideoConverter({
     workStartedAtRef.current = null;
     setStatus("idle");
     setMessage("");
+    setAccelerationNotice("");
+    setActiveAcceleration(null);
   };
 
   const updateSettings = (updater: (draft: Settings) => void) => {
@@ -470,12 +503,34 @@ export default function VideoConverter({
     setMessage(tr(paletteMode === "common" ? "영상 전체에서 공통 팔레트를 분석하고 있습니다." : "프레임별 팔레트로 영상을 변환하고 있습니다."));
     const worker = new QuantizeWorker();
     const input = new Input({ source: new BlobSource(video.file), formats: ALL_FORMATS });
+    let gpuMapper: GpuPaletteMapper | null = null;
+    let resolvedAcceleration: "cpu" | "gpu" | "benchmark" = "cpu";
     try {
       let conversionSettings = paletteMode === "frame" ? createFramePaletteSettings(settings) : cloneSettings(settings);
       if (paletteMode === "common") {
         const analyzed = await analyzeCommonPalette(input, worker, video.duration, video.width, video.height);
         conversionSettings = createCommonPaletteSettings(settings, analyzed.palette, analyzed.weights);
         setResultPalette(analyzed.palette);
+        if (accelerationMode !== "cpu" && gpuEligible && gpuCapability.available) {
+          try {
+            gpuMapper = await createGpuPaletteMapper(analyzed.palette, analyzed.weights);
+            resolvedAcceleration = "benchmark";
+            setAccelerationNotice(tr("CPU와 GPU의 속도와 결과를 비교하고 있습니다."));
+          } catch (error) {
+            setActiveAcceleration("cpu");
+            setAccelerationNotice(tr("GPU를 시작하지 못해 CPU로 자동 전환했습니다. {reason}", { reason: error instanceof Error ? error.message : tr("알 수 없는 오류") }));
+          }
+        } else {
+          setActiveAcceleration("cpu");
+          setAccelerationNotice(accelerationMode === "cpu"
+            ? tr("CPU 처리로 변환합니다.")
+            : !gpuEligible
+              ? tr("현재 설정은 GPU 가속 대상이 아니므로 CPU로 변환합니다.")
+              : tr("이 브라우저에서 GPU를 사용할 수 없어 CPU로 자동 전환했습니다."));
+        }
+      } else {
+        setActiveAcceleration("cpu");
+        setAccelerationNotice(tr("프레임별 자동 팔레트는 CPU로 변환합니다."));
       }
       if (cancelRequested.current) throw new ConversionCanceledError();
       startProgressPhase();
@@ -510,14 +565,69 @@ export default function VideoConverter({
             context.clearRect(0, 0, outputDimensions.width, outputDimensions.height);
             sample.draw(context, 0, 0, outputDimensions.width, outputDimensions.height);
             const source = context.getImageData(0, 0, outputDimensions.width, outputDimensions.height).data;
-            const converted = await quantizeWithWorker(
-              worker,
-              source,
-              outputDimensions.width,
-              outputDimensions.height,
-              conversionSettings,
-              paletteMode === "frame",
-            );
+            let converted: WorkerResult;
+            if (paletteMode === "common" && gpuMapper && resolvedAcceleration === "benchmark") {
+              const cpuSource = source.slice();
+              const cpuStartedAt = performance.now();
+              const cpuResult = await quantizeWithWorker(worker, cpuSource, outputDimensions.width, outputDimensions.height, conversionSettings);
+              const cpuDuration = performance.now() - cpuStartedAt;
+              try {
+                const gpuStartedAt = performance.now();
+                const prepared = await prepareWithWorker(worker, source, outputDimensions.width, outputDimensions.height, conversionSettings);
+                const gpuResult = await gpuMapper.map(prepared);
+                const gpuDuration = performance.now() - gpuStartedAt;
+                if (!pixelBuffersEqual(cpuResult.result, gpuResult)) {
+                  gpuMapper.dispose();
+                  gpuMapper = null;
+                  resolvedAcceleration = "cpu";
+                  setActiveAcceleration("cpu");
+                  setAccelerationNotice(tr("GPU 결과가 CPU와 일치하지 않아 CPU로 자동 전환했습니다."));
+                  converted = cpuResult;
+                } else if (accelerationMode === "auto" && gpuDuration >= cpuDuration * .8) {
+                  const gpuLabel = gpuMapper.label;
+                  gpuMapper.dispose();
+                  gpuMapper = null;
+                  resolvedAcceleration = "cpu";
+                  setActiveAcceleration("cpu");
+                  setAccelerationNotice(tr("속도 측정 결과 CPU가 더 적합해 CPU로 변환합니다. GPU: {gpu}", { gpu: gpuLabel }));
+                  converted = cpuResult;
+                } else {
+                  resolvedAcceleration = "gpu";
+                  setActiveAcceleration("gpu");
+                  setAccelerationNotice(tr("GPU 가속 사용 중: {gpu}", { gpu: gpuMapper.label }));
+                  converted = { ...cpuResult, result: gpuResult };
+                }
+              } catch (error) {
+                gpuMapper?.dispose();
+                gpuMapper = null;
+                resolvedAcceleration = "cpu";
+                setActiveAcceleration("cpu");
+                setAccelerationNotice(tr("GPU 처리 중 문제가 발생해 CPU로 자동 전환했습니다. {reason}", { reason: error instanceof Error ? error.message : tr("알 수 없는 오류") }));
+                converted = cpuResult;
+              }
+            } else if (paletteMode === "common" && gpuMapper && resolvedAcceleration === "gpu") {
+              const prepared = await prepareWithWorker(worker, source, outputDimensions.width, outputDimensions.height, conversionSettings);
+              try {
+                const gpuResult = await gpuMapper.map(prepared);
+                converted = { result: gpuResult, palette: [], weights: [], sceneCut: false, difference: 0, frameDifference: 0, sceneScore: 0 };
+              } catch (error) {
+                gpuMapper.dispose();
+                gpuMapper = null;
+                resolvedAcceleration = "cpu";
+                setActiveAcceleration("cpu");
+                setAccelerationNotice(tr("GPU 처리 중 문제가 발생해 CPU로 자동 전환했습니다. 이후 프레임은 CPU로 처리합니다. {reason}", { reason: error instanceof Error ? error.message : tr("알 수 없는 오류") }));
+                converted = await mapFixedWithWorker(worker, prepared, outputDimensions.width, outputDimensions.height, conversionSettings);
+              }
+            } else {
+              converted = await quantizeWithWorker(
+                worker,
+                source,
+                outputDimensions.width,
+                outputDimensions.height,
+                conversionSettings,
+                paletteMode === "frame",
+              );
+            }
             context.putImageData(new ImageData(converted.result, outputDimensions.width, outputDimensions.height), 0, 0);
             updateLivePreview(frameCanvas, false, !conversionSettings.pixelation.enabled);
             if (paletteMode === "frame") {
@@ -566,6 +676,7 @@ export default function VideoConverter({
         setMessage(error instanceof Error ? error.message : tr("영상 변환에 실패했습니다."));
       }
     } finally {
+      gpuMapper?.dispose();
       conversionRef.current = null;
       worker.terminate();
       input.dispose();
@@ -630,6 +741,12 @@ export default function VideoConverter({
             <div className="video-setting-heading"><div className="video-section-title"><h3>{tr("팔레트 생성 방식")}</h3><SectionHelp label={tr("팔레트 생성 방식 도움말 열기")} title={tr("영상 팔레트 생성 방식")} summary={tr("영상 전체 구간에서 공통 팔레트를 만들지, 프레임마다 자동으로 조정할지 선택할 수 있습니다.")}><ul><li><strong>{tr("전체 영상 공통 팔레트")}</strong>{tr("영상 전체 구간의 대표 장면을 분석해 같은 팔레트를 끝까지 사용합니다. 색상 깜빡임이 적어 처음 사용할 때 권장합니다.")}</li><li><strong>{tr("프레임별 자동 팔레트")}</strong>{tr("각 프레임에 맞는 팔레트를 만들고 최근 프레임과 자연스럽게 연결합니다. 장면 전환은 빠르게 반영하지만 일부 영상에서는 색 변화가 보일 수 있습니다.")}</li></ul></SectionHelp></div></div>
             <label aria-label={tr("전체 영상 공통 팔레트")} className={`video-mode-option ${paletteMode === "common" ? "is-selected" : ""}`}><input type="radio" name="video-palette-mode" value="common" checked={paletteMode === "common"} disabled={busy} onChange={() => { setPaletteMode("common"); clearResult(); }} /><span><strong>{tr("전체 영상 공통 팔레트")}</strong><small>{tr("영상 전체를 분석해 같은 팔레트를 사용합니다. 색상 깜빡임이 적어 기본값으로 권장합니다.")}</small></span></label>
             <label aria-label={tr("프레임별 자동 팔레트")} className={`video-mode-option ${paletteMode === "frame" ? "is-selected" : ""}`}><input type="radio" name="video-palette-mode" value="frame" checked={paletteMode === "frame"} disabled={busy} onChange={() => { setPaletteMode("frame"); setPresetOpen(false); clearResult(); }} /><span><strong>{tr("프레임별 자동 팔레트")}</strong><small>{tr("각 프레임의 팔레트를 최근 프레임과 자연스럽게 연결하고, 장면 전환은 즉시 반영합니다.")}</small></span></label>
+            <div className="video-acceleration">
+              <label><span>{tr("처리 가속")}</span><select value={accelerationMode} disabled={busy || gpuChecking} onChange={(event) => { setAccelerationMode(event.target.value as AccelerationMode); clearResult(); }}><option value="auto">{tr("자동 권장")}</option><option value="cpu">CPU</option><option value="gpu" disabled={!gpuCapability.available || !gpuEligible}>{tr("실험적 GPU")}</option></select></label>
+              <div className="video-gpu-info"><span className={`video-acceleration-dot ${activeAcceleration ? `is-${activeAcceleration}` : ""}`} aria-hidden="true" /><span>{gpuChecking ? tr("GPU 확인 중") : gpuCapability.available ? tr(gpuCapability.label) : tr("GPU를 사용할 수 없음")}</span></div>
+              {!gpuEligible && <small>{tr("GPU는 전체 공통 팔레트와 면 정리 0에서만 사용할 수 있습니다.")}</small>}
+              {accelerationNotice && <p className={`video-acceleration-notice ${activeAcceleration === "cpu" && accelerationMode !== "cpu" ? "is-fallback" : ""}`} aria-live="polite">{accelerationNotice}</p>}
+            </div>
           </section>
 
           <section className="video-setting-card video-adjustments">
@@ -673,6 +790,7 @@ export default function VideoConverter({
           <div><strong>{message || tr("영상 변환 준비")}</strong><span className="video-progress-meta">{hasWorkTime && <span>{tr("경과 시간")} <time>{formatVideoElapsedTime(elapsedSeconds)}</time></span>}{measuring && <span>{tr("남은 예상 시간")} <strong className="video-progress-value">{remainingTimeValue}</strong></span>}<output>{progress}%</output></span></div>
           <progress max="100" value={progress}>{progress}%</progress>
           {busy && <small>{tr("브라우저에서 처리 중입니다. 이 탭을 닫지 마세요.")}</small>}
+          {accelerationNotice && <small className={`video-progress-acceleration ${activeAcceleration === "cpu" && accelerationMode !== "cpu" ? "is-fallback" : ""}`}>{accelerationNotice}</small>}
         </section>}
         {resultPalette.length > 0 && <section className="video-result-palette"><strong>{tr(paletteMode === "common" ? "적용된 공통 팔레트" : "프레임에서 자주 사용된 색상")}</strong><div>{resultPalette.map((color, index) => <span key={`${rgbToHex(color)}-${index}`} title={rgbToHex(color)} style={{ background: rgbToHex(color) }} />)}</div></section>}
       </div>

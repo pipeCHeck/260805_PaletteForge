@@ -30,15 +30,27 @@ function exactCommonPaletteCache(palette: RGB[], weights: number[]) {
   return commonPaletteCache;
 }
 
-self.onmessage = (event: MessageEvent<{ operation?: "prepare" | "quantize"; pixels: ArrayBuffer; width: number; height: number; settings: unknown; temporalPaletteEnabled?: boolean }>) => {
+self.onmessage = (event: MessageEvent<{ operation?: "prepare" | "map-fixed" | "quantize"; pixels: ArrayBuffer; width: number; height: number; settings: unknown; temporalPaletteEnabled?: boolean }>) => {
   try {
     const pixels = new Uint8ClampedArray(event.data.pixels);
+    const fixedPalette = event.data.temporalPaletteEnabled ? null : fixedPaletteFromSettings(event.data.settings);
     if (event.data.operation === "prepare") {
-      const { prepared } = prepareImage(pixels, event.data.settings, event.data.width, event.data.height);
+      const { prepared } = prepareImage(pixels, event.data.settings, event.data.width, event.data.height, { inPlace: Boolean(fixedPalette) });
       self.postMessage({ result: prepared.buffer }, { transfer: [prepared.buffer] });
       return;
     }
-    const fixedPalette = event.data.temporalPaletteEnabled ? null : fixedPaletteFromSettings(event.data.settings);
+    if (event.data.operation === "map-fixed") {
+      if (!fixedPalette) throw new Error("고정 팔레트 매핑 설정이 올바르지 않습니다.");
+      const result = mapPixels(pixels, fixedPalette.palette, fixedPalette.weights, {
+        width: event.data.width,
+        height: event.data.height,
+        surfaceCleanup: 0,
+        exactColorCache: exactCommonPaletteCache(fixedPalette.palette, fixedPalette.weights),
+        inPlace: true,
+      });
+      self.postMessage({ result: result.buffer, palette: fixedPalette.palette, weights: fixedPalette.weights }, { transfer: [result.buffer] });
+      return;
+    }
     const output = fixedPalette
       ? { ...prepareImage(pixels, event.data.settings, event.data.width, event.data.height, { inPlace: true }), ...fixedPalette }
       : createQuantization(pixels, event.data.settings, event.data.width, event.data.height);

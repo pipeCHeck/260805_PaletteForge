@@ -474,6 +474,17 @@ html[data-theme="dark"] .ad-pending strong { color:#b2b7ad; background:#282c26; 
 .video-mode-option strong, .video-mode-option small { display: block; }
 .video-mode-option strong { font-size: 11px; }
 .video-mode-option small { margin-top: 3px; color: var(--muted); font-size: 9px; line-height: 1.45; }
+.video-acceleration { margin-top: 11px; padding-top: 11px; border-top: 1px solid var(--line); }
+.video-acceleration > label { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 10px; font-weight: 750; }
+.video-acceleration select { min-width: 118px; min-height: 30px; padding: 4px 28px 4px 9px; border: 1px solid var(--line); border-radius: 7px; color: var(--ink); background: var(--panel); font: inherit; }
+.video-gpu-info { margin-top: 8px; display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--muted); font-size: 9px; line-height: 1.35; }
+.video-gpu-info > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.video-acceleration-dot { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: #a5aaa2; }
+.video-acceleration-dot.is-cpu { background: #6d91bf; }
+.video-acceleration-dot.is-gpu { background: #55b778; box-shadow: 0 0 0 3px color-mix(in srgb, #55b778 18%, transparent); }
+.video-acceleration > small { display: block; margin-top: 6px; color: var(--muted); font-size: 9px; line-height: 1.4; }
+.video-acceleration-notice { margin: 8px 0 0; padding: 7px 8px; border-radius: 7px; color: #315f3d; background: #e6f3e9; font-size: 9px; line-height: 1.4; }
+.video-acceleration-notice.is-fallback { color: #835028; background: #fff0df; }
 .video-adjustments > label:not(.video-pixel-toggle):not(.video-pixel-size), .video-diversity, .video-surface-cleanup { display: block; margin-top: 9px; }
 .video-adjustments label > span, .video-diversity > span, .video-surface-cleanup > span { display: flex; align-items: center; justify-content: space-between; font-size: 10px; font-weight: 750; }
 .video-parameter-number.compact-number-input { width: 52px; min-height: 26px; padding-block: 2px; font-size: 11px; }
@@ -513,6 +524,8 @@ html[data-theme="dark"] .ad-pending strong { color:#b2b7ad; background:#282c26; 
 .video-progress-card output { color: var(--orange-dark); font-weight: 900; }
 .video-progress-card progress { width: 100%; height: 9px; margin-top: 8px; accent-color: var(--orange); }
 .video-progress-card small { display: block; margin-top: 5px; color: var(--muted); font-size: 9px; }
+.video-progress-card .video-progress-acceleration { margin-top: 7px; color: #315f3d; font-weight: 750; }
+.video-progress-card .video-progress-acceleration.is-fallback { color: #a2572e; }
 .video-result-palette { margin-top: 12px; padding: 11px 13px; display: flex; align-items: center; gap: 14px; border: 1px solid var(--line); border-radius: 11px; background: #f6f6f1; }
 .video-result-palette > strong { flex: 0 0 auto; font-size: 10px; }
 .video-result-palette > div { min-width: 0; display: flex; flex: 1; gap: 4px; }
@@ -530,6 +543,9 @@ html[data-theme="dark"] .video-workload.is-risk { border-color: #744033; backgro
 html[data-theme="dark"] .video-workload.is-risk > div strong { color: #f0b4a4; background: #603226; }
 html[data-theme="dark"] .video-drop-button:hover:not(:disabled), html[data-theme="dark"] .video-mode-option.is-selected { background: #38241d; }
 html[data-theme="dark"] .video-mode-option { background: #191c18; }
+html[data-theme="dark"] .video-acceleration select { color: var(--ink); background: #252923; }
+html[data-theme="dark"] .video-acceleration-notice { color: #b9e1c3; background: #203126; }
+html[data-theme="dark"] .video-acceleration-notice.is-fallback { color: #f2bc94; background: #39291f; }
 html[data-theme="dark"] :is(.video-pixel-size input,.video-setting-heading input,.video-weight,.video-color-control > input[type="color"]) { color: var(--ink); background: #252923; }
 html[data-theme="dark"] :is(.delete-slot,.video-delete-slot):hover:not(:disabled) { background: transparent; }
 html[data-theme="dark"] .video-progress-card { border-color: #365540; background: #203126; }

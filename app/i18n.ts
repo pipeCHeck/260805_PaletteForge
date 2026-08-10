@@ -385,6 +385,20 @@ Object.assign(en, {
   "낮추면 작은 색 디테일을 유지하고, 높이면 자잘한 색 얼룩을 줄여 넓은 면을 깔끔하게 만듭니다.": "Lower values keep small color details. Higher values reduce speckles and create cleaner broad areas.",
 });
 
+Object.assign(ja, {
+  "처리 가속": "処理アクセラレーション", "자동 권장": "自動（推奨）", "실험적 GPU": "実験的GPU", "GPU 확인 중": "GPUを確認中", "GPU를 사용할 수 없음": "GPUを使用できません", "브라우저가 선택한 GPU": "ブラウザーが選択したGPU",
+  "GPU는 전체 공통 팔레트와 면 정리 0에서만 사용할 수 있습니다.": "GPUは動画全体の共通パレットかつ面の整理が0の場合のみ使用できます。", "CPU 처리로 변환합니다.": "CPUで変換します。", "프레임별 자동 팔레트는 CPU로 변환합니다.": "フレーム別自動パレットはCPUで変換します。",
+  "CPU와 GPU의 속도와 결과를 비교하고 있습니다.": "CPUとGPUの速度と結果を比較しています。", "GPU 결과가 CPU와 일치하지 않아 CPU로 자동 전환했습니다.": "GPUの結果がCPUと一致しないため、CPUへ自動的に切り替えました。", "이 브라우저에서 GPU를 사용할 수 없어 CPU로 자동 전환했습니다.": "このブラウザーではGPUを使用できないため、CPUへ自動的に切り替えました。", "현재 설정은 GPU 가속 대상이 아니므로 CPU로 변환합니다.": "現在の設定はGPUアクセラレーションの対象外のため、CPUで変換します。",
+  "GPU를 시작하지 못해 CPU로 자동 전환했습니다. {reason}": "GPUを開始できなかったため、CPUへ自動的に切り替えました。{reason}", "GPU 처리 중 문제가 발생해 CPU로 자동 전환했습니다. {reason}": "GPU処理中に問題が発生したため、CPUへ自動的に切り替えました。{reason}", "GPU 처리 중 문제가 발생해 CPU로 자동 전환했습니다. 이후 프레임은 CPU로 처리합니다. {reason}": "GPU処理中に問題が発生したため、CPUへ自動的に切り替えました。以降のフレームはCPUで処理します。{reason}", "속도 측정 결과 CPU가 더 적합해 CPU로 변환합니다. GPU: {gpu}": "速度測定の結果、CPUのほうが適しているためCPUで変換します。GPU: {gpu}", "GPU 가속 사용 중: {gpu}": "GPUアクセラレーションを使用中: {gpu}", "알 수 없는 오류": "不明なエラー",
+});
+
+Object.assign(en, {
+  "처리 가속": "Processing acceleration", "자동 권장": "Auto (recommended)", "실험적 GPU": "Experimental GPU", "GPU 확인 중": "Checking GPU", "GPU를 사용할 수 없음": "GPU unavailable", "브라우저가 선택한 GPU": "Browser-selected GPU",
+  "GPU는 전체 공통 팔레트와 면 정리 0에서만 사용할 수 있습니다.": "GPU is available only for a whole-video common palette with Surface cleanup set to 0.", "CPU 처리로 변환합니다.": "Converting with the CPU.", "프레임별 자동 팔레트는 CPU로 변환합니다.": "Per-frame automatic palettes are converted with the CPU.",
+  "CPU와 GPU의 속도와 결과를 비교하고 있습니다.": "Comparing CPU and GPU speed and output.", "GPU 결과가 CPU와 일치하지 않아 CPU로 자동 전환했습니다.": "GPU output did not match the CPU, so processing automatically switched to the CPU.", "이 브라우저에서 GPU를 사용할 수 없어 CPU로 자동 전환했습니다.": "The GPU is unavailable in this browser, so processing automatically switched to the CPU.", "현재 설정은 GPU 가속 대상이 아니므로 CPU로 변환합니다.": "The current settings are not eligible for GPU acceleration, so conversion will use the CPU.",
+  "GPU를 시작하지 못해 CPU로 자동 전환했습니다. {reason}": "The GPU could not start, so processing automatically switched to the CPU. {reason}", "GPU 처리 중 문제가 발생해 CPU로 자동 전환했습니다. {reason}": "A GPU error occurred, so processing automatically switched to the CPU. {reason}", "GPU 처리 중 문제가 발생해 CPU로 자동 전환했습니다. 이후 프레임은 CPU로 처리합니다. {reason}": "A GPU error occurred, so processing automatically switched to the CPU. Remaining frames will use the CPU. {reason}", "속도 측정 결과 CPU가 더 적합해 CPU로 변환합니다. GPU: {gpu}": "The benchmark favored the CPU, so conversion will use the CPU. GPU: {gpu}", "GPU 가속 사용 중: {gpu}": "Using GPU acceleration: {gpu}", "알 수 없는 오류": "Unknown error",
+});
+
 const es: Record<string, string> = Object.fromEntries(
   Object.entries(en).map(([source, english]) => [source, ES_BY_ENGLISH[english] ?? english]),
 );

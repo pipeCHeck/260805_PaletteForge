@@ -676,3 +676,18 @@ test("section help stays at panel headings and supports accessible popovers", as
   assert.match(css, /\.section-help-popover li > strong \{[^}]*display: block;/);
   assert.match(css, /@media \(max-width: 640px\)[\s\S]*\.section-help-popover/);
 });
+
+test("experimental GPU acceleration is guarded and reports CPU fallback", async () => {
+  const [converter, gpu, worker] = await Promise.all([
+    readFile(new URL("../app/VideoConverter.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/gpu-palette.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/quantize.worker.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(converter, /type AccelerationMode = "auto" \| "cpu" \| "gpu"/);
+  assert.match(converter, /pixelBuffersEqual\(cpuResult\.result, gpuResult\)/);
+  assert.match(converter, /CPU로 자동 전환했습니다/);
+  assert.match(converter, /paletteMode === "common" && settings\.surfaceCleanup === 0/);
+  assert.match(gpu, /device\.lost/);
+  assert.match(gpu, /requestAdapter\(\{ powerPreference: "high-performance" \}\)/);
+  assert.match(worker, /operation\?: "prepare" \| "map-fixed" \| "quantize"/);
+});
