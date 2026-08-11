@@ -2,7 +2,7 @@
 /* User-supplied local previews do not have a separate captions file. */
 /* eslint-disable jsx-a11y/media-has-caption */
 
-import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ALL_FORMATS,
   BlobSource,
@@ -69,7 +69,7 @@ type VideoInfo = {
 };
 type WorkerResult = { result: Uint8ClampedArray; palette: RGB[]; weights: number[]; sceneCut: boolean; difference: number; frameDifference: number; sceneScore: number };
 
-function runPaletteWorker(worker: Worker, operation: "prepare" | "map-fixed" | "quantize", pixels: Uint8ClampedArray, width: number, height: number, settings: Settings, temporalPaletteEnabled = false) {
+function runPaletteWorker(worker: Worker, operation: "prepare" | "map-fixed" | "quantize", pixels: Uint8ClampedArray, width: number, height: number, settings: Settings, temporalPaletteEnabled = false, colorizeBaseHue?: number) {
   return new Promise<WorkerResult>((resolve, reject) => {
     worker.onmessage = (event: MessageEvent<{ error?: string; result?: ArrayBuffer; palette?: RGB[]; weights?: number[]; sceneCut?: boolean; difference?: number; frameDifference?: number; sceneScore?: number }>) => {
       if (event.data.error || !event.data.result) { reject(new Error(event.data.error || "영상 프레임 변환에 실패했습니다.")); return; }
@@ -84,16 +84,30 @@ function runPaletteWorker(worker: Worker, operation: "prepare" | "map-fixed" | "
       });
     };
     worker.onerror = () => reject(new Error("영상 프레임 작업자를 실행하지 못했습니다."));
-    worker.postMessage({ operation, pixels: pixels.buffer, width, height, settings, temporalPaletteEnabled }, [pixels.buffer]);
+    worker.postMessage({ operation, pixels: pixels.buffer, width, height, settings, temporalPaletteEnabled, colorizeBaseHue }, [pixels.buffer]);
   });
 }
 
-function quantizeWithWorker(worker: Worker, pixels: Uint8ClampedArray, width: number, height: number, settings: Settings, temporalPaletteEnabled = false) {
-  return runPaletteWorker(worker, "quantize", pixels, width, height, settings, temporalPaletteEnabled);
+function quantizeWithWorker(worker: Worker, pixels: Uint8ClampedArray, width: number, height: number, settings: Settings, temporalPaletteEnabled = false, colorizeBaseHue?: number) {
+  return runPaletteWorker(worker, "quantize", pixels, width, height, settings, temporalPaletteEnabled, colorizeBaseHue);
 }
 
-async function prepareWithWorker(worker: Worker, pixels: Uint8ClampedArray, width: number, height: number, settings: Settings) {
-  return (await runPaletteWorker(worker, "prepare", pixels, width, height, settings)).result;
+async function prepareWithWorker(worker: Worker, pixels: Uint8ClampedArray, width: number, height: number, settings: Settings, colorizeBaseHue?: number) {
+  return (await runPaletteWorker(worker, "prepare", pixels, width, height, settings, false, colorizeBaseHue)).result;
+}
+
+function analyzeColorizeHueWithWorker(worker: Worker, pixels: Uint8ClampedArray, width: number, height: number, settings: { adjustments: Settings["adjustments"] }) {
+  return new Promise<number>((resolve, reject) => {
+    worker.onmessage = (event: MessageEvent<{ error?: string; colorizeBaseHue?: number }>) => {
+      if (event.data.error || !Number.isFinite(event.data.colorizeBaseHue)) {
+        reject(new Error(event.data.error || "영상 전체의 색상 기준을 분석하지 못했습니다."));
+        return;
+      }
+      resolve(event.data.colorizeBaseHue as number);
+    };
+    worker.onerror = () => reject(new Error("영상 색상 기준 분석 작업자를 실행하지 못했습니다."));
+    worker.postMessage({ operation: "analyze-hue", pixels: pixels.buffer, width, height, settings }, [pixels.buffer]);
+  });
 }
 
 function mapFixedWithWorker(worker: Worker, pixels: Uint8ClampedArray, width: number, height: number, settings: Settings) {
@@ -119,6 +133,44 @@ function browserDeviceMemory() {
   if (typeof navigator === "undefined") return null;
   const value = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
   return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : null;
+}
+
+function colorizeHueSignature(video: VideoInfo, adjustments: Settings["adjustments"]) {
+  const { brightness, contrast, saturation } = adjustments;
+  return `${video.sourceUrl}|${brightness}|${contrast}|${saturation}`;
+}
+
+async function analyzeVideoColorizeBaseHue(video: VideoInfo, adjustments: Settings["adjustments"]) {
+  const input = new Input({ source: new BlobSource(video.file), formats: ALL_FORMATS });
+  const worker = new QuantizeWorker();
+  try {
+    const track = await input.getPrimaryVideoTrack();
+    if (!track) throw new Error("영상 트랙이 없는 파일입니다.");
+    const sampleWidth = Math.max(2, Math.min(160, video.width));
+    const sampleHeight = Math.max(2, Math.round(video.height * sampleWidth / video.width));
+    const timestamps = createAnalysisTimestamps(video.duration, 16);
+    const sink = new VideoSampleSink(track);
+    const frames: Uint8ClampedArray[] = [];
+    const canvas = document.createElement("canvas");
+    canvas.width = sampleWidth;
+    canvas.height = sampleHeight;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context) throw new Error("영상 색상 기준 분석용 화면을 만들 수 없습니다.");
+    for await (const sample of sink.samplesAtTimestamps(timestamps)) {
+      if (!sample) continue;
+      context.clearRect(0, 0, sampleWidth, sampleHeight);
+      sample.draw(context, 0, 0, sampleWidth, sampleHeight);
+      frames.push(context.getImageData(0, 0, sampleWidth, sampleHeight).data);
+      sample.close();
+    }
+    if (!frames.length) throw new Error("영상 전체의 색상 기준을 분석할 프레임을 찾지 못했습니다.");
+    const pixels = new Uint8ClampedArray(sampleWidth * sampleHeight * 4 * frames.length);
+    frames.forEach((frame, index) => pixels.set(frame, index * frame.length));
+    return await analyzeColorizeHueWithWorker(worker, pixels, sampleWidth, sampleHeight * frames.length, { adjustments });
+  } finally {
+    worker.terminate();
+    input.dispose();
+  }
 }
 
 function drawLivePreviewFrame(source: HTMLCanvasElement, canvas: HTMLCanvasElement, lastRenderedAt: number, force: boolean, smooth: boolean) {
@@ -169,9 +221,13 @@ export default function VideoConverter({
   const [resultBlob, setResultBlob] = useState<Blob | null>(null);
   const [resultPalette, setResultPalette] = useState<RGB[]>([]);
   const [livePreviewReady, setLivePreviewReady] = useState(false);
+  const [adjustmentPreviewError, setAdjustmentPreviewError] = useState(false);
+  const [previewFrameVersion, setPreviewFrameVersion] = useState(0);
+  const [colorizeAnalysisState, setColorizeAnalysisState] = useState<{ signature: string; status: "ready" | "error"; hue?: number } | null>(null);
   const [loadingFile, setLoadingFile] = useState(false);
   const [numericDrafts, setNumericDrafts] = useState<Partial<Record<VideoNumericField, string>>>({});
   const inputRef = useRef<HTMLInputElement>(null);
+  const sourceVideoRef = useRef<HTMLVideoElement>(null);
   const livePreviewRef = useRef<HTMLCanvasElement>(null);
   const livePreviewReadyRef = useRef(false);
   const lastPreviewAtRef = useRef(0);
@@ -183,9 +239,29 @@ export default function VideoConverter({
   const phaseProgressRef = useRef(0);
   const phaseProgressSamplesRef = useRef<Array<{ time: number; progress: number }>>([]);
   const smoothedRemainingRef = useRef<number | null>(null);
+  const colorizeHueCacheRef = useRef<{ signature: string; hue: number } | null>(null);
+  const colorizeHuePromiseRef = useRef<{ signature: string; promise: Promise<number> } | null>(null);
   const cancelRequested = useRef(false);
   const tr = (source: string, values: Record<string, string | number> = {}) => translate(language, source, values);
   const busy = loadingFile || status === "analysis" || status === "conversion" || status === "finalizing";
+  const colorizeAnalysisAdjustments = useMemo(
+    () => ({
+      brightness: settings.adjustments.brightness,
+      contrast: settings.adjustments.contrast,
+      saturation: settings.adjustments.saturation,
+      hue: 0,
+    }),
+    [settings.adjustments.brightness, settings.adjustments.contrast, settings.adjustments.saturation],
+  );
+  const currentColorizeHueSignature = video && settings.colorize.enabled ? colorizeHueSignature(video, colorizeAnalysisAdjustments) : "";
+  const colorizeAnalysisStatus = !settings.colorize.enabled
+    ? "idle"
+    : colorizeAnalysisState?.signature === currentColorizeHueSignature
+      ? colorizeAnalysisState.status
+      : "analysis";
+  const videoColorizeBaseHue = colorizeAnalysisState?.signature === currentColorizeHueSignature && colorizeAnalysisState.status === "ready"
+    ? colorizeAnalysisState.hue ?? null
+    : null;
   const outputSpec = useMemo(() => video ? videoOutputSpec(video.file) : null, [video]);
   const workload = useMemo(() => video ? estimateVideoWorkload({
     width: video.width,
@@ -206,6 +282,27 @@ export default function VideoConverter({
     : estimatedRemainingSeconds === null
       ? tr("계산 중")
       : formatVideoElapsedTime(estimatedRemainingSeconds);
+
+  const ensureVideoColorizeBaseHue = useCallback((targetVideo: VideoInfo, targetAdjustments: Settings["adjustments"]) => {
+    const signature = colorizeHueSignature(targetVideo, targetAdjustments);
+    if (colorizeHueCacheRef.current?.signature === signature) {
+      setColorizeAnalysisState({ signature, status: "ready", hue: colorizeHueCacheRef.current.hue });
+      return Promise.resolve(colorizeHueCacheRef.current.hue);
+    }
+    if (colorizeHuePromiseRef.current?.signature === signature) return colorizeHuePromiseRef.current.promise;
+    const promise = analyzeVideoColorizeBaseHue(targetVideo, targetAdjustments).then((hue) => {
+      colorizeHueCacheRef.current = { signature, hue };
+      setColorizeAnalysisState({ signature, status: "ready", hue });
+      return hue;
+    }).catch((error) => {
+      setColorizeAnalysisState({ signature, status: "error" });
+      throw error;
+    }).finally(() => {
+      if (colorizeHuePromiseRef.current?.signature === signature) colorizeHuePromiseRef.current = null;
+    });
+    colorizeHuePromiseRef.current = { signature, promise };
+    return promise;
+  }, []);
 
   const startProgressPhase = (startedAt = currentWorkTime()) => {
     phaseStartedAtRef.current = startedAt;
@@ -239,6 +336,20 @@ export default function VideoConverter({
   }, [open]);
 
   useEffect(() => {
+    if (!video || !settings.colorize.enabled) return;
+    if (busy) return;
+    const timer = window.setTimeout(() => {
+      livePreviewReadyRef.current = false;
+      setLivePreviewReady(false);
+      const canvas = livePreviewRef.current;
+      const context = canvas?.getContext("2d");
+      if (canvas && context) context.clearRect(0, 0, canvas.width, canvas.height);
+      void ensureVideoColorizeBaseHue(video, colorizeAnalysisAdjustments).catch(() => undefined);
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [video, settings.colorize.enabled, currentColorizeHueSignature, colorizeAnalysisAdjustments, busy, ensureVideoColorizeBaseHue]);
+
+  useEffect(() => {
     if (!measuring || workStartedAtRef.current === null) return;
     const updateElapsed = () => {
       const now = currentWorkTime();
@@ -267,6 +378,7 @@ export default function VideoConverter({
     livePreviewReadyRef.current = false;
     lastPreviewAtRef.current = 0;
     setLivePreviewReady(false);
+    setAdjustmentPreviewError(false);
     const canvas = livePreviewRef.current;
     const context = canvas?.getContext("2d");
     if (canvas && context) context.clearRect(0, 0, canvas.width, canvas.height);
@@ -284,6 +396,54 @@ export default function VideoConverter({
     }
   };
 
+  useEffect(() => {
+    const source = sourceVideoRef.current;
+    const target = livePreviewRef.current;
+    if (!video || busy || resultUrl || !source || !target || source.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || (settings.colorize.enabled && videoColorizeBaseHue === null)) return;
+
+    let disposed = false;
+    let worker: Worker | null = null;
+    setAdjustmentPreviewError(false);
+    const timer = window.setTimeout(() => {
+      const scale = Math.min(1, 640 / video.width, 360 / video.height);
+      const width = Math.max(1, Math.round(video.width * scale));
+      const height = Math.max(1, Math.round(video.height * scale));
+      const capture = document.createElement("canvas");
+      capture.width = width;
+      capture.height = height;
+      const captureContext = capture.getContext("2d", { willReadFrequently: true });
+      if (!captureContext) {
+        setAdjustmentPreviewError(true);
+        return;
+      }
+      captureContext.clearRect(0, 0, width, height);
+      captureContext.drawImage(source, 0, 0, width, height);
+      const pixels = captureContext.getImageData(0, 0, width, height).data;
+      worker = new QuantizeWorker();
+      void prepareWithWorker(worker, pixels, width, height, settings, videoColorizeBaseHue ?? undefined).then((adjusted) => {
+        if (disposed) return;
+        target.width = width;
+        target.height = height;
+        const targetContext = target.getContext("2d");
+        if (!targetContext) throw new Error("preview-context");
+        targetContext.putImageData(new ImageData(adjusted, width, height), 0, 0);
+        livePreviewReadyRef.current = true;
+        setLivePreviewReady(true);
+      }).catch(() => {
+        if (!disposed) setAdjustmentPreviewError(true);
+      }).finally(() => {
+        worker?.terminate();
+        worker = null;
+      });
+    }, 100);
+
+    return () => {
+      disposed = true;
+      window.clearTimeout(timer);
+      worker?.terminate();
+    };
+  }, [video, settings, busy, resultUrl, previewFrameVersion, videoColorizeBaseHue]);
+
   const stopWorkTimer = () => {
     if (workStartedAtRef.current === null) return;
     const now = currentWorkTime();
@@ -293,13 +453,13 @@ export default function VideoConverter({
     setEstimatedRemainingSeconds(null);
   };
 
-  const clearResult = () => {
+  const clearResult = (preserveLivePreview = false) => {
     if (resultUrl) URL.revokeObjectURL(resultUrl);
     resultUrlRef.current = null;
     setResultUrl(null);
     setResultBlob(null);
     setResultPalette([]);
-    resetLivePreview();
+    if (!preserveLivePreview) resetLivePreview();
     phaseProgressRef.current = 0;
     phaseProgressSamplesRef.current = [];
     smoothedRemainingRef.current = null;
@@ -320,7 +480,7 @@ export default function VideoConverter({
       updater(next);
       return normalizeSlotCount(next);
     });
-    clearResult();
+    clearResult(true);
   };
 
   const commitVideoNumber = (field: VideoNumericField, label: string, min: number, max: number) => {
@@ -458,7 +618,7 @@ export default function VideoConverter({
     }
   };
 
-  const analyzeCommonPalette = async (input: Input, worker: Worker, duration: number, width: number, height: number) => {
+  const analyzeCommonPalette = async (input: Input, worker: Worker, duration: number, width: number, height: number, colorizeBaseHue?: number) => {
     const track = await input.getPrimaryVideoTrack();
     if (!track) throw new Error(tr("영상 트랙이 없는 파일입니다."));
     const sampleWidth = Math.max(2, Math.min(240, width));
@@ -487,7 +647,7 @@ export default function VideoConverter({
     if (!frames.length) throw new Error(tr("영상에서 분석할 프레임을 찾지 못했습니다."));
     const pixels = new Uint8ClampedArray(sampleWidth * sampleHeight * 4 * frames.length);
     frames.forEach((frame, frameIndex) => pixels.set(frame, frameIndex * frame.length));
-    return quantizeWithWorker(worker, pixels, sampleWidth, sampleHeight * frames.length, settings);
+    return quantizeWithWorker(worker, pixels, sampleWidth, sampleHeight * frames.length, settings, false, colorizeBaseHue);
   };
 
   const convertVideo = async () => {
@@ -507,9 +667,12 @@ export default function VideoConverter({
     let gpuMapper: GpuPaletteMapper | null = null;
     let resolvedAcceleration: "cpu" | "gpu" | "benchmark" = "cpu";
     try {
+      const colorizeBaseHue = settings.colorize.enabled
+        ? await ensureVideoColorizeBaseHue(video, settings.adjustments)
+        : undefined;
       let conversionSettings = paletteMode === "frame" ? createFramePaletteSettings(settings) : cloneSettings(settings);
       if (paletteMode === "common") {
-        const analyzed = await analyzeCommonPalette(input, worker, video.duration, video.width, video.height);
+        const analyzed = await analyzeCommonPalette(input, worker, video.duration, video.width, video.height, colorizeBaseHue);
         conversionSettings = createCommonPaletteSettings(settings, analyzed.palette, analyzed.weights);
         setResultPalette(analyzed.palette);
         if (accelerationMode !== "cpu" && gpuEligible && gpuCapability.available) {
@@ -570,11 +733,11 @@ export default function VideoConverter({
             if (paletteMode === "common" && gpuMapper && resolvedAcceleration === "benchmark") {
               const cpuSource = source.slice();
               const cpuStartedAt = performance.now();
-              const cpuResult = await quantizeWithWorker(worker, cpuSource, outputDimensions.width, outputDimensions.height, conversionSettings);
+              const cpuResult = await quantizeWithWorker(worker, cpuSource, outputDimensions.width, outputDimensions.height, conversionSettings, false, colorizeBaseHue);
               const cpuDuration = performance.now() - cpuStartedAt;
               try {
                 const gpuStartedAt = performance.now();
-                const prepared = await prepareWithWorker(worker, source, outputDimensions.width, outputDimensions.height, conversionSettings);
+                const prepared = await prepareWithWorker(worker, source, outputDimensions.width, outputDimensions.height, conversionSettings, colorizeBaseHue);
                 const gpuResult = await gpuMapper.map(prepared);
                 const gpuDuration = performance.now() - gpuStartedAt;
                 if (!pixelBuffersEqual(cpuResult.result, gpuResult)) {
@@ -607,7 +770,7 @@ export default function VideoConverter({
                 converted = cpuResult;
               }
             } else if (paletteMode === "common" && gpuMapper && resolvedAcceleration === "gpu") {
-              const prepared = await prepareWithWorker(worker, source, outputDimensions.width, outputDimensions.height, conversionSettings);
+              const prepared = await prepareWithWorker(worker, source, outputDimensions.width, outputDimensions.height, conversionSettings, colorizeBaseHue);
               try {
                 const gpuResult = await gpuMapper.map(prepared);
                 converted = { result: gpuResult, palette: [], weights: [], sceneCut: false, difference: 0, frameDifference: 0, sceneScore: 0 };
@@ -627,6 +790,7 @@ export default function VideoConverter({
                 outputDimensions.height,
                 conversionSettings,
                 paletteMode === "frame",
+                colorizeBaseHue,
               );
             }
             context.putImageData(new ImageData(converted.result, outputDimensions.width, outputDimensions.height), 0, 0);
@@ -729,11 +893,15 @@ export default function VideoConverter({
         </section>
 
         <div className="video-preview-grid">
-          <figure><figcaption>{tr("원본 영상")}</figcaption>{video ? <><video src={video.sourceUrl} controls playsInline /></> : <div className="video-empty">{tr("영상을 선택해주세요.")}</div>}</figure>
-          <figure><figcaption>{tr("변환 결과")}</figcaption>{resultUrl ? <video src={resultUrl} controls playsInline /> : busy ? <div className={`video-live-preview-shell ${livePreviewReady ? "is-ready" : ""}`}>
+          <figure><figcaption>{tr("원본 영상")}</figcaption>{video ? <video ref={sourceVideoRef} src={video.sourceUrl} controls playsInline onLoadedData={() => setPreviewFrameVersion((value) => value + 1)} onSeeked={() => setPreviewFrameVersion((value) => value + 1)} onTimeUpdate={() => setPreviewFrameVersion((value) => value + 1)} /> : <div className="video-empty">{tr("영상을 선택해주세요.")}</div>}</figure>
+          <figure><figcaption>{tr(resultUrl || busy || !video ? "변환 결과" : "보정 미리보기")}</figcaption>{resultUrl ? <video src={resultUrl} controls playsInline /> : busy ? <div className={`video-live-preview-shell ${livePreviewReady ? "is-ready" : ""}`}>
             <canvas ref={livePreviewRef} className="video-live-preview" role="img" aria-label={tr("변환 중인 마지막 프레임 미리보기")} />
             {!livePreviewReady && <div className="video-live-placeholder">{tr(status === "analysis" ? "팔레트 분석이 끝나면 변환 프레임이 표시됩니다." : "첫 번째 변환 프레임을 준비하고 있습니다.")}</div>}
             <span className="video-live-status">{tr(status === "analysis" ? "팔레트 분석 중" : status === "finalizing" ? "영상 마무리 중" : livePreviewReady ? "마지막 완료 프레임" : "프레임 변환 중")} · {progress}%{hasWorkTime && <> · {tr("경과 시간")} {formatVideoElapsedTime(elapsedSeconds)}</>}{measuring && <> · {remainingTimeLabel}</>}</span>
+          </div> : video ? <div className={`video-live-preview-shell is-adjustment-preview ${livePreviewReady ? "is-ready" : ""} ${settings.pixelation.enabled ? "is-pixelated" : ""}`}>
+            <canvas ref={livePreviewRef} className="video-live-preview" role="img" aria-label={tr("현재 프레임 색 보정 미리보기")} />
+            {!livePreviewReady && <div className="video-live-placeholder">{tr(settings.colorize.enabled && colorizeAnalysisStatus === "analysis" ? "영상 전체의 색상 기준을 분석하고 있습니다." : settings.colorize.enabled && colorizeAnalysisStatus === "error" ? "영상 전체의 색상 기준을 분석하지 못했습니다." : adjustmentPreviewError ? "보정 미리보기를 표시하지 못했습니다." : "현재 프레임의 보정 미리보기를 준비하고 있습니다.")}</div>}
+            <span className="video-live-status">{tr("색 보정·단일 색상화·픽셀화 미리보기")} · {settings.colorize.enabled && colorizeAnalysisStatus === "ready" && <>{tr("영상 전체 색상 기준")} · </>}{tr("최종 팔레트 미적용")}</span>
           </div> : <div className="video-empty">{tr("변환이 끝나면 결과를 확인할 수 있습니다.")}</div>}</figure>
         </div>
 
@@ -751,7 +919,7 @@ export default function VideoConverter({
           </section>
 
           <section className="video-setting-card video-adjustments">
-            <div className="video-setting-heading"><div className="video-section-title"><h3>{tr("색 보정")}</h3><SectionHelp label={tr("영상 색 보정 도움말 열기")} title={tr("색 보정")} summary={tr("영상의 모든 프레임에 같은 색 보정과 픽셀화를 적용할 수 있습니다.")}><ul><li><strong>{tr("밝기·대비")}</strong>{tr("영상 전체의 밝기와 밝고 어두운 부분의 차이를 조절합니다.")}</li><li><strong>{tr("채도·색조")}</strong>{tr("색의 선명함과 영상 전체의 색 계열을 바꿉니다.")}</li><li><strong>{tr("단일 색상화")}</strong>{tr("각 프레임의 밝기와 색 농도를 유지하면서 주요 색상 계열로 통일하며, 색조로 계열을 바꿉니다.")}</li><li><strong>{tr("픽셀화")}</strong>{tr("픽셀화를 켜면 영상을 사각형 블록으로 표현하며, 블록 크기가 클수록 픽셀이 굵어집니다.")}</li></ul></SectionHelp></div><button type="button" className="text-button" disabled={busy} onClick={resetVideoAdjustments}>{tr("초기화")}</button></div>
+            <div className="video-setting-heading"><div className="video-section-title"><h3>{tr("색 보정")}</h3><SectionHelp label={tr("영상 색 보정 도움말 열기")} title={tr("색 보정")} summary={tr("영상의 모든 프레임에 같은 색 보정과 픽셀화를 적용할 수 있습니다.")}><ul><li><strong>{tr("밝기·대비")}</strong>{tr("영상 전체의 밝기와 밝고 어두운 부분의 차이를 조절합니다.")}</li><li><strong>{tr("채도·색조")}</strong>{tr("색의 선명함과 영상 전체의 색 계열을 바꿉니다.")}</li><li><strong>{tr("단일 색상화")}</strong>{tr("모든 프레임의 밝기와 색 농도를 유지하면서 영상 전체의 대표 색상 계열로 통일하고, 색조로 계열을 바꿉니다.")}</li><li><strong>{tr("픽셀화")}</strong>{tr("픽셀화를 켜면 영상을 사각형 블록으로 표현하며, 블록 크기가 클수록 픽셀이 굵어집니다.")}</li></ul></SectionHelp></div><button type="button" className="text-button" disabled={busy} onClick={resetVideoAdjustments}>{tr("초기화")}</button></div>
             {([ ["brightness", "밝기"], ["contrast", "대비"], ["saturation", "채도"], ["hue", "색조"] ] as const).map(([key, label]) => {
               const min = key === "hue" ? -180 : -100;
               const max = key === "hue" ? 180 : 100;

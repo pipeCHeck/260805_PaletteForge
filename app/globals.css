@@ -472,6 +472,7 @@ html[data-theme="dark"] .ad-pending strong { color:#b2b7ad; background:#282c26; 
 .video-live-preview-shell { position: relative; display: grid; place-items: center; overflow: hidden; background: #10110f; }
 .video-live-preview { display: block; width: auto; height: auto; max-width: 100%; max-height: 100%; opacity: 0; }
 .video-live-preview-shell.is-ready .video-live-preview { opacity: 1; }
+.video-live-preview-shell.is-adjustment-preview.is-pixelated .video-live-preview { image-rendering: pixelated; }
 .video-live-placeholder { position: absolute; inset: 0; display: grid; place-items: center; padding: 20px; color: #a8aaa3; text-align: center; font-size: 11px; background: #252722; }
 .video-live-status { position: absolute; right: 9px; bottom: 9px; padding: 5px 8px; border: 1px solid rgba(255,255,255,.14); border-radius: 999px; color: #f5f6f1; background: rgba(15,17,15,.78); box-shadow: 0 3px 12px rgba(0,0,0,.2); font-size: 9px; font-weight: 800; }
 .video-settings-grid { margin-top: 14px; display: grid; grid-template-columns: .9fr 1fr 1.25fr; gap: 12px; align-items: start; }

@@ -612,6 +612,27 @@ test("video palette presets are available and frame mode starts progress at zero
   assert.match(translations, /"Fixed colors and weights below are ignored in automatic palette-per-frame mode\."/);
 });
 
+test("video color adjustments preview the current source frame before conversion", async () => {
+  const [component, css] = await Promise.all([
+    readFile(new URL("../app/VideoConverter.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(component, /ref=\{sourceVideoRef\}/);
+  assert.match(component, /onLoadedData=\{\(\) => setPreviewFrameVersion/);
+  assert.match(component, /onSeeked=\{\(\) => setPreviewFrameVersion/);
+  assert.match(component, /onTimeUpdate=\{\(\) => setPreviewFrameVersion/);
+  assert.match(component, /prepareWithWorker\(worker, pixels, width, height, settings, videoColorizeBaseHue \?\? undefined\)/);
+  assert.match(component, /window\.setTimeout\([\s\S]*?, 100\)/);
+  assert.match(component, /is-adjustment-preview/);
+  assert.match(component, /최종 팔레트 미적용/);
+  assert.match(component, /analyzeVideoColorizeBaseHue/);
+  assert.match(component, /createAnalysisTimestamps\(video\.duration, 16\)/);
+  assert.match(component, /ensureVideoColorizeBaseHue\(video, settings\.adjustments\)/);
+  assert.match(component, /paletteMode === "frame",\s*colorizeBaseHue/);
+  assert.match(component, /영상 전체 색상 기준/);
+  assert.match(css, /\.video-live-preview-shell\.is-adjustment-preview\.is-pixelated/);
+});
+
 test("image and video palettes can remove one color while preserving at least one slot", async () => {
   const [studio, video, palette] = await Promise.all([
     readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
@@ -700,5 +721,5 @@ test("experimental GPU acceleration is guarded and reports CPU fallback", async 
   assert.match(converter, /paletteMode === "common" && settings\.surfaceCleanup === 0/);
   assert.match(gpu, /device\.lost/);
   assert.match(gpu, /requestAdapter\(\{ powerPreference: "high-performance" \}\)/);
-  assert.match(worker, /operation\?: "prepare" \| "map-fixed" \| "quantize"/);
+  assert.match(worker, /operation\?: "analyze-hue" \| "prepare" \| "map-fixed" \| "quantize"/);
 });

@@ -9,6 +9,7 @@ import {
   defaultSettings,
   deserializeSettings,
   deserializeSettingsDocument,
+  dominantColorizeHue,
   fixPaletteSlot,
   fixPaletteSlotWeight,
   getExportDimensions,
@@ -94,6 +95,26 @@ test("단일 색상화의 색조는 히스토그램 구간에 갇히지 않고 �
 
   assert.ok(new Set(samples.map((sample) => sample.color)).size >= 4);
   assert.ok(hueSteps.every((step) => step > 0.015 && step < 0.09));
+});
+
+test("고정된 영상 전체 색상 기준은 프레임의 주조색이 달라도 같은 계열을 유지한다", () => {
+  const redFrame = pixels([[210, 45, 55], [190, 38, 50], [225, 70, 65]]);
+  const blueFrame = pixels([[35, 90, 220], [45, 105, 205], [25, 75, 195]]);
+  const combined = new Uint8ClampedArray(redFrame.length + blueFrame.length);
+  combined.set(redFrame);
+  combined.set(blueFrame, redFrame.length);
+  const settings = defaultSettings();
+  settings.colorize = { enabled: true };
+  const baseHue = dominantColorizeHue(combined, settings.adjustments);
+  const red = adjustPixels(redFrame, settings.adjustments, { colorize: settings.colorize, colorizeBaseHue: baseHue });
+  const blue = adjustPixels(blueFrame, settings.adjustments, { colorize: settings.colorize, colorizeBaseHue: baseHue });
+  const redLab = rgbToOklab(Array.from(red.slice(0, 3)));
+  const blueLab = rgbToOklab(Array.from(blue.slice(0, 3)));
+  const hueDifference = Math.abs(Math.atan2(
+    Math.sin(Math.atan2(redLab[2], redLab[1]) - Math.atan2(blueLab[2], blueLab[1])),
+    Math.cos(Math.atan2(redLab[2], redLab[1]) - Math.atan2(blueLab[2], blueLab[1])),
+  ));
+  assert.ok(hueDifference < 0.12);
 });
 
 test("팔레트 프리셋은 보정 설정을 유지하고 색상 고정·가중치 자동 상태로 적용한다", () => {

@@ -1,7 +1,8 @@
-import { createQuantization, mapPixels, mapPixelsWithTemporalHysteresis, prepareImage } from "../lib/palette.mjs";
+import { createQuantization, dominantColorizeHue, mapPixels, mapPixelsWithTemporalHysteresis, prepareImage } from "../lib/palette.mjs";
 import { createFrameSignature, estimatePaletteUsage, stabilizeFramePalette } from "../lib/video.mjs";
 
 type RGB = [number, number, number];
+type WorkerSettings = { adjustments: { brightness: number; contrast: number; saturation: number; hue: number }; slots?: unknown[] } & Record<string, unknown>;
 type TemporalPaletteState = { palette: RGB[]; weights: number[]; usage: number[]; signature: unknown; framesSinceCut: number; transitionCandidate?: unknown };
 let temporalPaletteState: TemporalPaletteState | null = null;
 let temporalAssignments: Uint8Array | null = null;
@@ -30,12 +31,16 @@ function exactCommonPaletteCache(palette: RGB[], weights: number[]) {
   return commonPaletteCache;
 }
 
-self.onmessage = (event: MessageEvent<{ operation?: "prepare" | "map-fixed" | "quantize"; pixels: ArrayBuffer; width: number; height: number; settings: unknown; temporalPaletteEnabled?: boolean }>) => {
+self.onmessage = (event: MessageEvent<{ operation?: "analyze-hue" | "prepare" | "map-fixed" | "quantize"; pixels: ArrayBuffer; width: number; height: number; settings: WorkerSettings; temporalPaletteEnabled?: boolean; colorizeBaseHue?: number }>) => {
   try {
     const pixels = new Uint8ClampedArray(event.data.pixels);
+    if (event.data.operation === "analyze-hue") {
+      self.postMessage({ colorizeBaseHue: dominantColorizeHue(pixels, event.data.settings.adjustments) });
+      return;
+    }
     const fixedPalette = event.data.temporalPaletteEnabled ? null : fixedPaletteFromSettings(event.data.settings);
     if (event.data.operation === "prepare") {
-      const { prepared } = prepareImage(pixels, event.data.settings, event.data.width, event.data.height, { inPlace: Boolean(fixedPalette) });
+      const { prepared } = prepareImage(pixels, event.data.settings, event.data.width, event.data.height, { inPlace: Boolean(fixedPalette), colorizeBaseHue: event.data.colorizeBaseHue });
       self.postMessage({ result: prepared.buffer }, { transfer: [prepared.buffer] });
       return;
     }
@@ -52,8 +57,8 @@ self.onmessage = (event: MessageEvent<{ operation?: "prepare" | "map-fixed" | "q
       return;
     }
     const output = fixedPalette
-      ? { ...prepareImage(pixels, event.data.settings, event.data.width, event.data.height, { inPlace: true }), ...fixedPalette }
-      : createQuantization(pixels, event.data.settings, event.data.width, event.data.height);
+      ? { ...prepareImage(pixels, event.data.settings, event.data.width, event.data.height, { inPlace: true, colorizeBaseHue: event.data.colorizeBaseHue }), ...fixedPalette }
+      : createQuantization(pixels, event.data.settings, event.data.width, event.data.height, { colorizeBaseHue: event.data.colorizeBaseHue });
     const stabilized = event.data.temporalPaletteEnabled
       ? stabilizeFramePalette(
         output.palette,
