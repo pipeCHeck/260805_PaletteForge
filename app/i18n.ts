@@ -51,6 +51,7 @@ const ja: Record<string, string> = {
   "산호빛 기하학": "珊瑚色の幾何学",
   "상자 요새 부대": "木箱要塞の部隊",
   "큐브 레인저": "キューブレンジャー",
+  "햇살 시장의 모험가": "陽だまり市場の冒険者",
   "예시 이미지를 불러와 자동으로 변환하고 있습니다…": "サンプル画像を読み込み、自動変換しています…",
   "예시 이미지 준비 중": "サンプル画像を準備中",
   "예시 이미지를 준비하고 있습니다": "サンプル画像を準備しています",
@@ -405,6 +406,7 @@ Object.assign(en, {
   "GPU를 시작하지 못해 CPU로 자동 전환했습니다. {reason}": "The GPU could not start, so processing automatically switched to the CPU. {reason}", "GPU 처리 중 문제가 발생해 CPU로 자동 전환했습니다. {reason}": "A GPU error occurred, so processing automatically switched to the CPU. {reason}", "GPU 처리 중 문제가 발생해 CPU로 자동 전환했습니다. 이후 프레임은 CPU로 처리합니다. {reason}": "A GPU error occurred, so processing automatically switched to the CPU. Remaining frames will use the CPU. {reason}", "속도 측정 결과 CPU가 더 적합해 CPU로 변환합니다. GPU: {gpu}": "The benchmark favored the CPU, so conversion will use the CPU. GPU: {gpu}", "GPU 가속 사용 중: {gpu}": "Using GPU acceleration: {gpu}", "알 수 없는 오류": "Unknown error",
   "단일 색상화": "Single-color tint", "픽셀의 밝기와 색 농도는 유지하면서 모든 색을 선택한 색상 계열로 통일합니다.": "Keeps each pixel's brightness and color intensity while unifying all colors around the selected hue.", "각 프레임의 밝기와 색 농도를 유지하면서 선택한 색상 계열로 통일합니다.": "Keeps each frame's brightness and color intensity while unifying it around the selected hue.", "밝기와 명암을 유지하며 한 색상 계열로 통일": "Unify the hue while preserving brightness and shading", "단일 색상화 사용": "Enable single-color tint", "기준 색상": "Reference color", "단일 색상화 기준 색상": "Single-color reference color", "밝기, 대비, 채도, 색조, 단일 색상화와 픽셀화 설정": "Brightness, contrast, saturation, hue, single-color tint, and pixelation", "색 보정, 단일 색상화와 픽셀화 설정을 초기화했습니다.": "Reset color adjustments, single-color tint, and pixelation.", "단일 색상화 사용 여부가 올바르지 않습니다.": "The single-color tint setting is invalid.", "단일 색상화 기준 색상이 올바르지 않습니다.": "The single-color reference color is invalid.",
   "주요 색상 계열로 통일 · 색조로 계열 변경": "Unify the main hue · Shift it with Hue", "픽셀의 밝기와 색 농도는 유지하면서 가장 많이 쓰인 색상 계열로 통일하며, 색조로 계열을 바꿉니다.": "Keeps pixel brightness and color intensity, unifies the image around its most-used hue, and shifts that hue with the Hue control.", "각 프레임의 밝기와 색 농도를 유지하면서 주요 색상 계열로 통일하며, 색조로 계열을 바꿉니다.": "Keeps frame brightness and color intensity, unifies it around the main hue, and shifts that hue with the Hue control.",
+  "햇살 시장의 모험가": "Adventurer at the Sunlit Market",
 });
 
 const es: Record<string, string> = Object.fromEntries(

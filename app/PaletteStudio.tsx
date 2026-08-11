@@ -49,6 +49,7 @@ const EXAMPLE_ASSETS = [
   { id: "example-06", name: "산호빛 기하학" },
   { id: "example-07", name: "상자 요새 부대" },
   { id: "example-08", name: "큐브 레인저" },
+  { id: "example-09", name: "햇살 시장의 모험가" },
 ] as const;
 
 type PalettePreset = { id: string; name: string; colors: string[] };

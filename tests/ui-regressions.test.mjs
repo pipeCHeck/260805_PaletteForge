@@ -281,8 +281,9 @@ test("opening the editor loads one random bundled example with its settings and 
   ]);
   assert.match(component, /const EXAMPLE_ASSETS = \[/);
   const exampleIds = [...component.matchAll(/id: "(example-\d{2})"/g)].map((match) => match[1]);
-  assert.equal(exampleIds.length, 7);
+  assert.equal(exampleIds.length, 8);
   assert.ok(!exampleIds.includes("example-02"));
+  assert.ok(exampleIds.includes("example-09"));
   assert.match(component, /crypto\.getRandomValues\(new Uint32Array\(1\)\)/);
   assert.match(component, /fetch\(`\/examples\/\$\{example\.id\}\.png`\)/);
   assert.match(component, /fetch\(`\/examples\/\$\{example\.id\}\.json`\)/);
@@ -317,6 +318,10 @@ test("opening the editor loads one random bundled example with its settings and 
     assert.equal(JSON.parse(settings).version, 1);
   }
   assert.equal(JSON.parse(exampleFiles[exampleIds.indexOf("example-07")][1]).pixelation.size, 5);
+  const marketSettings = JSON.parse(exampleFiles[exampleIds.indexOf("example-09")][1]);
+  assert.equal(marketSettings.colorCount, 12);
+  assert.equal(marketSettings.adjustments.hue, -103);
+  assert.equal(marketSettings.colorize.enabled, true);
 });
 
 test("service guide and legal pages provide clear navigation, local-processing disclosure, and contact", async () => {

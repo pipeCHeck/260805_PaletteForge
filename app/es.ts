@@ -44,6 +44,7 @@ export const ES_BY_ENGLISH: Record<string, string> = {
   "Coral Geometry": "Geometría coral",
   "Crate Fortress Squad": "Escuadrón de la fortaleza de cajas",
   "Cube Ranger": "Guardián cúbico",
+  "Adventurer at the Sunlit Market": "Aventurera en el mercado soleado",
   "Loading and automatically converting an example image…": "Cargando y convirtiendo automáticamente una imagen de ejemplo…",
   "Preparing example image": "Preparando imagen de ejemplo",
   "Preparing an example image": "Preparando una imagen de ejemplo",
