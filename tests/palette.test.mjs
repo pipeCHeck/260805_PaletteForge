@@ -72,6 +72,30 @@ test("단일 색상화는 주된 색상 계열로 통일되고 기존 보정과 
   assert.ok(rgbToOklab(Array.from(brighter.slice(0, 3)))[0] > firstLab[0]);
 });
 
+test("단일 색상화의 색조는 히스토그램 구간에 갇히지 않고 연속적으로 이동한다", () => {
+  const source = pixels([[80, 190, 90], [75, 180, 85], [70, 170, 80], [88, 175, 76]]);
+  const settings = defaultSettings();
+  settings.colorize = { enabled: true };
+  const samples = [0, 3, 6, 9, 12].map((hue) => {
+    settings.adjustments.hue = hue;
+    const adjusted = prepareImage(source, settings, 4, 1).adjusted;
+    const lab = rgbToOklab(Array.from(adjusted.slice(0, 3)));
+    return {
+      color: Array.from(adjusted.slice(0, 3)).join(","),
+      hue: Math.atan2(lab[2], lab[1]),
+    };
+  });
+  const hueSteps = samples.slice(1).map((sample, index) => (
+    Math.abs(Math.atan2(
+      Math.sin(sample.hue - samples[index].hue),
+      Math.cos(sample.hue - samples[index].hue),
+    ))
+  ));
+
+  assert.ok(new Set(samples.map((sample) => sample.color)).size >= 4);
+  assert.ok(hueSteps.every((step) => step > 0.015 && step < 0.09));
+});
+
 test("팔레트 프리셋은 보정 설정을 유지하고 색상 고정·가중치 자동 상태로 적용한다", () => {
   const settings = configured(5);
   settings.adjustments.hue = 34;
