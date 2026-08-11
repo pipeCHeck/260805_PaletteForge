@@ -632,7 +632,9 @@ test("video color adjustments preview the current source frame before conversion
   assert.match(component, /최종 팔레트 미적용/);
   assert.match(component, /analyzeVideoColorizeBaseHue/);
   assert.match(component, /createAnalysisTimestamps\(video\.duration, 16\)/);
-  assert.match(component, /ensureVideoColorizeBaseHue\(video, settings\.adjustments\)/);
+  assert.match(component, /ensureVideoColorizeBaseHue\(video\)/);
+  assert.match(component, /function colorizeHueSignature\(video: VideoInfo\) \{\s*return video\.sourceUrl;/);
+  assert.doesNotMatch(component, /colorizeAnalysisAdjustments/);
   assert.match(component, /paletteMode === "frame",\s*colorizeBaseHue/);
   assert.match(component, /영상 전체 색상 기준/);
   assert.match(css, /\.video-live-preview-shell\.is-adjustment-preview\.is-pixelated/);

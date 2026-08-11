@@ -135,12 +135,11 @@ function browserDeviceMemory() {
   return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : null;
 }
 
-function colorizeHueSignature(video: VideoInfo, adjustments: Settings["adjustments"]) {
-  const { brightness, contrast, saturation } = adjustments;
-  return `${video.sourceUrl}|${brightness}|${contrast}|${saturation}`;
+function colorizeHueSignature(video: VideoInfo) {
+  return video.sourceUrl;
 }
 
-async function analyzeVideoColorizeBaseHue(video: VideoInfo, adjustments: Settings["adjustments"]) {
+async function analyzeVideoColorizeBaseHue(video: VideoInfo) {
   const input = new Input({ source: new BlobSource(video.file), formats: ALL_FORMATS });
   const worker = new QuantizeWorker();
   try {
@@ -166,7 +165,7 @@ async function analyzeVideoColorizeBaseHue(video: VideoInfo, adjustments: Settin
     if (!frames.length) throw new Error("영상 전체의 색상 기준을 분석할 프레임을 찾지 못했습니다.");
     const pixels = new Uint8ClampedArray(sampleWidth * sampleHeight * 4 * frames.length);
     frames.forEach((frame, index) => pixels.set(frame, index * frame.length));
-    return await analyzeColorizeHueWithWorker(worker, pixels, sampleWidth, sampleHeight * frames.length, { adjustments });
+    return await analyzeColorizeHueWithWorker(worker, pixels, sampleWidth, sampleHeight * frames.length, { adjustments: { brightness: 0, contrast: 0, saturation: 0, hue: 0 } });
   } finally {
     worker.terminate();
     input.dispose();
@@ -244,16 +243,7 @@ export default function VideoConverter({
   const cancelRequested = useRef(false);
   const tr = (source: string, values: Record<string, string | number> = {}) => translate(language, source, values);
   const busy = loadingFile || status === "analysis" || status === "conversion" || status === "finalizing";
-  const colorizeAnalysisAdjustments = useMemo(
-    () => ({
-      brightness: settings.adjustments.brightness,
-      contrast: settings.adjustments.contrast,
-      saturation: settings.adjustments.saturation,
-      hue: 0,
-    }),
-    [settings.adjustments.brightness, settings.adjustments.contrast, settings.adjustments.saturation],
-  );
-  const currentColorizeHueSignature = video && settings.colorize.enabled ? colorizeHueSignature(video, colorizeAnalysisAdjustments) : "";
+  const currentColorizeHueSignature = video && settings.colorize.enabled ? colorizeHueSignature(video) : "";
   const colorizeAnalysisStatus = !settings.colorize.enabled
     ? "idle"
     : colorizeAnalysisState?.signature === currentColorizeHueSignature
@@ -283,14 +273,14 @@ export default function VideoConverter({
       ? tr("계산 중")
       : formatVideoElapsedTime(estimatedRemainingSeconds);
 
-  const ensureVideoColorizeBaseHue = useCallback((targetVideo: VideoInfo, targetAdjustments: Settings["adjustments"]) => {
-    const signature = colorizeHueSignature(targetVideo, targetAdjustments);
+  const ensureVideoColorizeBaseHue = useCallback((targetVideo: VideoInfo) => {
+    const signature = colorizeHueSignature(targetVideo);
     if (colorizeHueCacheRef.current?.signature === signature) {
       setColorizeAnalysisState({ signature, status: "ready", hue: colorizeHueCacheRef.current.hue });
       return Promise.resolve(colorizeHueCacheRef.current.hue);
     }
     if (colorizeHuePromiseRef.current?.signature === signature) return colorizeHuePromiseRef.current.promise;
-    const promise = analyzeVideoColorizeBaseHue(targetVideo, targetAdjustments).then((hue) => {
+    const promise = analyzeVideoColorizeBaseHue(targetVideo).then((hue) => {
       colorizeHueCacheRef.current = { signature, hue };
       setColorizeAnalysisState({ signature, status: "ready", hue });
       return hue;
@@ -344,10 +334,10 @@ export default function VideoConverter({
       const canvas = livePreviewRef.current;
       const context = canvas?.getContext("2d");
       if (canvas && context) context.clearRect(0, 0, canvas.width, canvas.height);
-      void ensureVideoColorizeBaseHue(video, colorizeAnalysisAdjustments).catch(() => undefined);
+      void ensureVideoColorizeBaseHue(video).catch(() => undefined);
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [video, settings.colorize.enabled, currentColorizeHueSignature, colorizeAnalysisAdjustments, busy, ensureVideoColorizeBaseHue]);
+  }, [video, settings.colorize.enabled, currentColorizeHueSignature, busy, ensureVideoColorizeBaseHue]);
 
   useEffect(() => {
     if (!measuring || workStartedAtRef.current === null) return;
@@ -668,7 +658,7 @@ export default function VideoConverter({
     let resolvedAcceleration: "cpu" | "gpu" | "benchmark" = "cpu";
     try {
       const colorizeBaseHue = settings.colorize.enabled
-        ? await ensureVideoColorizeBaseHue(video, settings.adjustments)
+        ? await ensureVideoColorizeBaseHue(video)
         : undefined;
       let conversionSettings = paletteMode === "frame" ? createFramePaletteSettings(settings) : cloneSettings(settings);
       if (paletteMode === "common") {

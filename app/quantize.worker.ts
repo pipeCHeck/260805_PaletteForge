@@ -35,7 +35,7 @@ self.onmessage = (event: MessageEvent<{ operation?: "analyze-hue" | "prepare" | 
   try {
     const pixels = new Uint8ClampedArray(event.data.pixels);
     if (event.data.operation === "analyze-hue") {
-      self.postMessage({ colorizeBaseHue: dominantColorizeHue(pixels, event.data.settings.adjustments) });
+      self.postMessage({ colorizeBaseHue: dominantColorizeHue(pixels) });
       return;
     }
     const fixedPalette = event.data.temporalPaletteEnabled ? null : fixedPaletteFromSettings(event.data.settings);

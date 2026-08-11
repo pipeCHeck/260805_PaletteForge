@@ -97,6 +97,18 @@ test("단일 색상화의 색조는 히스토그램 구간에 갇히지 않고 �
   assert.ok(hueSteps.every((step) => step > 0.015 && step < 0.09));
 });
 
+test("단일 색상화를 먼저 적용한 뒤 밝기·대비·채도·색조를 순서대로 보정한다", () => {
+  const source = pixels([[40, 175, 225], [225, 75, 115], [85, 185, 70], [245, 190, 45]]);
+  const colorizeOnly = defaultSettings();
+  colorizeOnly.colorize.enabled = true;
+  const colorized = adjustPixels(source, colorizeOnly.adjustments, { colorize: colorizeOnly.colorize });
+  const adjustments = { brightness: 24, contrast: -18, saturation: 35, hue: 41 };
+  const expected = adjustPixels(colorized, adjustments, { colorize: { enabled: false } });
+  const actual = adjustPixels(source, adjustments, { colorize: { enabled: true } });
+
+  assert.deepEqual(actual, expected);
+});
+
 test("고정된 영상 전체 색상 기준은 프레임의 주조색이 달라도 같은 계열을 유지한다", () => {
   const redFrame = pixels([[210, 45, 55], [190, 38, 50], [225, 70, 65]]);
   const blueFrame = pixels([[35, 90, 220], [45, 105, 205], [25, 75, 195]]);
