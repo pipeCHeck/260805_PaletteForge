@@ -320,8 +320,16 @@ test("opening the editor loads one random bundled example with its settings and 
   assert.equal(JSON.parse(exampleFiles[exampleIds.indexOf("example-07")][1]).pixelation.size, 5);
   const marketSettings = JSON.parse(exampleFiles[exampleIds.indexOf("example-09")][1]);
   assert.equal(marketSettings.colorCount, 12);
-  assert.equal(marketSettings.adjustments.hue, -103);
+  assert.deepEqual(marketSettings.adjustments, {
+    brightness: 22,
+    contrast: -18,
+    saturation: -58,
+    hue: -11,
+  });
   assert.equal(marketSettings.colorize.enabled, true);
+  assert.equal(marketSettings.surfaceCleanup, 82);
+  assert.equal(marketSettings.slots[0].weight, 2.6);
+  assert.ok(marketSettings.slots.every((slot) => slot.weightMode === "manual"));
 });
 
 test("service guide and legal pages provide clear navigation, local-processing disclosure, and contact", async () => {
@@ -675,6 +683,25 @@ test("the editor header and information footer display the package version from 
   assert.match(versionModule, /packageInfo\.version/);
   assert.match(studio, /className="brand-version"[^>]*>v\{APP_VERSION\}/);
   assert.match(info, /className="app-version"[^>]*>v\{APP_VERSION\}/);
+});
+
+test("the site exposes high-contrast favicon assets for tabs, search, and home screens", async () => {
+  const layout = await readFile(new URL("../app/layout.tsx", import.meta.url), "utf8");
+  const assets = await Promise.all([
+    readFile(new URL("../public/favicon.ico", import.meta.url)),
+    readFile(new URL("../public/favicon-16x16.png", import.meta.url)),
+    readFile(new URL("../public/favicon-32x32.png", import.meta.url)),
+    readFile(new URL("../public/icon-192.png", import.meta.url)),
+    readFile(new URL("../public/icon-512.png", import.meta.url)),
+    readFile(new URL("../public/apple-touch-icon.png", import.meta.url)),
+  ]);
+
+  assert.match(layout, /rel="icon" href="\/favicon\.ico" sizes="any"/);
+  assert.match(layout, /rel="icon" href="\/favicon-32x32\.png" type="image\/png" sizes="32x32"/);
+  assert.match(layout, /rel="apple-touch-icon" href="\/apple-touch-icon\.png" sizes="180x180"/);
+  assert.match(layout, /name="theme-color" content="#17213a"/);
+  for (const asset of assets) assert.ok(asset.length > 100);
+  for (const png of assets.slice(1)) assert.deepEqual(Array.from(png.subarray(0, 8)), [137, 80, 78, 71, 13, 10, 26, 10]);
 });
 
 test("section help stays at panel headings and supports accessible popovers", async () => {

@@ -6,7 +6,7 @@
   ],
   "export": {
     "format": "png",
-    "fileName": "images-converted",
+    "fileName": "example-09-converted-current-v6",
     "preserveAlpha": true,
     "quality": 0.92,
     "background": "#FFFFFF",
@@ -14,10 +14,10 @@
   },
   "dithering": false,
   "adjustments": {
-    "brightness": 25,
-    "contrast": 0,
-    "saturation": 0,
-    "hue": -103
+    "brightness": 22,
+    "contrast": -18,
+    "saturation": -58,
+    "hue": -11
   },
   "colorize": {
     "enabled": true
@@ -36,7 +36,7 @@
         255,
         255
       ],
-      "weight": 0.55,
+      "weight": 2.6,
       "weightMode": "manual"
     },
     {
@@ -47,7 +47,7 @@
         32
       ],
       "weight": 1,
-      "weightMode": "auto"
+      "weightMode": "manual"
     },
     {
       "fixed": true,
@@ -57,7 +57,7 @@
         2
       ],
       "weight": 1,
-      "weightMode": "auto"
+      "weightMode": "manual"
     },
     {
       "fixed": true,
@@ -66,8 +66,8 @@
         155,
         63
       ],
-      "weight": 1,
-      "weightMode": "auto"
+      "weight": 0.96,
+      "weightMode": "manual"
     },
     {
       "fixed": true,
@@ -76,7 +76,7 @@
         125,
         127
       ],
-      "weight": 0.6,
+      "weight": 0.94,
       "weightMode": "manual"
     },
     {
@@ -86,8 +86,8 @@
         20,
         54
       ],
-      "weight": 1,
-      "weightMode": "auto"
+      "weight": 0.92,
+      "weightMode": "manual"
     },
     {
       "fixed": true,
@@ -96,8 +96,8 @@
         21,
         105
       ],
-      "weight": 0.8,
-      "weightMode": "auto"
+      "weight": 1.28,
+      "weightMode": "manual"
     },
     {
       "fixed": true,
@@ -106,8 +106,8 @@
         10,
         100
       ],
-      "weight": 0.73,
-      "weightMode": "auto"
+      "weight": 1.04,
+      "weightMode": "manual"
     },
     {
       "fixed": true,
@@ -116,8 +116,8 @@
         25,
         90
       ],
-      "weight": 1,
-      "weightMode": "auto"
+      "weight": 1.6,
+      "weightMode": "manual"
     },
     {
       "fixed": true,
@@ -127,7 +127,7 @@
         139
       ],
       "weight": 0.7,
-      "weightMode": "auto"
+      "weightMode": "manual"
     },
     {
       "fixed": true,
@@ -137,7 +137,7 @@
         201
       ],
       "weight": 0.7,
-      "weightMode": "auto"
+      "weightMode": "manual"
     },
     {
       "fixed": true,
@@ -146,10 +146,10 @@
         221,
         233
       ],
-      "weight": 0.7,
-      "weightMode": "auto"
+      "weight": 0.8,
+      "weightMode": "manual"
     }
   ],
   "paletteDiversity": 50,
-  "surfaceCleanup": 80
+  "surfaceCleanup": 82
 }
