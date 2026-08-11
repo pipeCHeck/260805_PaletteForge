@@ -301,7 +301,8 @@ test("opening the editor loads one random bundled example with its settings and 
   assert.match(component, /setExampleLoading\(false\)/);
   assert.match(translations, /"예시 이미지 준비 중": "Preparing example image"/);
   assert.match(css, /\.example-loading-preview \{[^}]*aspect-ratio: 16 \/ 10;/);
-  assert.match(css, /\.example-loading-preview i \{[^}]*left: calc\(50% - 8px\);[^}]*top: calc\(50% - 53px\);/);
+  assert.match(css, /\.example-loading-preview i \{[^}]*left: calc\(50% - 8px\);[^}]*top: calc\(50% - 17px\);/);
+  assert.match(css, /\.example-loading-preview\.icon-ready i[^}]*example-loading-spinner-pop/);
   assert.match(css, /@keyframes example-loading-sweep/);
   assert.match(component, /setImages\(\[converted\]\)/);
   assert.match(component, /setImages\(\(items\) => \[\.\.\.items, \.\.\.loaded\]\)/);
@@ -372,12 +373,40 @@ test("brand and metadata describe current image, video, palette, and pixel featu
   assert.match(layout, /이미지·영상 팔레트 변환/);
   assert.match(layout, /색상 제한, 고정 팔레트, 색 보정과 픽셀화/);
   assert.match(translations, /A browser tool for transforming images and videos with palettes and pixel styles/);
+  assert.match(studio, /className="brand-mark" src="\/icon-192\.png"/);
+  assert.match(studio, /setExampleLoadingIcon\(`\/examples\/loading\/\$\{example\.id\}\.png`\)/);
+  assert.doesNotMatch(studio, /exampleLoadingIcon \?\? "\/icon-192\.png"/);
+  assert.match(studio, /exampleLoadingIcon && <img className=\{`example-loading-logo \$\{exampleLoadingIconReady \? "is-ready" : ""\}`\}/);
+  assert.match(studio, /onLoad=\{\(\) => setExampleLoadingIconReady\(true\)\}/);
+});
+
+test("the example palette icon stays hidden until loaded and enters with a spring-like scale animation", async () => {
+  const studio = await readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8");
+  const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  assert.match(studio, /example-loading-preview checker \$\{exampleLoadingIconReady \? "icon-ready" : ""\}/);
+  assert.match(css, /\.example-loading-logo \{[^}]*opacity: 0;[^}]*transform: scale\(0\)/);
+  assert.match(css, /\.example-loading-logo\.is-ready \{ animation: example-loading-pop/);
+  assert.match(css, /example-loading-pop \.5s/);
+  assert.match(css, /@keyframes example-loading-pop \{[\s\S]*scale\(1\.07\)[\s\S]*scale\(\.96\)[\s\S]*scale\(1\.025\)[\s\S]*scale\(1\)/);
+  assert.match(css, /\.example-loading-preview\.icon-ready i \{ animation: preview-spin \.8s linear infinite, example-loading-spinner-pop \.5s/);
+  assert.match(css, /@keyframes example-loading-spinner-pop \{[\s\S]*50% - 17px[\s\S]*50% - 55px[\s\S]*50% - 52px[\s\S]*50% - 53px/);
+  assert.match(css, /prefers-reduced-motion: reduce[\s\S]*\.example-loading-logo\.is-ready/);
+});
+
+test("each bundled example has a precomputed palette icon for the loading preview", async () => {
+  const exampleIds = ["example-01", "example-03", "example-04", "example-05", "example-06", "example-07", "example-08", "example-09"];
+  const assets = await Promise.all(exampleIds.map((id) => readFile(new URL(`../public/examples/loading/${id}.png`, import.meta.url))));
+  for (const asset of assets) {
+    assert.ok(asset.length > 100);
+    assert.deepEqual(Array.from(asset.subarray(0, 8)), [137, 80, 78, 71, 13, 10, 26, 10]);
+  }
 });
 
 test("information pages use reliable full-document navigation for every internal route", async () => {
   const component = await readFile(new URL("../app/InfoPage.tsx", import.meta.url), "utf8");
   assert.doesNotMatch(component, /from "next\/link"|<Link/);
   assert.match(component, /className="info-brand" href="\/"/);
+  assert.match(component, /className="info-brand-mark" src="\/icon-192\.png"/);
   assert.match(component, /className="back-editor" href="\/"/);
   assert.match(component, /className="info-primary" href="\/"/);
   assert.match(component, /href="\/guide"/);

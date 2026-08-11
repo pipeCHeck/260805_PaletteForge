@@ -187,7 +187,7 @@ export default function InfoPage({ kind }: { kind: PageKind }) {
   const legal = kind === "privacy" ? copy.privacy : copy.terms;
   return <main className="info-page">
     <header className="info-topbar">
-      <a className="info-brand" href="/"><span>PF</span><strong>Palette Forge</strong></a>
+      <a className="info-brand" href="/"><img className="info-brand-mark" src="/icon-192.png" alt="" width={42} height={42} /><strong>Palette Forge</strong></a>
       <nav aria-label="Information"><a className={kind === "guide" ? "active" : ""} href="/guide">{copy.guideNav}</a><a className={kind === "privacy" ? "active" : ""} href="/privacy">{copy.privacyNav}</a><a className={kind === "terms" ? "active" : ""} href="/terms">{copy.termsNav}</a></nav>
       <div className="info-actions"><button type="button" onClick={toggleTheme} aria-label={theme === "dark" ? copy.light : copy.dark}>{theme === "dark" ? "☀" : "☾"}</button><label><span aria-hidden="true">文</span><select value={language} aria-label={copy.language} onChange={(event) => chooseLanguage(event.target.value as Language)}>{LANGUAGE_OPTIONS.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select></label><a className="back-editor" href="/">{copy.back}</a></div>
     </header>

@@ -437,6 +437,8 @@ export default function PaletteStudio() {
   const [language, setLanguage] = useState<Language>("ko");
   const [languageReady, setLanguageReady] = useState(false);
   const [exampleLoading, setExampleLoading] = useState(true);
+  const [exampleLoadingIcon, setExampleLoadingIcon] = useState<string | null>(null);
+  const [exampleLoadingIconReady, setExampleLoadingIconReady] = useState(false);
   const [imageDragActive, setImageDragActive] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const settingsInput = useRef<HTMLInputElement>(null);
@@ -673,6 +675,8 @@ export default function PaletteStudio() {
     exampleStarted.current = true;
     const randomValue = crypto.getRandomValues(new Uint32Array(1))[0];
     const example = EXAMPLE_ASSETS[randomValue % EXAMPLE_ASSETS.length];
+    setExampleLoadingIconReady(false);
+    setExampleLoadingIcon(`/examples/loading/${example.id}.png`);
     setBusy(true);
     notify(translate(language, "예시 이미지를 불러와 자동으로 변환하고 있습니다…"));
     void (async () => {
@@ -924,7 +928,7 @@ export default function PaletteStudio() {
     <main className={`studio-shell ${imageDragActive ? "image-drag-active" : ""}`} onDragEnter={dragImagesIn} onDragOver={dragImagesOver} onDragLeave={dragImagesOut} onDrop={dropImages}>
       {imageDragActive && <div className="global-image-drop" aria-hidden="true"><span>↓</span><strong>{tr("사이트 어디든 놓아서 이미지 추가")}</strong></div>}
       <header className="topbar">
-        <div className="brand"><span className="brand-mark">PF</span><div><h1>Palette Forge <span className="brand-version" title={`Version ${APP_VERSION}`}>v{APP_VERSION}</span></h1><p>{tr("이미지와 영상을 팔레트·픽셀 스타일로 변환하는 브라우저 도구")}</p></div></div>
+        <div className="brand"><img className="brand-mark" src="/icon-192.png" alt="" width={44} height={44} /><div><h1>Palette Forge <span className="brand-version" title={`Version ${APP_VERSION}`}>v{APP_VERSION}</span></h1><p>{tr("이미지와 영상을 팔레트·픽셀 스타일로 변환하는 브라우저 도구")}</p></div></div>
         <div className="header-actions">
           <button className="button video-open-button" onClick={() => setVideoDialogOpen(true)} disabled={busy} aria-label={tr("영상 변환")}>
             <span className="video-open-icon" aria-hidden="true">▶</span>
@@ -966,7 +970,7 @@ export default function PaletteStudio() {
             <figure><figcaption><span>{tr("원본 + 보정 미리보기")}</span><small>{tr("휠 확대 · 드래그 이동 · 클릭 색상 추출")}</small></figcaption><div className="canvas-wrap checker"><CanvasPreview key={`${current.id}-original`} item={current} result={false} onPick={pick} language={language} /></div></figure>
             <figure><figcaption><span>{tr("변환 결과")}</span><small>{current.result ? tr("{count}색 · 휠 확대 · 드래그 이동", { count: current.palette.length }) : tr("변환 전")}</small></figcaption><div className="canvas-wrap checker">{current.result ? <CanvasPreview key={`${current.id}-result`} item={current} result onPick={pick} language={language} /> : <div className="result-placeholder"><span>◇</span><p>{tr("변환 실행 후 결과가 표시됩니다.")}</p></div>}</div></figure>
           </div> : exampleLoading ? <div className="example-loading" role="status" aria-live="polite">
-            <div className="example-loading-preview checker" aria-hidden="true"><span>PF</span><i /></div>
+            <div className={`example-loading-preview checker ${exampleLoadingIconReady ? "icon-ready" : ""}`} aria-hidden="true">{exampleLoadingIcon && <img className={`example-loading-logo ${exampleLoadingIconReady ? "is-ready" : ""}`} src={exampleLoadingIcon} alt="" width={72} height={72} onLoad={() => setExampleLoadingIconReady(true)} />}<i /></div>
             <h2>{tr("예시 이미지를 준비하고 있습니다")}</h2>
             <p>{tr("이미지와 설정을 불러온 뒤 자동으로 변환합니다.")}</p>
           </div> : <div className="empty-preview"><span className="empty-glyph">◫</span><h2>{tr("색을 다듬을 이미지를 불러오세요")}</h2><p>{tr("파일은 업로드되지 않으며 원본 해상도로 브라우저 안에서 처리됩니다.")}</p><button className="button primary" onClick={() => fileInput.current?.click()}>{tr("이미지 선택")}</button></div>}
