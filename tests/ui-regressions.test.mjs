@@ -353,6 +353,8 @@ test("service guide and legal pages provide clear navigation, local-processing d
   assert.match(component, /フレーム別モード/);
   assert.match(component, /Per-frame mode/);
   assert.match(component, /modo por fotograma/);
+  assert.match(component, /사이트에 제공되는 예시 이미지는 AI로 생성되었습니다/);
+  assert.match(component, /The example images provided on the site were generated with AI/);
   assert.match(component, /github\.com\/pipeCHeck\/260805_PaletteForge\/issues/);
   assert.match(component, /Google AdSense와 광고 쿠키/);
   assert.match(component, /미디어와 권리/);
@@ -432,18 +434,17 @@ test("ad infrastructure remains available but renders no boxes or ad requests be
   ]);
   assert.match(studio, /const AD_SLOTS =/);
   assert.match(studio, /placement="rail"/);
-  assert.match(studio, /placement="banner"/);
+  assert.doesNotMatch(studio, /placement="banner"/);
+  assert.doesNotMatch(studio, /banner:/);
   assert.match(placement, /data-ad-client=\{ADSENSE_CLIENT\}/);
   assert.match(placement, /data-ad-slot=\{slot\}/);
-  assert.match(placement, /data-ad-format=\{placement === "rail" \? "rectangle" : "horizontal"\}/);
+  assert.match(placement, /data-ad-format="rectangle"/);
   assert.match(placement, /data-full-width-responsive="true"/);
   assert.match(placement, /const ADVERTISING_ENABLED = false/);
   assert.match(placement, /if \(!ADVERTISING_ENABLED \|\| !slot \|\| initialized\.current\) return/);
   assert.match(placement, /if \(!ADVERTISING_ENABLED\) return null/);
   assert.match(css, /\.ad-placement-rail/);
-  assert.match(css, /\.ad-placement-banner/);
-  assert.match(css, /\.ad-placement-banner \{[^}]*display:none;/);
-  assert.match(css, /@media \(max-width: 1180px\)[\s\S]*\.ad-placement-banner \{[^}]*display:flex;/);
+  assert.doesNotMatch(css, /\.ad-placement-banner/);
   assert.match(css, /@media \(max-width: 1180px\)[\s\S]*\.ad-placement-rail \{ display:none; \}/);
   assert.match(css, /\.ad-placement \{[^}]*overflow:visible;/);
   assert.match(css, /\.ad-placement-rail \{[^}]*width:calc\(100% - 24px\);[^}]*min-height:282px;/);
@@ -452,6 +453,17 @@ test("ad infrastructure remains available but renders no boxes or ad requests be
   assert.match(studio, /railSecondary/);
   assert.match(studio, /label="Advertisements"/);
   assert.match(css, /@media \(min-width:1181px\) and \(min-height:1100px\)[\s\S]*\.rail-ad-secondary \{ display:block; \}/);
+});
+
+test("AdSense account metadata remains global while the ad script loads only on the editor route", async () => {
+  const [layout, page] = await Promise.all([
+    readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.match(layout, /"google-adsense-account": "ca-pub-2402421786391581"/);
+  assert.doesNotMatch(layout, /pagead2\.googlesyndication\.com\/pagead\/js\/adsbygoogle\.js/);
+  assert.match(page, /pagead2\.googlesyndication\.com\/pagead\/js\/adsbygoogle\.js\?client=ca-pub-2402421786391581/);
+  assert.match(page, /<PaletteStudio \/>/);
 });
 
 test("ultrawide layouts keep the central preview at a comfortable width", async () => {

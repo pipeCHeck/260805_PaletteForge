@@ -38,7 +38,6 @@ const DEFAULT_SLOT_COLOR: RGB = [218, 218, 213];
 const AD_SLOTS = {
   rail: "",
   railSecondary: "",
-  banner: "",
 } as const;
 
 const EXAMPLE_ASSETS = [
@@ -1035,7 +1034,6 @@ export default function PaletteStudio() {
             <div className="export-actions"><button className="button primary" disabled={!current || busy} onClick={exportCurrent}>{tr("현재 이미지 내보내기")}</button><button className="button ghost" disabled={!images.length || busy} onClick={exportAll}>{tr("전체 내보내기")}</button></div>
           </section>
         </aside>
-      <AdPlacement placement="banner" slot={AD_SLOTS.banner} label="Advertisements" pendingText={tr("\uC2B9\uC778 \uD6C4 \uAD11\uACE0\uAC00 \uD45C\uC2DC\uB429\uB2C8\uB2E4.")} />
       </div>
 
       <footer className="studio-footer"><div><strong>Palette Forge</strong><span>{tr("이미지와 영상은 서버로 전송되지 않고 브라우저 안에서 처리됩니다.")}</span></div><nav aria-label={tr("사이트 정보")}><a href="/guide">{tr("서비스 안내")}</a><a href="/privacy">{tr("개인정보처리방침")}</a><a href="/terms">{tr("이용약관")}</a><a href="/guide#contact">{tr("문의")}</a></nav><small>© 2026 Palette Forge</small></footer>

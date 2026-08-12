@@ -7,7 +7,7 @@ const ADVERTISING_ENABLED = false;
 
 type AdSenseWindow = Window & { adsbygoogle?: Record<string, unknown>[] };
 
-export default function AdPlacement({ placement, slot, label, pendingText }: { placement: "rail" | "banner"; slot: string; label: string; pendingText: string }) {
+export default function AdPlacement({ slot, label, pendingText }: { placement: "rail"; slot: string; label: string; pendingText: string }) {
   const initialized = useRef(false);
 
   useEffect(() => {
@@ -25,7 +25,7 @@ export default function AdPlacement({ placement, slot, label, pendingText }: { p
   if (!ADVERTISING_ENABLED) return null;
 
   return (
-    <aside className={"ad-placement ad-placement-" + placement + (slot ? " is-live" : " is-pending")} aria-label={label}>
+    <aside className={"ad-placement ad-placement-rail" + (slot ? " is-live" : " is-pending")} aria-label={label}>
       <span className="ad-label">{label}</span>
       {slot ? (
         <ins
@@ -33,7 +33,7 @@ export default function AdPlacement({ placement, slot, label, pendingText }: { p
           style={{ display: "block" }}
           data-ad-client={ADSENSE_CLIENT}
           data-ad-slot={slot}
-          data-ad-format={placement === "rail" ? "rectangle" : "horizontal"}
+          data-ad-format="rectangle"
           data-full-width-responsive="true"
         />
       ) : (
