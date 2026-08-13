@@ -375,7 +375,9 @@ test("brand and metadata describe current image, video, palette, and pixel featu
   assert.match(layout, /이미지·영상 팔레트 변환/);
   assert.match(layout, /색상 제한, 고정 팔레트, 색 보정과 픽셀화/);
   assert.match(translations, /A browser tool for transforming images and videos with palettes and pixel styles/);
+  assert.match(studio, /<a className="brand" href="\/" aria-label=\{tr\("Palette Forge 메인 페이지로 이동"\)\}>/);
   assert.match(studio, /className="brand-mark" src="\/icon-192\.png"/);
+  assert.match(await readFile(new URL("../app/globals.css", import.meta.url), "utf8"), /\.brand \{[^}]*text-decoration:none;/);
   assert.match(studio, /setExampleLoadingIcon\(`\/examples\/loading\/\$\{example\.id\}\.png`\)/);
   assert.doesNotMatch(studio, /exampleLoadingIcon \?\? "\/icon-192\.png"/);
   assert.match(studio, /exampleLoadingIcon && <img className=\{`example-loading-logo \$\{exampleLoadingIconReady \? "is-ready" : ""\}`\}/);
@@ -797,4 +799,25 @@ test("experimental GPU acceleration is guarded and reports CPU fallback", async 
   assert.match(gpu, /device\.lost/);
   assert.match(gpu, /requestAdapter\(\{ powerPreference: "high-performance" \}\)/);
   assert.match(worker, /operation\?: "analyze-hue" \| "prepare" \| "map-fixed" \| "quantize"/);
+});
+
+test("special palette colors and local conversion milestones use a separate easter egg toast", async () => {
+  const studio = await readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8");
+  const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  assert.match(studio, /hex === "#C0FFEE"/);
+  assert.match(studio, /hex === "#BADA55"/);
+  assert.match(studio, /const trio = \["#FF0000", "#00FF00", "#0000FF"\]/);
+  assert.match(studio, /palette-forge-conversion-count/);
+  assert.match(studio, /\[10, "견습 팔레트 제작자"\]/);
+  assert.doesNotMatch(studio, /previewEasterEgg/);
+  assert.doesNotMatch(studio, /event\.key === "1"/);
+  assert.doesNotMatch(studio, /event\.key === "2"/);
+  assert.match(studio, /className={`easter-toast \$\{easterToast\.kind\} \$\{easterToast\.exiting/);
+  assert.match(css, /\.easter-toast \{/);
+  assert.match(studio, /exiting \? "is-exiting" : ""/);
+  assert.match(studio, /window\.setTimeout\(\(\) => \{[\s\S]*setEasterToast\(null\)[\s\S]*\}, 150\)/);
+  assert.match(css, /\.easter-toast\.is-exiting \{[^}]*animation:easter-toast-out \.15s ease forwards;/);
+  assert.match(css, /@keyframes easter-toast-out/);
+  assert.match(css, /@keyframes easter-toast-out \{ from \{ opacity:1; transform:translateX\(-50%\); \} to \{ opacity:0; transform:translateX\(-50%\); \} \}/);
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
 });

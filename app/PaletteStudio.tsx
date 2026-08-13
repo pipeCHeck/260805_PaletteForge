@@ -34,6 +34,13 @@ type RGB = [number, number, number];
 type Slot = { fixed: boolean; color: RGB | null; weight: number; weightMode: "auto" | "manual" };
 type Settings = ReturnType<typeof defaultSettings>;
 const DEFAULT_SLOT_COLOR: RGB = [218, 218, 213];
+type EasterToast = { id: number; kind: "color" | "milestone"; title: string; detail?: string; color?: string; exiting?: boolean };
+
+const CONVERSION_MILESTONES = new Map<number, string>([
+  [10, "견습 팔레트 제작자"],
+  [50, "색채 연금술사"],
+  [100, "Palette Forgemaster"],
+]);
 
 const AD_SLOTS = {
   rail: "",
@@ -439,15 +446,42 @@ export default function PaletteStudio() {
   const [exampleLoadingIcon, setExampleLoadingIcon] = useState<string | null>(null);
   const [exampleLoadingIconReady, setExampleLoadingIconReady] = useState(false);
   const [imageDragActive, setImageDragActive] = useState(false);
+  const [easterToast, setEasterToast] = useState<EasterToast | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const settingsInput = useRef<HTMLInputElement>(null);
   const noticeRef = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
   const exampleStarted = useRef(false);
   const imageDragDepth = useRef(0);
+  const easterToastTimer = useRef<number | null>(null);
+  const easterToastExitTimer = useRef<number | null>(null);
+  const shownColorEggs = useRef(new Set<string>());
   const current = images.find((image) => image.id === selectedId) ?? null;
   const sampling = samplingSlot !== null;
   const tr = (source: string, values: Record<string, string | number> = {}) => translate(language, source, values);
+
+  const dismissEasterToast = useCallback(() => {
+    if (easterToastTimer.current !== null) window.clearTimeout(easterToastTimer.current);
+    if (easterToastExitTimer.current !== null) window.clearTimeout(easterToastExitTimer.current);
+    setEasterToast((toast) => toast ? { ...toast, exiting: true } : null);
+    easterToastExitTimer.current = window.setTimeout(() => {
+      setEasterToast(null);
+      easterToastTimer.current = null;
+      easterToastExitTimer.current = null;
+    }, 150);
+  }, []);
+
+  const showEasterToast = useCallback((toast: Omit<EasterToast, "id" | "exiting">) => {
+    if (easterToastTimer.current !== null) window.clearTimeout(easterToastTimer.current);
+    if (easterToastExitTimer.current !== null) window.clearTimeout(easterToastExitTimer.current);
+    setEasterToast({ ...toast, id: Date.now(), exiting: false });
+    easterToastTimer.current = window.setTimeout(dismissEasterToast, toast.kind === "milestone" ? 4000 : 2600);
+  }, [dismissEasterToast]);
+
+  useEffect(() => () => {
+    if (easterToastTimer.current !== null) window.clearTimeout(easterToastTimer.current);
+    if (easterToastExitTimer.current !== null) window.clearTimeout(easterToastExitTimer.current);
+  }, []);
 
   useEffect(() => {
     let savedTheme: string | null = null;
@@ -611,8 +645,26 @@ export default function PaletteStudio() {
 
   const applyColor = (rgb: RGB, slotIndex: number | null = activeSlot) => {
     if (slotIndex === null) return;
+    const hex = rgbToHex(rgb);
+    const nextSlots = current?.settings.slots.map((slot, index) => index === slotIndex ? { ...slot, fixed: true, color: rgb } : slot) ?? [];
     updateSettings((settings) => fixPaletteSlot(settings, slotIndex, rgb));
-    setDraftHex(rgbToHex(rgb)); setDraftRgb(rgb.map(String) as [string, string, string]); setDraftHue(rgbToHsv(rgb)[0]); setColorError(""); setSamplingSlot(null);
+    setDraftHex(hex); setDraftRgb(rgb.map(String) as [string, string, string]); setDraftHue(rgbToHsv(rgb)[0]); setColorError(""); setSamplingSlot(null);
+    if (hex === "#C0FFEE" && !shownColorEggs.current.has(hex)) {
+      shownColorEggs.current.add(hex);
+      showEasterToast({ kind: "color", title: tr("커피 한 잔이 팔레트에 추가되었습니다."), color: hex });
+    } else if (hex === "#BADA55" && !shownColorEggs.current.has(hex)) {
+      shownColorEggs.current.add(hex);
+      showEasterToast({ kind: "color", title: tr("수상할 정도로 좋은 초록색입니다."), color: hex });
+    }
+    const trio = ["#FF0000", "#00FF00", "#0000FF"];
+    const hasRgbTrio = nextSlots.some((_, index) => trio.every((target, offset) => {
+      const slot = nextSlots[index + offset];
+      return slot?.fixed && slot.color && rgbToHex(slot.color) === target;
+    }));
+    if (hasRgbTrio && !shownColorEggs.current.has("rgb-trio")) {
+      shownColorEggs.current.add("rgb-trio");
+      showEasterToast({ kind: "color", title: tr("RGB 삼총사 완성"), color: "linear-gradient(135deg,#FF0000 0 33%,#00C853 33% 66%,#2155FF 66%)" });
+    }
   };
 
   const applyDraft = () => {
@@ -729,7 +781,16 @@ export default function PaletteStudio() {
   const convertCurrent = async () => {
     if (!current || busy) return;
     setBusy(true); notify(tr("원본 해상도로 변환하고 있습니다…"));
-    try { const updated = await convertOne(current); replace(current.id, () => updated); notify(tr("변환이 완료되었습니다."), "success"); }
+    try {
+      const updated = await convertOne(current); replace(current.id, () => updated); notify(tr("변환이 완료되었습니다."), "success");
+      let conversionCount = 1;
+      try {
+        conversionCount = Math.max(0, Number.parseInt(window.localStorage.getItem("palette-forge-conversion-count") ?? "0", 10) || 0) + 1;
+        window.localStorage.setItem("palette-forge-conversion-count", String(conversionCount));
+      } catch { /* 칭호 기록이 차단되어도 이미지 변환은 정상적으로 완료됩니다. */ }
+      const milestone = CONVERSION_MILESTONES.get(conversionCount);
+      if (milestone) showEasterToast({ kind: "milestone", title: tr(milestone), detail: tr("누적 {count}회 변환을 완료했습니다.", { count: conversionCount }) });
+    }
     catch (error) { notify(error instanceof Error ? localizeError(language, error.message) : tr("이미지 변환에 실패했습니다."), "error"); }
     finally { setBusy(false); }
   };
@@ -927,7 +988,7 @@ export default function PaletteStudio() {
     <main className={`studio-shell ${imageDragActive ? "image-drag-active" : ""}`} onDragEnter={dragImagesIn} onDragOver={dragImagesOver} onDragLeave={dragImagesOut} onDrop={dropImages}>
       {imageDragActive && <div className="global-image-drop" aria-hidden="true"><span>↓</span><strong>{tr("사이트 어디든 놓아서 이미지 추가")}</strong></div>}
       <header className="topbar">
-        <div className="brand"><img className="brand-mark" src="/icon-192.png" alt="" width={44} height={44} /><div><h1>Palette Forge <span className="brand-version" title={`Version ${APP_VERSION}`}>v{APP_VERSION}</span></h1><p>{tr("이미지와 영상을 팔레트·픽셀 스타일로 변환하는 브라우저 도구")}</p></div></div>
+        <a className="brand" href="/" aria-label={tr("Palette Forge 메인 페이지로 이동")}><img className="brand-mark" src="/icon-192.png" alt="" width={44} height={44} /><div><h1>Palette Forge <span className="brand-version" title={`Version ${APP_VERSION}`}>v{APP_VERSION}</span></h1><p>{tr("이미지와 영상을 팔레트·픽셀 스타일로 변환하는 브라우저 도구")}</p></div></a>
         <div className="header-actions">
           <button className="button video-open-button" onClick={() => setVideoDialogOpen(true)} disabled={busy} aria-label={tr("영상 변환")}>
             <span className="video-open-icon" aria-hidden="true">▶</span>
@@ -943,6 +1004,11 @@ export default function PaletteStudio() {
       </header>
 
       <div ref={noticeRef} className={`notice ${messageType}`} role="status"><span>{messageType === "error" ? "!" : messageType === "success" ? "✓" : "i"}</span>{message}</div>
+
+      {easterToast && <button key={easterToast.id} type="button" className={`easter-toast ${easterToast.kind} ${easterToast.exiting ? "is-exiting" : ""}`} onClick={dismissEasterToast} aria-label={tr("알림 닫기")}>
+        {easterToast.kind === "milestone" ? <img src="/icon-192.png" alt="" width={34} height={34} /> : <i style={{ background: easterToast.color }} />}
+        <span>{easterToast.kind === "milestone" && <small>PALETTE MILESTONE</small>}<strong>{easterToast.title}</strong>{easterToast.detail && <em>{easterToast.detail}</em>}</span>
+      </button>}
 
       <div ref={workspaceRef} className="workspace">
         <aside className={`image-rail panel ${imageDragActive ? "drag-active" : ""}`}>
