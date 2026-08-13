@@ -2,13 +2,14 @@
 .info-page :is(h1,h2,h3) { text-wrap: balance; overflow-wrap: break-word; }
 .info-page :is(p,li) { text-wrap: pretty; overflow-wrap: break-word; }
 html[lang="ko"] .info-page :is(h1,h2,h3,p,li,a,strong,small) { word-break: keep-all; }
-html[lang="en"] .info-page :is(h1,h2,h3,p,li) { hyphens: auto; }
+html:is([lang="en"],[lang="es"]) .info-page :is(h1,h2,h3,p,li) { hyphens: auto; }
+html[lang="ja"] .info-page :is(h1,h2,h3,p,li,a,strong,small) { line-break: strict; overflow-wrap: anywhere; }
 .info-topbar { position: sticky; z-index: 30; top: 0; min-height: 72px; padding: 12px max(24px,calc((100vw - 1180px)/2)); display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 28px; border-bottom: 1px solid var(--line); background: rgba(251,251,247,.92); backdrop-filter: blur(16px); }
 .info-brand { display: inline-flex; align-items: center; gap: 10px; color: var(--ink); text-decoration: none; }
 .info-brand-mark { display:block; width:42px; height:42px; flex:0 0 auto; object-fit:contain; filter:drop-shadow(0 3px 7px rgba(20,22,18,.14)); }
 .info-brand strong { font: 700 18px/1 Georgia,serif; white-space: nowrap; }
 .info-topbar > nav { display: flex; justify-content: center; gap: 4px; }
-.info-topbar > nav a { padding: 8px 11px; border-radius: 8px; color: var(--muted); text-decoration: none; font-size: 12px; font-weight: 750; white-space: nowrap; }
+.info-topbar > nav a { min-width:0; padding: 8px 11px; border-radius: 8px; color: var(--muted); text-decoration: none; font-size: 12px; font-weight: 750; white-space: nowrap; }
 .info-topbar > nav a:hover,.info-topbar > nav a.active { color: var(--ink); background: #eceee7; }
 .info-actions { display: flex; align-items: center; gap: 7px; }
 .info-actions button,.info-actions label { min-height: 36px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
@@ -88,6 +89,11 @@ html[lang="en"] .info-page :is(h1,h2,h3,p,li) { hyphens: auto; }
 .studio-footer { margin-top:0; padding:24px; display:grid; grid-template-columns:1fr auto auto; align-items:center; gap:24px; }
 .studio-footer div { display:flex; align-items:baseline; gap:12px; }.studio-footer strong { font:700 14px/1 Georgia,serif; }.studio-footer span,.studio-footer small { color:var(--muted); font-size:9px; }.studio-footer nav { display:flex; gap:15px; }.studio-footer a { color:var(--muted); text-decoration:none; font-size:9px; font-weight:750; }.studio-footer a:hover { color:var(--ink); }
 .studio-footer .app-version,.info-footer .app-version { display:inline-flex; align-items:center; margin-left:6px; padding:2px 6px; border:1px solid var(--line); border-radius:999px; background:var(--soft); color:var(--muted); font:700 9px/1.2 Arial,sans-serif; letter-spacing:.02em; white-space:nowrap; }
+
+html:is([lang="en"],[lang="ja"],[lang="es"]) .info-topbar { gap:18px; }
+html:is([lang="en"],[lang="ja"],[lang="es"]) .info-topbar > nav { min-width:0; flex-wrap:wrap; row-gap:2px; }
+html:is([lang="en"],[lang="ja"],[lang="es"]) .info-topbar > nav a { padding-inline:8px; }
+html:is([lang="en"],[lang="ja"],[lang="es"]) :is(.guide-card,.process-flow li,.legal-content>section) { min-width:0; }
 
 html[data-theme="dark"] .info-topbar { background:rgba(23,26,22,.92); }
 html[data-theme="dark"] .info-brand-mark { filter:drop-shadow(0 3px 9px rgba(0,0,0,.34)); }

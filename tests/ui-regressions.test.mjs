@@ -549,8 +549,8 @@ test("palette panel exposes a centered, editable automatic palette tendency cont
   assert.match(component, /fixPaletteSlotWeight\(settings, index, color, weight\)/);
   assert.doesNotMatch(component, /className="reset-slot"/);
   assert.match(css, /\.delete-slot \{[^}]*width: 22px;[^}]*border: 0;[^}]*background: transparent;/);
-  assert.match(translations, /"자동 팔레트 성향": "Automatic palette tendency"/);
-  assert.match(translations, /"자동 팔레트 성향 숫자": "Automatic palette tendency number"/);
+  assert.match(translations, /"자동 팔레트 성향": "Auto palette style"/);
+  assert.match(translations, /"자동 팔레트 성향 숫자": "Auto palette style value"/);
   assert.match(translations, /"면 정리 강도": "Surface cleanup"/);
   assert.doesNotMatch(translations, /"경계 보존": "Preserve edges"/);
 });
@@ -596,6 +596,35 @@ test("palette header resets every slot without changing the selected color count
   assert.match(component, /onClick=\{resetPaletteSlots\}/);
   assert.match(css, /\.palette-title-actions \{[^}]*display: flex;[^}]*align-items: center;/);
   assert.match(translations, /"모든 고정 색상과 가중치 초기화": "Reset all fixed colors and weights"/);
+});
+
+test("foreign palette controls wrap without overlapping", async () => {
+  const [component, css] = await Promise.all([
+    readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(component, /className="panel-title compact palette-panel-title"/);
+  assert.match(css, /\.palette-title-actions > \* \{[^}]*white-space: nowrap;/);
+  assert.match(css, /html\[lang="en"\] \.palette-panel-title,[\s\S]*html\[lang="es"\] \.palette-panel-title \{[^}]*flex-direction:column;/);
+  assert.match(css, /\.palette-tuning small b \{[^}]*white-space:normal;[^}]*overflow-wrap:break-word;/);
+  assert.match(css, /html\[lang="ja"\] \.palette-tuning small b \{[^}]*overflow-wrap:anywhere;/);
+});
+
+test("foreign editor, video, help, and information layouts handle long translations", async () => {
+  const [css, infoCss, translations, spanish] = await Promise.all([
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    readFile(new URL("../app/info.css", import.meta.url), "utf8"),
+    readFile(new URL("../app/i18n.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/es.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(css, /\.video-diversity small, \.video-surface-cleanup small \{[^}]*display: grid;[^}]*grid-template-columns: repeat\(3,minmax\(0,1fr\)\)/);
+  assert.match(css, /\.video-diversity small b, \.video-surface-cleanup small b \{[^}]*white-space: normal;[^}]*overflow-wrap: break-word;/);
+  assert.match(css, /\.video-palette-heading-actions \{[^}]*flex-wrap:wrap;/);
+  assert.match(css, /html:is\(\[lang="en"\],\[lang="ja"\],\[lang="es"\]\) \.video-palette-heading-actions \{[^}]*width:100%;/);
+  assert.match(css, /\.section-help-popover \{[^}]*max-height: calc\(100dvh - 24px\);[^}]*overflow: auto;/);
+  assert.match(infoCss, /html:is\(\[lang="en"\],\[lang="ja"\],\[lang="es"\]\) \.info-topbar > nav \{[^}]*flex-wrap:wrap;/);
+  assert.match(translations, /"자동 팔레트 성향": "Auto palette style"/);
+  assert.match(spanish, /"Auto palette style": "Estilo de paleta"/);
 });
 
 test("video palette presets are available and frame mode starts progress at zero", async () => {
@@ -780,8 +809,7 @@ test("section help stays at panel headings and supports accessible popovers", as
   assert.match(help, />×<\/button>/);
   assert.doesNotMatch(help, /횞/);
   assert.match(css, /\.section-help-popover \{[^}]*position: fixed;/);
-  assert.match(css, /\.section-help-popover \{[^}]*max-height: none;[^}]*overflow: visible;/);
-  assert.doesNotMatch(css, /\.section-help-popover \{[^}]*overflow-y: auto;/);
+  assert.match(css, /\.section-help-popover \{[^}]*max-height: calc\(100dvh - 24px\);[^}]*overflow: auto;/);
   assert.match(css, /\.section-help-popover li > strong \{[^}]*display: block;/);
   assert.match(css, /@media \(max-width: 640px\)[\s\S]*\.section-help-popover/);
 });
