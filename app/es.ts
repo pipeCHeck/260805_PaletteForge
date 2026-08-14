@@ -1,5 +1,9 @@
 /** Spanish copy keyed by the canonical English translation in i18n.ts. */
 export const ES_BY_ENGLISH: Record<string, string> = {
+  "About Palette Forge": "Acerca de Palette Forge",
+  "Choose the colors you want,": "Elige los colores que quieras",
+  "then reshape images and videos.": "y reconstruye imágenes y vídeos.",
+  "Set the number of colors and lock in the ones that matter. Combine automatic palettes, color adjustments, pixelation, and presets to shape images and videos into the mood and style you want.": "Define la cantidad de colores y fija con precisión los que quieras conservar. Combina paletas automáticas, ajustes de color, pixelado y preajustes para dar a tus imágenes y vídeos el ambiente y el estilo que buscas.",
   "Elapsed": "Tiempo transcurrido",
   "Lock automatic preview switching": "Bloquear el cambio automático de vista previa",
   "Unlock automatic preview switching": "Desbloquear el cambio automático de vista previa",

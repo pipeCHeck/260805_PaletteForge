@@ -477,9 +477,9 @@ test("ultrawide layouts keep the central preview at a comfortable width", async 
 test("medium desktop preview gives the canvas the full available viewport", async () => {
   const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
   assert.match(css, /@media \(min-width:761px\) and \(max-width:1599px\)/);
-  assert.match(css, /\.image-rail, \.preview-panel \{[^}]*height:calc\(100dvh - 140px\);[^}]*min-height:0;[^}]*max-height:calc\(100dvh - 140px\);/);
-  assert.match(css, /\.image-rail, \.preview-panel \{ position:sticky; top:128px; \}/);
-  assert.match(css, /\.image-rail, \.preview-panel \{ position:static; top:auto; \}/);
+  assert.match(css, /\.source-column, \.preview-panel \{[^}]*height:calc\(100dvh - 140px\);[^}]*min-height:0;[^}]*max-height:calc\(100dvh - 140px\);/);
+  assert.match(css, /\.source-column, \.preview-panel \{ position:sticky; top:128px; \}/);
+  assert.match(css, /\.source-column, \.preview-panel \{ position:static; top:auto; \}/);
   assert.match(css, /\.canvas-wrap \{[^}]*padding: 0;/);
   assert.match(css, /\.pan-zoom-viewport \{[^}]*inset: 0;/);
 });
@@ -494,7 +494,7 @@ test("medium desktop notice follows the preview panels through their shared rele
   assert.match(component, /workspace\.getBoundingClientRect\(\)\.bottom - panelReleaseLine/);
   assert.match(component, /--notice-release-offset/);
   assert.match(css, /\.notice \{[^}]*position:sticky;[^}]*top:78px;[^}]*--notice-release-offset/);
-  assert.match(css, /\.image-rail, \.preview-panel \{ position:sticky; top:128px; \}/);
+  assert.match(css, /\.source-column, \.preview-panel \{ position:sticky; top:128px; \}/);
 });
 test("wide desktop editor fits its primary regions into one viewport", async () => {
   const [studio, css] = await Promise.all([
@@ -827,6 +827,24 @@ test("experimental GPU acceleration is guarded and reports CPU fallback", async 
   assert.match(gpu, /device\.lost/);
   assert.match(gpu, /requestAdapter\(\{ powerPreference: "high-performance" \}\)/);
   assert.match(worker, /operation\?: "analyze-hue" \| "prepare" \| "map-fixed" \| "quantize"/);
+});
+
+test("the workspace exposes a prominent product introduction above the image rail", async () => {
+  const [studio, css, translations, spanish] = await Promise.all([
+    readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    readFile(new URL("../app/i18n.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/es.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(studio, /<div className="source-column">[\s\S]*?<section className="source-intro panel"[\s\S]*?원하는 색을 직접 고르고,[\s\S]*?이미지와 영상을 새롭게 구성하세요[\s\S]*?<aside className=\{`image-rail/);
+  assert.match(css, /\.source-column \{[^}]*display: flex;[^}]*flex-direction: column;/);
+  assert.match(css, /\.source-intro h2 \{[^}]*font: 700 16px/);
+  assert.match(css, /\.source-intro h2 span \{[^}]*display: block;/);
+  assert.match(css, /\.source-intro p \{[^}]*font-size: 11\.5px/);
+  assert.match(translations, /Choose the colors you want,/);
+  assert.match(translations, /使いたい色を自分で選び、/);
+  assert.match(spanish, /Elige los colores que quieras/);
+  assert.match(css, /html\[lang="ko"\] \.source-intro :is\(h2,p\) \{ word-break: keep-all;/);
 });
 
 test("special palette colors and local conversion milestones use a separate easter egg toast", async () => {

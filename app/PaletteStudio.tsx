@@ -1011,7 +1011,13 @@ export default function PaletteStudio() {
       </button>}
 
       <div ref={workspaceRef} className="workspace">
-        <aside className={`image-rail panel ${imageDragActive ? "drag-active" : ""}`}>
+        <div className="source-column">
+          <section className="source-intro panel" aria-label={tr("Palette Forge 소개")}>
+            <span className="eyebrow">ABOUT PALETTE FORGE</span>
+            <h2><span>{tr("원하는 색을 직접 고르고,")}</span><span>{tr("이미지와 영상을 새롭게 구성하세요")}</span></h2>
+            <p>{tr("사용할 색상 수를 정하고, 꼭 살리고 싶은 색은 정확히 고정하세요. 자동 팔레트·색 보정·픽셀화·프리셋을 조합해 이미지와 영상을 원하는 분위기와 스타일로 완성할 수 있습니다.")}</p>
+          </section>
+          <aside className={`image-rail panel ${imageDragActive ? "drag-active" : ""}`}>
           <div className="panel-title"><div><div className="section-kicker"><span className="eyebrow">SOURCE</span><SectionHelp label={tr("이미지 목록 도움말 열기")} title={tr("이미지 목록")} summary={tr("여러 이미지를 불러오고, 지금 편집할 이미지를 선택할 수 있습니다.")}><ul><li><strong>{tr("이미지 추가")}</strong>{tr("PNG·JPEG·WebP 파일을 선택하거나 사이트 어디든 끌어오세요. Ctrl+V로 붙여넣을 수도 있습니다.")}</li><li><strong>{tr("이미지 선택")}</strong>{tr("목록에서 이미지를 선택하면 미리보기와 설정이 해당 이미지로 바뀝니다.")}</li><li><strong>{tr("목록 정리")}</strong>{tr("선택 삭제와 전체 삭제는 목록에서만 이미지를 지우며, 컴퓨터의 원본 파일은 삭제하지 않습니다.")}</li></ul></SectionHelp></div><h2>{tr("이미지 목록")} <b>{images.length}</b></h2></div><button className="icon-button" aria-label={tr("이미지 추가")} onClick={() => fileInput.current?.click()}>＋</button></div>
           <button className="dropzone" onClick={() => fileInput.current?.click()} disabled={busy}><span>{imageDragActive ? "↓" : "＋"}</span><strong>{tr(imageDragActive ? "놓아서 이미지 추가" : "이미지 불러오기")}</strong><small>{tr("PNG · JPEG · WebP / 여러 장 선택 가능")}</small><small className="drop-hint">{tr("파일 또는 웹 이미지를 여기로 드래그")}</small><small className="paste-hint">{tr("또는 Ctrl+V로 클립보드 이미지 붙여넣기")}</small></button>
           <div className="image-list">
@@ -1027,7 +1033,8 @@ export default function PaletteStudio() {
             <AdPlacement placement="rail" slot={AD_SLOTS.railSecondary} label="Advertisements" pendingText={tr("\uC2B9\uC778 \uD6C4 \uAD11\uACE0\uAC00 \uD45C\uC2DC\uB429\uB2C8\uB2E4.")} />
           </div>
           {!!images.length && <div className="rail-actions"><button className="text-button danger" onClick={() => { if (!current) return; setImages((items) => items.filter((item) => item.id !== current.id)); const next = images.find((item) => item.id !== current.id); setSelectedId(next?.id ?? null); }}>{tr("선택 삭제")}</button><button className="text-button" onClick={() => { if (window.confirm(tr("모든 이미지를 목록에서 삭제할까요?"))) { setImages([]); setSelectedId(null); } }}>{tr("전체 삭제")}</button></div>}
-        </aside>
+          </aside>
+        </div>
 
         <section className="preview-panel panel">
           <div className="panel-title"><div><div className="section-kicker"><span className="eyebrow">PREVIEW</span><SectionHelp label={tr("미리보기 도움말 열기")} title={tr("미리보기")} summary={tr("위쪽에서 원본·보정 이미지를 보고, 아래쪽에서 변환 결과를 비교할 수 있습니다.")}><ul><li><strong>{tr("확대·이동")}</strong>{tr("마우스 휠로 확대·축소하고, 이미지를 드래그하여 이동할 수 있습니다.")}</li><li><strong>{tr("스포이드로 색 가져오기")}</strong>{tr("팔레트 슬롯의 색상 상자를 열고 이미지 스포이드를 선택하면, 이미지를 클릭하여 원하는 색상을 가져올 수 있습니다.")}</li><li><strong>{tr("표시 전환")}</strong>{tr("우하단 버튼으로 원본·보정을 전환하고, 보기 상태를 잠그거나 화면에 맞출 수 있습니다.")}</li></ul></SectionHelp></div><h2>{current ? getImageDisplayName(current, language) : tr(exampleLoading ? "예시 이미지 준비 중" : "미리보기")}</h2></div>{current && <span className="dimension">{current.width} × {current.height}px</span>}</div>

@@ -394,6 +394,10 @@ Object.assign(ja, {
 });
 
 Object.assign(en, {
+  "Palette Forge 소개": "About Palette Forge",
+  "원하는 색을 직접 고르고,": "Choose the colors you want,",
+  "이미지와 영상을 새롭게 구성하세요": "then reshape images and videos.",
+  "사용할 색상 수를 정하고, 꼭 살리고 싶은 색은 정확히 고정하세요. 자동 팔레트·색 보정·픽셀화·프리셋을 조합해 이미지와 영상을 원하는 분위기와 스타일로 완성할 수 있습니다.": "Set the number of colors and lock in the ones that matter. Combine automatic palettes, color adjustments, pixelation, and presets to shape images and videos into the mood and style you want.",
   "PNG·JPEG·WebP 파일을 선택하거나 사이트 어디든 끌어오세요. Ctrl+V로 붙여넣을 수도 있습니다.": "Choose PNG, JPEG, or WebP files, drag them anywhere on the site, or paste with Ctrl+V.",
   "최종 색상 수를 바꾸면 슬롯 수도 함께 바뀌며, 슬롯의 ×를 누르면 색상 수가 하나 줄어듭니다.": "Changing the final color count updates the number of slots. Press × on a slot to reduce the color count by one.",
   "프리셋·가중치": "Presets and weights",
@@ -409,6 +413,10 @@ Object.assign(en, {
 });
 
 Object.assign(ja, {
+  "Palette Forge 소개": "Palette Forgeについて",
+  "원하는 색을 직접 고르고,": "使いたい色を自分で選び、",
+  "이미지와 영상을 새롭게 구성하세요": "画像や動画を新しく構成しよう。",
+  "사용할 색상 수를 정하고, 꼭 살리고 싶은 색은 정확히 고정하세요. 자동 팔레트·색 보정·픽셀화·프리셋을 조합해 이미지와 영상을 원하는 분위기와 스타일로 완성할 수 있습니다.": "使用する色数を決め、残したい色は正確に固定。自動パレット、色補正、ピクセル化、プリセットを組み合わせて、画像や動画を思いどおりの雰囲気とスタイルに仕上げられます。",
   "처리 가속": "処理アクセラレーション", "자동 권장": "自動（推奨）", "실험적 GPU": "実験的GPU", "GPU 확인 중": "GPUを確認中", "GPU를 사용할 수 없음": "GPUを使用できません", "브라우저가 선택한 GPU": "ブラウザーが選択したGPU",
   "GPU는 전체 공통 팔레트와 면 정리 0에서만 사용할 수 있습니다.": "GPUは動画全体の共通パレットかつ面の整理が0の場合のみ使用できます。", "CPU 처리로 변환합니다.": "CPUで変換します。", "프레임별 자동 팔레트는 CPU로 변환합니다.": "フレーム別自動パレットはCPUで変換します。",
   "CPU와 GPU의 속도와 결과를 비교하고 있습니다.": "CPUとGPUの速度と結果を比較しています。", "GPU 결과가 CPU와 일치하지 않아 CPU로 자동 전환했습니다.": "GPUの結果がCPUと一致しないため、CPUへ自動的に切り替えました。", "이 브라우저에서 GPU를 사용할 수 없어 CPU로 자동 전환했습니다.": "このブラウザーではGPUを使用できないため、CPUへ自動的に切り替えました。", "현재 설정은 GPU 가속 대상이 아니므로 CPU로 변환합니다.": "現在の設定はGPUアクセラレーションの対象外のため、CPUで変換します。",
