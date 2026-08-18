@@ -1,13 +1,8 @@
 import { ES_BY_ENGLISH } from "./es";
+import type { Language } from "./languages";
 
-export type Language = "ko" | "ja" | "en" | "es";
-
-export const LANGUAGE_OPTIONS: { value: Language; label: string; shortLabel: string }[] = [
-  { value: "ko", label: "한국어", shortLabel: "KO" },
-  { value: "ja", label: "日本語", shortLabel: "JA" },
-  { value: "en", label: "English", shortLabel: "EN" },
-  { value: "es", label: "Español", shortLabel: "ES" },
-];
+export type { Language } from "./languages";
+export { LANGUAGE_OPTIONS, detectLanguage } from "./languages";
 
 const ja: Record<string, string> = {
   "경과 시간": "経過時間",
@@ -440,14 +435,6 @@ const es: Record<string, string> = Object.fromEntries(
 );
 
 const translations: Record<Exclude<Language, "ko">, Record<string, string>> = { ja, en, es };
-
-export function detectLanguage(value: string): Language {
-  const normalized = value.toLowerCase();
-  if (normalized.startsWith("ja")) return "ja";
-  if (normalized.startsWith("ko")) return "ko";
-  if (normalized.startsWith("es")) return "es";
-  return "en";
-}
 
 export function translate(language: Language, source: string, values: Record<string, string | number> = {}) {
   const template = language === "ko" ? source : translations[language][source] ?? source;

@@ -1,5 +1,5 @@
-import type { Metadata } from "next";
 import InfoPage from "../InfoPage";
+import { publicPageMetadata } from "../public-metadata";
 
-export const metadata: Metadata = { title: "개인정보처리방침 — Palette Forge", description: "Palette Forge의 로컬 이미지·영상 처리, 브라우저 저장소, 호스팅 및 광고 데이터 처리 안내" };
+export const metadata = publicPageMetadata("privacy", "ko", "/privacy");
 export default function PrivacyPage() { return <InfoPage kind="privacy" />; }

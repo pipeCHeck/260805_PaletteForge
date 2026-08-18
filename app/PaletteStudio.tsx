@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-html-link-for-pages -- 공개 안내 페이지는 독립 문서 탐색으로 열어 편집기 상태를 명확히 분리합니다. */
 
 import { ChangeEvent, DragEvent as ReactDragEvent, lazy, MouseEvent, PointerEvent as ReactPointerEvent, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { APP_VERSION } from "./version";
@@ -25,7 +26,6 @@ import {
 } from "../lib/palette.mjs";
 import QuantizeWorker from "./quantize.worker?worker";
 import { LANGUAGE_OPTIONS, Language, detectLanguage, localizeError, translate } from "./i18n";
-import AdPlacement from "./AdPlacement";
 import SectionHelp from "./SectionHelp";
 
 const VideoConverter = lazy(() => import("./VideoConverter"));
@@ -41,11 +41,6 @@ const CONVERSION_MILESTONES = new Map<number, string>([
   [50, "색채 연금술사"],
   [100, "Palette Forgemaster"],
 ]);
-
-const AD_SLOTS = {
-  rail: "",
-  railSecondary: "",
-} as const;
 
 const EXAMPLE_ASSETS = [
   { id: "example-01", name: "별빛을 품은 마녀" },
@@ -453,6 +448,7 @@ export default function PaletteStudio() {
   const workspaceRef = useRef<HTMLDivElement>(null);
   const exampleStarted = useRef(false);
   const imageDragDepth = useRef(0);
+  const dragStartedInsideStudio = useRef(false);
   const easterToastTimer = useRef<number | null>(null);
   const easterToastExitTimer = useRef<number | null>(null);
   const shownColorEggs = useRef(new Set<string>());
@@ -724,8 +720,10 @@ export default function PaletteStudio() {
   useEffect(() => {
     if (!languageReady || exampleStarted.current) return;
     exampleStarted.current = true;
+    const requestedExample = new URLSearchParams(window.location.search).get("example");
+    const linkedExample = EXAMPLE_ASSETS.find((item) => item.id === requestedExample);
     const randomValue = crypto.getRandomValues(new Uint32Array(1))[0];
-    const example = EXAMPLE_ASSETS[randomValue % EXAMPLE_ASSETS.length];
+    const example = linkedExample ?? EXAMPLE_ASSETS[randomValue % EXAMPLE_ASSETS.length];
     setExampleLoadingIconReady(false);
     setExampleLoadingIcon(`/examples/loading/${example.id}.png`);
     setBusy(true);
@@ -872,24 +870,34 @@ export default function PaletteStudio() {
     const normalized = type.toLowerCase();
     return normalized === "files" || normalized === "text/html" || normalized === "text/uri-list" || normalized === "text/plain" || normalized === "downloadurl" || normalized.includes("moz-url") || normalized.includes("file-promise-url");
   });
+  const beginInternalDrag = () => {
+    dragStartedInsideStudio.current = true;
+    imageDragDepth.current = 0;
+    setImageDragActive(false);
+  };
+  const endInternalDrag = () => {
+    dragStartedInsideStudio.current = false;
+    imageDragDepth.current = 0;
+    setImageDragActive(false);
+  };
   const dragImagesIn = (event: ReactDragEvent<HTMLElement>) => {
-    if (!acceptsImageDrop(event.dataTransfer)) return;
+    if (dragStartedInsideStudio.current || !acceptsImageDrop(event.dataTransfer)) return;
     event.preventDefault();
     imageDragDepth.current += 1;
     setImageDragActive(true);
   };
   const dragImagesOver = (event: ReactDragEvent<HTMLElement>) => {
-    if (!acceptsImageDrop(event.dataTransfer)) return;
+    if (dragStartedInsideStudio.current || !acceptsImageDrop(event.dataTransfer)) return;
     event.preventDefault();
     event.dataTransfer.dropEffect = "copy";
   };
   const dragImagesOut = (event: ReactDragEvent<HTMLElement>) => {
-    if (!acceptsImageDrop(event.dataTransfer)) return;
+    if (dragStartedInsideStudio.current || !acceptsImageDrop(event.dataTransfer)) return;
     imageDragDepth.current = Math.max(0, imageDragDepth.current - 1);
     if (imageDragDepth.current === 0) setImageDragActive(false);
   };
   const dropImages = (event: ReactDragEvent<HTMLElement>) => {
-    if (!acceptsImageDrop(event.dataTransfer)) return;
+    if (dragStartedInsideStudio.current || !acceptsImageDrop(event.dataTransfer)) return;
     event.preventDefault();
     imageDragDepth.current = 0;
     setImageDragActive(false);
@@ -985,9 +993,10 @@ export default function PaletteStudio() {
   };
 
   return (
-    <main className={`studio-shell ${imageDragActive ? "image-drag-active" : ""}`} onDragEnter={dragImagesIn} onDragOver={dragImagesOver} onDragLeave={dragImagesOut} onDrop={dropImages}>
+    <main className={`studio-shell ${imageDragActive ? "image-drag-active" : ""}`} onDragStartCapture={beginInternalDrag} onDragEndCapture={endInternalDrag} onDragEnter={dragImagesIn} onDragOver={dragImagesOver} onDragLeave={dragImagesOut} onDrop={dropImages}>
       {imageDragActive && <div className="global-image-drop" aria-hidden="true"><span>↓</span><strong>{tr("사이트 어디든 놓아서 이미지 추가")}</strong></div>}
       <header className="topbar">
+        {/* 브랜드 클릭은 새 편집 세션을 여는 전체 문서 이동이므로 앵커를 유지합니다. */}
         <a className="brand" href="/" aria-label={tr("Palette Forge 메인 페이지로 이동")}><img className="brand-mark" src="/icon-192.png" alt="" width={44} height={44} /><div><h1>Palette Forge <span className="brand-version" title={`Version ${APP_VERSION}`}>v{APP_VERSION}</span></h1><p>{tr("이미지와 영상을 팔레트·픽셀 스타일로 변환하는 브라우저 도구")}</p></div></a>
         <div className="header-actions">
           <button className="button video-open-button" onClick={() => setVideoDialogOpen(true)} disabled={busy} aria-label={tr("영상 변환")}>
@@ -1012,11 +1021,6 @@ export default function PaletteStudio() {
 
       <div ref={workspaceRef} className="workspace">
         <div className="source-column">
-          <section className="source-intro panel" aria-label={tr("Palette Forge 소개")}>
-            <span className="eyebrow">ABOUT PALETTE FORGE</span>
-            <h2><span>{tr("원하는 색을 직접 고르고,")}</span><span>{tr("이미지와 영상을 새롭게 구성하세요")}</span></h2>
-            <p>{tr("사용할 색상 수를 정하고, 꼭 살리고 싶은 색은 정확히 고정하세요. 자동 팔레트·색 보정·픽셀화·프리셋을 조합해 이미지와 영상을 원하는 분위기와 스타일로 완성할 수 있습니다.")}</p>
-          </section>
           <aside className={`image-rail panel ${imageDragActive ? "drag-active" : ""}`}>
           <div className="panel-title"><div><div className="section-kicker"><span className="eyebrow">SOURCE</span><SectionHelp label={tr("이미지 목록 도움말 열기")} title={tr("이미지 목록")} summary={tr("여러 이미지를 불러오고, 지금 편집할 이미지를 선택할 수 있습니다.")}><ul><li><strong>{tr("이미지 추가")}</strong>{tr("PNG·JPEG·WebP 파일을 선택하거나 사이트 어디든 끌어오세요. Ctrl+V로 붙여넣을 수도 있습니다.")}</li><li><strong>{tr("이미지 선택")}</strong>{tr("목록에서 이미지를 선택하면 미리보기와 설정이 해당 이미지로 바뀝니다.")}</li><li><strong>{tr("목록 정리")}</strong>{tr("선택 삭제와 전체 삭제는 목록에서만 이미지를 지우며, 컴퓨터의 원본 파일은 삭제하지 않습니다.")}</li></ul></SectionHelp></div><h2>{tr("이미지 목록")} <b>{images.length}</b></h2></div><button className="icon-button" aria-label={tr("이미지 추가")} onClick={() => fileInput.current?.click()}>＋</button></div>
           <button className="dropzone" onClick={() => fileInput.current?.click()} disabled={busy}><span>{imageDragActive ? "↓" : "＋"}</span><strong>{tr(imageDragActive ? "놓아서 이미지 추가" : "이미지 불러오기")}</strong><small>{tr("PNG · JPEG · WebP / 여러 장 선택 가능")}</small><small className="drop-hint">{tr("파일 또는 웹 이미지를 여기로 드래그")}</small><small className="paste-hint">{tr("또는 Ctrl+V로 클립보드 이미지 붙여넣기")}</small></button>
@@ -1027,10 +1031,6 @@ export default function PaletteStudio() {
               <img src={image.thumbnail} alt="" /><span className="image-copy"><strong>{getImageDisplayName(image, language)}</strong><small>{image.width} × {image.height}px · #{index + 1}</small></span><i className={image.result ? "done" : "pending"}>{tr(image.result ? "완료" : "대기")}</i>
             </button>)}
             {!images.length && <p className="empty-list">{tr("불러온 이미지가 없습니다.")}</p>}
-          </div>
-          <AdPlacement placement="rail" slot={AD_SLOTS.rail} label="Advertisements" pendingText={tr("\uC2B9\uC778 \uD6C4 \uAD11\uACE0\uAC00 \uD45C\uC2DC\uB429\uB2C8\uB2E4.")} />
-          <div className="rail-ad-secondary">
-            <AdPlacement placement="rail" slot={AD_SLOTS.railSecondary} label="Advertisements" pendingText={tr("\uC2B9\uC778 \uD6C4 \uAD11\uACE0\uAC00 \uD45C\uC2DC\uB429\uB2C8\uB2E4.")} />
           </div>
           {!!images.length && <div className="rail-actions"><button className="text-button danger" onClick={() => { if (!current) return; setImages((items) => items.filter((item) => item.id !== current.id)); const next = images.find((item) => item.id !== current.id); setSelectedId(next?.id ?? null); }}>{tr("선택 삭제")}</button><button className="text-button" onClick={() => { if (window.confirm(tr("모든 이미지를 목록에서 삭제할까요?"))) { setImages([]); setSelectedId(null); } }}>{tr("전체 삭제")}</button></div>}
           </aside>

@@ -218,8 +218,9 @@ test("theme toggle switches and persists light and dark modes", async () => {
 });
 
 test("language selector switches and persists Korean, Japanese, English, and Spanish", async () => {
-  const [component, translations, spanish, css] = await Promise.all([
+  const [component, languages, translations, spanish, css] = await Promise.all([
     readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/languages.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/i18n.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/es.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
@@ -228,11 +229,11 @@ test("language selector switches and persists Korean, Japanese, English, and Spa
   assert.match(component, /className="language-control"/);
   assert.match(component, /document\.documentElement\.lang =/);
   assert.match(component, /LANGUAGE_OPTIONS\.map/);
-  assert.match(translations, /value: "ko", label: "한국어"/);
-  assert.match(translations, /value: "ja", label: "日本語"/);
-  assert.match(translations, /value: "en", label: "English"/);
-  assert.match(translations, /value: "es", label: "Español"/);
-  assert.match(translations, /normalized\.startsWith\("es"\)/);
+  assert.match(languages, /value: "ko", label: "한국어"/);
+  assert.match(languages, /value: "ja", label: "日本語"/);
+  assert.match(languages, /value: "en", label: "English"/);
+  assert.match(languages, /value: "es", label: "Español"/);
+  assert.match(languages, /normalized\.startsWith\("es"\)/);
   assert.match(component, /savedLanguage === "es"/);
   assert.match(translations, /ES_BY_ENGLISH/);
   assert.match(spanish, /"Final palette": "Paleta final"/);
@@ -260,6 +261,9 @@ test("image rail accepts files and supported web images by drag and drop", async
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ]);
   assert.match(component, /className=\{`studio-shell[\s\S]*?onDragEnter=\{dragImagesIn\}[\s\S]*?onDrop=\{dropImages\}/);
+  assert.match(component, /onDragStartCapture=\{beginInternalDrag\}[\s\S]*onDragEndCapture=\{endInternalDrag\}/);
+  assert.match(component, /dragStartedInsideStudio = useRef\(false\)/);
+  assert.match(component, /if \(dragStartedInsideStudio\.current \|\| !acceptsImageDrop\(event\.dataTransfer\)\) return/);
   assert.match(component, /global-image-drop[\s\S]*?사이트 어디든 놓아서 이미지 추가/);
   assert.match(component, /Array\.from\(event\.dataTransfer\.files\)/);
   assert.match(component, /droppedImageUrls\(event\.dataTransfer\)/);
@@ -343,12 +347,12 @@ test("service guide and legal pages provide clear navigation, local-processing d
     readFile(new URL("../app/info.css", import.meta.url), "utf8"),
   ]);
   assert.match(component, /const COPY: Record<Language, PageCopy>/);
-  assert.match(component, /원본 이미지와 영상은 이 브라우저 밖으로 나가지 않습니다/);
+  assert.match(component, /브라우저 안의 로컬 처리/);
   assert.match(component, /guide\.steps\.map/);
-  assert.match(component, /이미지와 영상의 색을 원하는 스타일로 다시 설계하세요/);
-  assert.match(component, /画像と動画の色を、思いどおりのスタイルへ/);
-  assert.match(component, /Reshape the colors of images and videos/);
-  assert.match(component, /Rediseña los colores de tus imágenes y vídeos/);
+  assert.match(component, /이미지·영상 색상 재설계/);
+  assert.match(component, /画像・動画の色彩再設計/);
+  assert.match(component, /Image and video color redesign/);
+  assert.match(component, /Rediseño de color para imágenes y vídeo/);
   assert.match(component, /공통 팔레트/);
   assert.match(component, /フレーム別モード/);
   assert.match(component, /Per-frame mode/);
@@ -409,14 +413,14 @@ test("each bundled example has a precomputed palette icon for the loading previe
 test("information pages use reliable full-document navigation for every internal route", async () => {
   const component = await readFile(new URL("../app/InfoPage.tsx", import.meta.url), "utf8");
   assert.doesNotMatch(component, /from "next\/link"|<Link/);
-  assert.match(component, /className="info-brand" href="\/"/);
+  assert.match(component, /className="info-brand" href=\{localizedPublicPath\(language, "\/"\)\}/);
   assert.match(component, /className="info-brand-mark" src="\/icon-192\.png"/);
-  assert.match(component, /className="back-editor" href="\/"/);
-  assert.match(component, /className="info-primary" href="\/"/);
-  assert.match(component, /href="\/guide"/);
-  assert.match(component, /href="\/privacy"/);
-  assert.match(component, /href="\/terms"/);
-  assert.match(component, /href="\/guide#contact"/);
+  assert.match(component, /className="back-editor" href="\/editor"/);
+  assert.match(component, /className="info-primary" href="\/editor"/);
+  assert.match(component, /localizedPublicPath\(language, "\/guide"\)/);
+  assert.match(component, /localizedPublicPath\(language, "\/privacy"\)/);
+  assert.match(component, /localizedPublicPath\(language, "\/terms"\)/);
+  assert.match(component, /localizedPublicPath\(language, "\/guide"\).*#contact/);
 });
 
 test("Korean information typography keeps words intact and balances prominent headings", async () => {
@@ -428,44 +432,27 @@ test("Korean information typography keeps words intact and balances prominent he
   assert.match(css, /\.local-promise h2 \{ max-width: 820px;/);
 });
 
-test("ad infrastructure remains available but renders no boxes or ad requests before approval", async () => {
-  const [studio, placement, css] = await Promise.all([
+test("the editor contains no ad slots or advertising requests", async () => {
+  const [studio, editorPage] = await Promise.all([
     readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/AdPlacement.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    readFile(new URL("../app/editor/page.tsx", import.meta.url), "utf8"),
   ]);
-  assert.match(studio, /const AD_SLOTS =/);
-  assert.match(studio, /placement="rail"/);
-  assert.doesNotMatch(studio, /placement="banner"/);
-  assert.doesNotMatch(studio, /banner:/);
-  assert.match(placement, /data-ad-client=\{ADSENSE_CLIENT\}/);
-  assert.match(placement, /data-ad-slot=\{slot\}/);
-  assert.match(placement, /data-ad-format="rectangle"/);
-  assert.match(placement, /data-full-width-responsive="true"/);
-  assert.match(placement, /const ADVERTISING_ENABLED = false/);
-  assert.match(placement, /if \(!ADVERTISING_ENABLED \|\| !slot \|\| initialized\.current\) return/);
-  assert.match(placement, /if \(!ADVERTISING_ENABLED\) return null/);
-  assert.match(css, /\.ad-placement-rail/);
-  assert.doesNotMatch(css, /\.ad-placement-banner/);
-  assert.match(css, /@media \(max-width: 1180px\)[\s\S]*\.ad-placement-rail \{ display:none; \}/);
-  assert.match(css, /\.ad-placement \{[^}]*overflow:visible;/);
-  assert.match(css, /\.ad-placement-rail \{[^}]*width:calc\(100% - 24px\);[^}]*min-height:282px;/);
-  assert.match(css, /adsbygoogle\[data-ad-status="unfilled"\]/);
-  assert.equal((studio.match(/placement="rail"/g) ?? []).length, 2);
-  assert.match(studio, /railSecondary/);
-  assert.match(studio, /label="Advertisements"/);
-  assert.match(css, /@media \(min-width:1181px\) and \(min-height:1100px\)[\s\S]*\.rail-ad-secondary \{ display:block; \}/);
+  assert.doesNotMatch(studio, /AdPlacement|AD_SLOTS|adsbygoogle|pagead2/);
+  assert.doesNotMatch(editorPage, /adsbygoogle|pagead2/);
+  assert.match(editorPage, /<PaletteStudio \/>/);
 });
 
-test("AdSense account metadata remains global while the ad script loads only on the editor route", async () => {
-  const [layout, page] = await Promise.all([
+test("AdSense account metadata remains global while the ad script loads only on the content-rich home", async () => {
+  const [layout, page, editorPage] = await Promise.all([
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/editor/page.tsx", import.meta.url), "utf8"),
   ]);
   assert.match(layout, /"google-adsense-account": "ca-pub-2402421786391581"/);
   assert.doesNotMatch(layout, /pagead2\.googlesyndication\.com\/pagead\/js\/adsbygoogle\.js/);
   assert.match(page, /pagead2\.googlesyndication\.com\/pagead\/js\/adsbygoogle\.js\?client=ca-pub-2402421786391581/);
-  assert.match(page, /<PaletteStudio \/>/);
+  assert.match(page, /<LandingPage \/>/);
+  assert.doesNotMatch(editorPage, /pagead2\.googlesyndication\.com/);
 });
 
 test("ultrawide layouts keep the central preview at a comfortable width", async () => {
@@ -829,22 +816,100 @@ test("experimental GPU acceleration is guarded and reports CPU fallback", async 
   assert.match(worker, /operation\?: "analyze-hue" \| "prepare" \| "map-fixed" \| "quantize"/);
 });
 
-test("the workspace exposes a prominent product introduction above the image rail", async () => {
-  const [studio, css, translations, spanish] = await Promise.all([
+test("the public home explains the product while the editor preserves its workspace", async () => {
+  const [studio, landing, content, css] = await Promise.all([
     readFile(new URL("../app/PaletteStudio.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
-    readFile(new URL("../app/i18n.ts", import.meta.url), "utf8"),
-    readFile(new URL("../app/es.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/LandingPage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/site-content.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/home.css", import.meta.url), "utf8"),
   ]);
-  assert.match(studio, /<div className="source-column">[\s\S]*?<section className="source-intro panel"[\s\S]*?원하는 색을 직접 고르고,[\s\S]*?이미지와 영상을 새롭게 구성하세요[\s\S]*?<aside className=\{`image-rail/);
-  assert.match(css, /\.source-column \{[^}]*display: flex;[^}]*flex-direction: column;/);
-  assert.match(css, /\.source-intro h2 \{[^}]*font: 700 16px/);
-  assert.match(css, /\.source-intro h2 span \{[^}]*display: block;/);
-  assert.match(css, /\.source-intro p \{[^}]*font-size: 11\.5px/);
-  assert.match(translations, /Choose the colors you want,/);
-  assert.match(translations, /使いたい色を自分で選び、/);
-  assert.match(spanish, /Elige los colores que quieras/);
-  assert.match(css, /html\[lang="ko"\] \.source-intro :is\(h2,p\) \{ word-break: keep-all;/);
+  assert.doesNotMatch(studio, /source-intro/);
+  assert.match(studio, /<div className="source-column">[\s\S]*?<aside className=\{`image-rail/);
+  assert.match(landing, /id="features"/);
+  assert.match(landing, /id="examples"/);
+  assert.match(landing, /id="workflow"/);
+  assert.match(landing, /Math\.floor\(Math\.random\(\) \* EXAMPLE_STORIES\.length\)/);
+  assert.match(landing, /setHeroExample\(EXAMPLE_STORIES\[index\] \?\? EXAMPLE_STORIES\[0\]\)/);
+  assert.doesNotMatch(landing, /heroExample = EXAMPLE_STORIES\.find/);
+  assert.match(content, /원하는 색으로/);
+  assert.match(content, /Choose your colors/);
+  assert.match(content, /好きな色で/);
+  assert.match(content, /Con los colores que quieras/);
+  assert.match(content, /이미지와 영상의 색을 원하는 팔레트로 재구성/);
+  assert.match(content, /reconstructing the colors of images and videos/);
+  assert.match(content, /画像や動画の色を思いどおりのパレットで再構成/);
+  assert.match(content, /reconstruir el color de imágenes y vídeos/);
+  assert.match(content, /이미지 스타일 재구성/);
+  assert.match(content, /画像スタイルの再構成/);
+  assert.match(content, /Reshape an image's style/);
+  assert.match(content, /Reinventa el estilo de una imagen/);
+  assert.match(landing, /example\.palette\.map/);
+  assert.doesNotMatch(landing, /example\.palette\.slice\(/);
+  assert.match(landing, /hero-image-frame hero-image-compare public-checker/);
+  assert.match(landing, /example-image-link public-checker/);
+  assert.match(css, /\.public-checker\s*\{[^}]*background-size: 18px 18px/);
+  assert.match(css, /\.example-detail-copy > \.public-ai-note[^}]*margin: 18px 0 0/);
+  assert.match(css, /html:has\(\.public-page\)[^}]*scroll-behavior: smooth/);
+  assert.match(css, /\.public-page section\[id\][^}]*scroll-margin-top: 96px/);
+  assert.match(css, /\.public-hero \{/);
+});
+
+test("the public hero compares each original and converted example with pointer movement", async () => {
+  const [landing, css] = await Promise.all([
+    readFile(new URL("../app/LandingPage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/home.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(landing, /heroExample\.image/);
+  assert.match(landing, /heroExample\.resultImage/);
+  assert.match(landing, /onPointerMove=\{updateHeroCompare\}/);
+  assert.match(landing, /onPointerLeave=\{finishHeroCompare\}/);
+  assert.match(landing, /heroComparePosition\.current \+ distance \* \.32/);
+  assert.match(landing, /window\.requestAnimationFrame\(animate\)/);
+  assert.match(landing, /--hero-compare-position": "15%"/);
+  assert.match(landing, /element\.dataset\.compareEdge = "true"/);
+  assert.match(css, /hero-image-crate[^}]*object-position: 0% 50%/);
+  assert.match(css, /\.hero-compare-result[^{]*\{[^}]*clip-path:/);
+  assert.match(css, /\.hero-compare-divider/);
+  assert.match(css, /data-compare-edge="true"[^}]*hero-compare-divider[^}]*opacity: 0/);
+  assert.doesNotMatch(css, /\.hero-compare-divider::after/);
+  assert.match(landing, /hero-image-frame hero-image-compare public-checker[\s\S]*hero-badge-layer/);
+  assert.doesNotMatch(css, /\.hero-compare-label[^}]*transform:/);
+  assert.doesNotMatch(css, /\.hero-compare-label[^}]*backdrop-filter/);
+  assert.match(landing, /hero-compare-status[\s\S]*hero-compare-label-result[\s\S]*hero-local-badge/);
+  assert.match(css, /\.hero-badge-layer \{[^}]*top: 36px;[^}]*left: 40px;[^}]*right: 40px/);
+  assert.match(css, /\.hero-compare-status \{[^}]*gap: 6px/);
+  assert.doesNotMatch(css, /\.hero-image-frame \{[^}]*transform:/);
+  assert.match(css, /\.hero-compare-label \{[^}]*min-height: 26px;[^}]*padding: 0 9px/);
+  assert.match(css, /\.hero-local-badge \{[^}]*min-height: 26px;[^}]*padding: 0 9px/);
+  assert.match(css, /\.hero-local-badge \{[^}]*border: 1px solid rgba\(255,255,255,\.13\)/);
+  assert.doesNotMatch(css, /\.hero-local-badge \{[^}]*position: absolute/);
+  assert.match(css, /\.hero-badge-layer \{[^}]*pointer-events: none/);
+});
+
+test("public discovery files expose localized guides and all example case studies", async () => {
+  const [robots, sitemap, stories] = await Promise.all([
+    readFile(new URL("../public/robots.txt", import.meta.url), "utf8"),
+    readFile(new URL("../app/sitemap.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/site-content.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(robots, /Sitemap: https:\/\/paletteforge\.org\/sitemap\.xml/);
+  assert.match(sitemap, /path: "\/guide"/);
+  assert.match(sitemap, /path: "\/examples"/);
+  assert.match(sitemap, /PUBLIC_LANGUAGES\.map/);
+  assert.match(sitemap, /localizedPublicPath\(language, path\)/);
+  const cases = [["example-01", "witch-of-starlight"], ["example-03", "city-monument"], ["example-04", "silver-blade-knight"], ["example-05", "golden-carbonara"], ["example-06", "coral-geometry"], ["example-07", "crate-fortress-squad"], ["example-08", "cube-ranger"], ["example-09", "sunlit-market-adventurer"]];
+  for (const [id, slug] of cases) {
+    assert.match(stories, new RegExp(`slug: "${slug}"`));
+    assert.match(stories, new RegExp(`resultImage: "/examples/results/${id}\\.png"`));
+    const resultImage = await readFile(new URL(`../public/examples/results/${id}.png`, import.meta.url));
+    assert.deepEqual([...resultImage.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
+  }
+});
+
+test("example lists render every color in each saved palette", async () => {
+  const component = await readFile(new URL("../app/ExamplePages.tsx", import.meta.url), "utf8");
+  assert.match(component, /example\.palette\.map/);
+  assert.doesNotMatch(component, /example\.palette\.slice\(/);
 });
 
 test("special palette colors and local conversion milestones use a separate easter egg toast", async () => {
@@ -866,4 +931,27 @@ test("special palette colors and local conversion milestones use a separate east
   assert.match(css, /@keyframes easter-toast-out/);
   assert.match(css, /@keyframes easter-toast-out \{ from \{ opacity:1; transform:translateX\(-50%\); \} to \{ opacity:0; transform:translateX\(-50%\); \} \}/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
+});
+test("public FAQ expands with accessible smooth animation", async () => {
+  const [component, css] = await Promise.all([
+    readFile(new URL("../app/LandingPage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/home.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(component, /function FaqItem/);
+  assert.match(component, /aria-expanded=\{open\}/);
+  assert.match(component, /className="public-faq-answer"/);
+  assert.match(css, /\.public-faq-answer \{[^}]*grid-template-rows: 0fr/);
+  assert.match(css, /\.public-faq-item\.is-open \.public-faq-answer \{[^}]*grid-template-rows: 1fr/);
+  assert.match(css, /\.public-faq-answer p \{[^}]*margin: 0 0 22px/);
+  assert.doesNotMatch(css, /\.public-faq-answer p \{[^}]*margin: -/);
+  assert.match(css, /prefers-reduced-motion: reduce/);
+});
+
+test("light mode guide cards remain distinct from their tinted section", async () => {
+  const css = await readFile(new URL("../app/home.css", import.meta.url), "utf8");
+  assert.match(css, /\.public-guides \{[^}]*var\(--mint\) 62%/);
+  assert.match(css, /\.public-guide-grid a \{[^}]*background: var\(--panel\);[^}]*box-shadow:/);
+  assert.match(css, /html\[data-theme="dark"\] \.public-guides/);
+  assert.match(css, /html\[data-theme="dark"\] \.public-guide-grid a/);
 });

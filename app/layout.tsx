@@ -1,10 +1,33 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import "./globals.css";
 import "./info.css";
+import "./home.css";
+import { isLanguage } from "./public-locale";
 
 export const metadata: Metadata = {
-  title: "Palette Forge — 이미지·영상 팔레트 변환",
+  metadataBase: new URL("https://paletteforge.org"),
+  title: {
+    default: "Palette Forge | 이미지·영상 팔레트 변환",
+    template: "Palette Forge | %s",
+  },
   description: "이미지와 영상을 색상 제한, 고정 팔레트, 색 보정과 픽셀화로 변환하는 브라우저 기반 로컬 도구",
+  applicationName: "Palette Forge",
+  authors: [{ name: "Palette Forge" }],
+  creator: "Palette Forge",
+  openGraph: {
+    type: "website",
+    siteName: "Palette Forge",
+    locale: "ko_KR",
+    url: "https://paletteforge.org",
+    title: "Palette Forge | 이미지·영상 팔레트 변환",
+    description: "원하는 색을 정확히 고정하고 이미지와 영상을 제한된 팔레트로 재구성하는 브라우저 도구",
+  },
+  twitter: {
+    card: "summary",
+    title: "Palette Forge",
+    description: "원하는 색을 직접 고르고 이미지와 영상을 새롭게 구성하세요.",
+  },
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
@@ -19,9 +42,11 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const requestedLanguage = (await headers()).get("x-palette-forge-language") ?? "ko";
+  const language = isLanguage(requestedLanguage) ? requestedLanguage : "ko";
   return (
-    <html lang="ko">
+    <html lang={language}>
       <head>
         <meta name="theme-color" content="#17213a" />
         <link rel="icon" href="/favicon.ico" sizes="any" />
