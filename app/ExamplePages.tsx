@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { PublicFooter, PublicHeader, usePublicPreferences } from "./PublicChrome";
 import { type ExampleStory, EXAMPLE_STORIES, PUBLIC_COPY, examplePreviewImage } from "./site-content";
 import type { Language } from "./languages";
@@ -22,11 +21,11 @@ const COPY: Record<Language, {
 function ExampleCard({ example, language }: { example: ExampleStory; language: Language }) {
   const copy = COPY[language];
   return <article>
-    <Link className="example-image-link public-checker" href={localizedPublicPath(language, `/examples/${example.slug}`)}><img src={examplePreviewImage(example.resultImage)} alt={example.name[language]} loading="lazy" decoding="async" /><span>{example.colorCount} {copy.colors.toUpperCase()}</span></Link>
+    <a className="example-image-link public-checker" href={localizedPublicPath(language, `/examples/${example.slug}`)}><img src={examplePreviewImage(example.resultImage)} alt={example.name[language]} loading="lazy" decoding="async" /><span>{example.colorCount} {copy.colors.toUpperCase()}</span></a>
     <div className="example-card-copy">
       <div className="example-swatches">{example.palette.map((color, index) => <i key={`${color}-${index}`} style={{ background: color }} title={color} />)}</div>
       <h3>{example.name[language]}</h3><p>{example.summary[language]}</p>
-      <Link href={localizedPublicPath(language, `/examples/${example.slug}`)}>{copy.read}<span>↗</span></Link>
+      <a href={localizedPublicPath(language, `/examples/${example.slug}`)}>{copy.read}<span>↗</span></a>
     </div>
   </article>;
 }
@@ -70,7 +69,7 @@ export function ExampleArticle({ example, initialLanguage }: { example: ExampleS
             <li><span>{copy.pixel}</span><strong>{pixelValue}</strong></li>
           </ul></section>
           <p className="public-ai-note">{copy.ai}</p>
-          <div className="example-detail-actions"><Link href={`/editor?example=${example.id}`}>{copy.open}<span>→</span></Link><Link href={localizedPublicPath(language, "/examples")}>{copy.back}</Link></div>
+          <div className="example-detail-actions"><a href={`/editor?example=${example.id}`}>{copy.open}<span>→</span></a><a href={localizedPublicPath(language, "/examples")}>{copy.back}</a></div>
         </div>
       </div>
     </article>

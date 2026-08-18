@@ -442,6 +442,24 @@ test("the editor contains no ad slots or advertising requests", async () => {
   assert.match(editorPage, /<PaletteStudio \/>/);
 });
 
+test("public pages use deployment-safe same-tab document navigation", async () => {
+  const components = await Promise.all([
+    readFile(new URL("../app/LandingPage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/PublicChrome.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/ExamplePages.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/examples/[slug]/page.tsx", import.meta.url), "utf8"),
+  ]);
+  for (const component of components) {
+    assert.doesNotMatch(component, /from "next\/link"|<Link/);
+    assert.doesNotMatch(component, /target="_blank"/);
+  }
+  assert.match(components[0], /<a className="public-primary" href="\/editor">/);
+  assert.match(components[0], /<a href=\{localizedPublicPath\(language, "\/examples"\)\}>/);
+  assert.match(components[1], /<a className="public-editor-button" href="\/editor">/);
+  assert.match(components[2], /<a href=\{`\/editor\?example=\$\{example\.id\}`\}>/);
+  assert.match(components[1], /window\.location\.assign\(targetPath\)/);
+});
+
 test("AdSense account metadata remains global while the ad script loads only on the content-rich home", async () => {
   const [layout, page, editorPage] = await Promise.all([
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),

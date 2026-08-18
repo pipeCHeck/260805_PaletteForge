@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { PublicFooter, PublicHeader, usePublicPreferences } from "./PublicChrome";
 import { EXAMPLE_STORIES, PUBLIC_COPY, examplePreviewImage, type ExampleStory } from "./site-content";
@@ -107,7 +106,7 @@ export default function LandingPage({ initialLanguage }: { initialLanguage?: Lan
         <span className="public-eyebrow">{copy.eyebrow}</span>
         <h1><span>{copy.title1}</span><span>{copy.title2}</span></h1>
         <p>{copy.lead}</p>
-        <div className="public-hero-actions"><Link className="public-primary" href="/editor">{copy.primary}<span>→</span></Link><a className="public-secondary" href="#examples">{copy.secondary}</a></div>
+        <div className="public-hero-actions"><a className="public-primary" href="/editor">{copy.primary}<span>→</span></a><a className="public-secondary" href="#examples">{copy.secondary}</a></div>
         <ul className="public-trust"><li><i>✓</i>{copy.fixed}</li><li><i>✓</i>{copy.local}</li><li><i>✓</i>{copy.video}</li></ul>
       </div>
       <div className="public-hero-demo" aria-label={heroExample?.name[language]} aria-busy={!heroExample}>
@@ -145,10 +144,10 @@ export default function LandingPage({ initialLanguage }: { initialLanguage?: Lan
     </section>
 
     <section className="public-section public-examples" id="examples">
-      <header><div><span className="public-eyebrow">{copy.exampleEyebrow}</span><h2>{copy.exampleTitle}</h2><p>{copy.exampleLead}</p></div><Link href={localizedPublicPath(language, "/examples")}>{copy.allExamples}<span>→</span></Link></header>
+      <header><div><span className="public-eyebrow">{copy.exampleEyebrow}</span><h2>{copy.exampleTitle}</h2><p>{copy.exampleLead}</p></div><a href={localizedPublicPath(language, "/examples")}>{copy.allExamples}<span>→</span></a></header>
       <div className="public-example-grid">{featured.map((example) => <article key={example.id}>
-        <Link className="example-image-link public-checker" href={localizedPublicPath(language, `/examples/${example.slug}`)}><img src={examplePreviewImage(example.resultImage)} alt={example.name[language]} loading="lazy" decoding="async" /><span>{example.colorCount} COLORS</span></Link>
-        <div className="example-card-copy"><div className="example-swatches">{example.palette.map((color) => <i key={color} style={{ background: color }} title={color} />)}</div><h3>{example.name[language]}</h3><p>{example.summary[language]}</p><Link href={localizedPublicPath(language, `/examples/${example.slug}`)}>{copy.openCase}<span>↗</span></Link></div>
+        <a className="example-image-link public-checker" href={localizedPublicPath(language, `/examples/${example.slug}`)}><img src={examplePreviewImage(example.resultImage)} alt={example.name[language]} loading="lazy" decoding="async" /><span>{example.colorCount} COLORS</span></a>
+        <div className="example-card-copy"><div className="example-swatches">{example.palette.map((color) => <i key={color} style={{ background: color }} title={color} />)}</div><h3>{example.name[language]}</h3><p>{example.summary[language]}</p><a href={localizedPublicPath(language, `/examples/${example.slug}`)}>{copy.openCase}<span>↗</span></a></div>
       </article>)}</div>
       <p className="public-ai-note">{copy.aiNote}</p>
     </section>
@@ -169,7 +168,7 @@ export default function LandingPage({ initialLanguage }: { initialLanguage?: Lan
       <div>{copy.faqs.map(([question, answer]) => <FaqItem key={question} question={question} answer={answer} />)}</div>
     </section>
 
-    <section className="public-final-cta"><img src="/icon-192.png" alt="" width={82} height={82} loading="lazy" decoding="async" /><div><span className="public-eyebrow">PALETTE FORGE</span><h2>{copy.title1}<br />{copy.title2}</h2></div><Link href="/editor">{copy.primary}<span>→</span></Link></section>
+    <section className="public-final-cta"><img src="/icon-192.png" alt="" width={82} height={82} loading="lazy" decoding="async" /><div><span className="public-eyebrow">PALETTE FORGE</span><h2>{copy.title1}<br />{copy.title2}</h2></div><a href="/editor">{copy.primary}<span>→</span></a></section>
     <PublicFooter language={language} />
   </main>;
 }
