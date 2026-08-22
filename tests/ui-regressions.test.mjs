@@ -897,6 +897,8 @@ test("the public hero compares each original and converted example with pointer 
   assert.match(css, /\.hero-badge-layer \{[^}]*top: 36px;[^}]*left: 40px;[^}]*right: 40px/);
   assert.match(css, /\.hero-compare-status \{[^}]*gap: 6px/);
   assert.doesNotMatch(css, /\.hero-image-frame \{[^}]*transform:/);
+  assert.match(css, /\.hero-image-frame \{[^}]*z-index: 1;[^}]*isolation: isolate;/);
+  assert.match(css, /\.hero-palette-card \{[^}]*z-index: 2;/);
   assert.match(css, /\.hero-compare-label \{[^}]*min-height: 26px;[^}]*padding: 0 9px/);
   assert.match(css, /\.hero-local-badge \{[^}]*min-height: 26px;[^}]*padding: 0 9px/);
   assert.match(css, /\.hero-local-badge \{[^}]*border: 1px solid rgba\(255,255,255,\.13\)/);
